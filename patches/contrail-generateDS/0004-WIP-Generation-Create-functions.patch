@@ -1,0 +1,240 @@
+From 3345ab5b288e3236529d373348d6f5d6539e2873 Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Thu, 28 Sep 2017 15:05:21 +0200
+Subject: [PATCH 4/9] WIP: Generation Create functions
+
+---
+ golang_api.py         | 41 +++++++++++++++++++++--------------------
+ terraform_mappings.py | 17 +++++++++++++----
+ 2 files changed, 34 insertions(+), 24 deletions(-)
+
+diff --git a/golang_api.py b/golang_api.py
+index 03d7712..8e7e8aa 100644
+--- a/golang_api.py
++++ b/golang_api.py
+@@ -62,6 +62,7 @@ package types
+ 
+ import (
+         "encoding/json"
++        "math/big"
+ 
+         "github.com/Juniper/contrail-go-api"
+ )
+@@ -224,7 +225,7 @@ func (obj *%(typecamel)s) Add%(fieldcamel)s(value %(ptr)s%(fieldtype)s) {
+         for field in fields:
+             file.write("\n\t%s_%s" % (ident.getCIdentifierName(), field))
+             if first:
+-                file.write(" uint64 = 1 << iota")
++                file.write(" int = iota")
+                 first = False
+         file.write("\n)\n")
+     # end _GenerateConstFlags
+@@ -268,8 +269,8 @@ type %(camel)s struct {
+                    link_from.getCIdentifierName()
+             file.write(decl)
+ 
+-        decl = """        valid uint64
+-        modified uint64
++        decl = """        valid *big.Int
++        modified *big.Int
+         baseMap map[string]contrail.ReferenceList
+ }
+ """
+@@ -329,7 +330,7 @@ func (obj *%(camel)s) hasReferenceBase(name string) bool {
+ }
+ 
+ func (obj *%(camel)s) UpdateDone() {
+-        obj.modified = 0
++        obj.modified = big.NewInt(0)
+         obj.baseMap = nil
+ }
+ 
+@@ -351,7 +352,7 @@ func (obj *%(typecamel)s) Get%(fieldcamel)s() %(fieldtype)s {
+ 
+ func (obj *%(typecamel)s) Set%(fieldcamel)s(value %(ptr)s%(fieldtype)s) {
+         obj.%(fieldid)s = %(ptr)svalue
+-        obj.modified |= %(typeid)s_%(fieldid)s
++        obj.modified.SetBit(obj.modified, %(typeid)s_%(fieldid)s, 1)
+ }
+ """ \
+             % {'typecamel': ident.getCppName(),
+@@ -401,7 +402,7 @@ func (obj *%(typecamel)s) Set%(fieldcamel)s(value %(ptr)s%(fieldtype)s) {
+         decl = """
+ func (obj *%(typecamel)s) read%(fieldcamel)s%(methodsuffix)s() error {
+         if !obj.IsTransient() &&
+-                (obj.valid & %(typeid)s_%(fieldid)s%(suffix)s == 0) {
++                (obj.valid.Bit(%(typeid)s_%(fieldid)s%(suffix)s) == 0) {
+                 err := obj.GetField(obj, "%(fieldid)s%(suffix)s")
+                 if err != nil {
+                         return err
+@@ -463,14 +464,14 @@ func (obj *%(typecamel)s) Add%(fieldcamel)s(
+                 return err
+         }
+ 
+-        if obj.modified & %(typeid)s_%(fieldid)s_refs == 0 {
++        if obj.modified.Bit(%(typeid)s_%(fieldid)s_refs) == 0 {
+                 obj.storeReferenceBase("%(fieldname)s", obj.%(fieldid)s_refs)
+         }
+ 
+         ref := contrail.Reference {
+                 rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), %(data)s}
+         obj.%(fieldid)s_refs = append(obj.%(fieldid)s_refs, ref)
+-        obj.modified |= %(typeid)s_%(fieldid)s_refs
++        obj.modified.SetBit(obj.modified,%(typeid)s_%(fieldid)s_refs, 1)
+         return nil
+ }
+ 
+@@ -480,7 +481,7 @@ func (obj *%(typecamel)s) Delete%(fieldcamel)s(uuid string) error {
+                 return err
+         }
+ 
+-        if obj.modified & %(typeid)s_%(fieldid)s_refs == 0 {
++        if obj.modified.Bit(%(typeid)s_%(fieldid)s_refs) == 0 {
+                 obj.storeReferenceBase("%(fieldname)s", obj.%(fieldid)s_refs)
+         }
+ 
+@@ -492,18 +493,18 @@ func (obj *%(typecamel)s) Delete%(fieldcamel)s(uuid string) error {
+                         break
+                 }
+         }
+-        obj.modified |= %(typeid)s_%(fieldid)s_refs
++        obj.modified.SetBit(obj.modified, %(typeid)s_%(fieldid)s_refs, 1)
+         return nil
+ }
+ 
+ func (obj *%(typecamel)s) Clear%(fieldcamel)s() {
+-        if (obj.valid & %(typeid)s_%(fieldid)s_refs != 0) &&
+-           (obj.modified & %(typeid)s_%(fieldid)s_refs == 0) {
++        if (obj.valid.Bit(%(typeid)s_%(fieldid)s_refs) != 0) &&
++           (obj.modified.Bit(%(typeid)s_%(fieldid)s_refs) == 0) {
+                 obj.storeReferenceBase("%(fieldname)s", obj.%(fieldid)s_refs)
+         }
+         obj.%(fieldid)s_refs = make([]contrail.Reference, 0)
+-        obj.valid |= %(typeid)s_%(fieldid)s_refs
+-        obj.modified |= %(typeid)s_%(fieldid)s_refs
++        obj.valid.SetBit(obj.valid, %(typeid)s_%(fieldid)s_refs, 1)
++        obj.modified.SetBit(obj.modified, %(typeid)s_%(fieldid)s_refs, 1)
+ }
+ 
+ func (obj *%(typecamel)s) Set%(fieldcamel)sList(
+@@ -546,7 +547,7 @@ func (obj *%(camel)s) MarshalJSON() ([]byte, error) {
+ 
+         for prop in ident.getProperties():
+             decl = """
+-        if obj.modified & %(typeid)s_%(fieldid)s != 0 {
++        if obj.modified.Bit(%(typeid)s_%(fieldid)s) != 0 {
+                 var value json.RawMessage
+                 value, err := json.Marshal(&obj.%(fieldid)s)
+                 if err != nil {
+@@ -630,7 +631,7 @@ func (obj *%(camel)s) UnmarshalJSON(body []byte) error {
+                 case "%(field)s":
+                         err = json.Unmarshal(value, &obj.%(field)s)
+                         if err == nil {
+-                                obj.valid |= %(typeid)s_%(field)s
++                                obj.valid.SetBit(obj.valid, %(typeid)s_%(field)s, 1)
+                         }
+                         break""" % {'typeid': ident.getCIdentifierName(),
+                                     'field': field}
+@@ -650,7 +651,7 @@ func (obj *%(camel)s) UnmarshalJSON(body []byte) error {
+                         if err != nil {
+                             break
+                         }
+-                        obj.valid |= %(typeid)s_%(field)s
++                        obj.valid.SetBit(obj.valid, %(typeid)s_%(field)s, 1)
+                         obj.%(field)s = make(contrail.ReferenceList, 0)
+                         for _, element := range array {
+                                 ref := contrail.Reference {
+@@ -694,7 +695,7 @@ func (obj *%(camel)s) UpdateObject() ([]byte, error) {
+ 
+         for prop in ident.getProperties():
+             decl = """
+-        if obj.modified & %(typeid)s_%(fieldid)s != 0 {
++        if obj.modified.Bit(%(typeid)s_%(fieldid)s) != 0 {
+                 var value json.RawMessage
+                 value, err := json.Marshal(&obj.%(fieldid)s)
+                 if err != nil {
+@@ -712,7 +713,7 @@ func (obj *%(camel)s) UpdateObject() ([]byte, error) {
+                 continue
+             link_to = ident.getLinkTo(link_info)
+             decl = """
+-        if obj.modified & %(typeid)s_%(fieldid)s_refs != 0 {
++        if obj.modified.Bit(%(typeid)s_%(fieldid)s_refs) != 0 {
+                 if len(obj.%(fieldid)s_refs) == 0 {
+                         var value json.RawMessage
+                         value, err := json.Marshal(
+@@ -760,7 +761,7 @@ func (obj *%(camel)s) UpdateReferences() error {
+                 continue
+             link_to = ident.getLinkTo(link_info)
+             decl = """
+-        if (obj.modified & %(typeid)s_%(fieldid)s_refs != 0) &&
++        if (obj.modified.Bit(%(typeid)s_%(fieldid)s_refs) != 0) &&
+            len(obj.%(fieldid)s_refs) > 0 &&
+            obj.hasReferenceBase("%(fieldname)s") {
+                 err := obj.UpdateReference(
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index ddea06c..2bf8356 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -190,18 +190,23 @@ func %(camel)s() map[string]*schema.Schema {
+             setme = "\tobject.%s = val.(%s)" % (
+                 CamelCase(member.membername), gotype)
+             obj = ""
++            val = "val"
+             if not is_pod:
+                 obj = "\tmember := new(%s)\n" % origtype
+                 setme = "\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")" % { "type": origtype, "name": member.membername }
+             if member.isSequence:
++                obj = ""
+                 if not is_pod:
+                     gotype = "*"+origtype
+                 setme = """\tfor _, v := range val.([]interface{}) {
+ \t\tobject.Add%(member)s(v.(%(gotype)s))
+ \t}""" % { "gotype": gotype, "member": CamelCase(member.membername) }
+-            decl = """\tif val, ok := d.GetOk(key+"%(name)s"); ok {
++            if not is_pod and not member.isSequence:
++                val = "_"
++            decl = """\tif %(val)s, ok := d.GetOk(key+"%(name)s"); ok {
+ %(member_obj)s%(setme)s
+-}\n""" % {"name": member.membername, "member_obj": obj, "setme": setme}
++}\n""" % {"name": member.membername, "member_obj": obj, "setme": setme,
++          "val": val}
+             setters += decl
+         return setters
+ 
+@@ -250,6 +255,7 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \tif err := client.Create(object); err != nil {
+ \t\treturn fmt.Errorf("Creation of resource %(name)s on %%v", client.GetServer())
+ \t}
++\td.SetId(object.uuid)
+ \treturn nil
+ }
+ """ % {"camel": ResName(ctype.getName()), "client": self._SnippetGetClient(),
+@@ -340,13 +346,15 @@ func %(schema)s() map[string]*schema.Schema {
+             is_pod = IsPodType(gotype)
+             value = "val.(%(type)s)" % { "type": gotype }
+             obj = ""
++            val = "val"
+             if not is_pod:
++                val = "_"
+                 obj = "\tmember := new(%(type)s)\n\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")\n" % {"type": gotype, "name": prop.getCIdentifierName()}
+                 value = "member"
+-            decl = """if val, ok := d.GetOk("%(name)s"); ok {
++            decl = """if %(val)s, ok := d.GetOk("%(name)s"); ok {
+ %(member_obj)s\tobject.Set%(field)s(%(value)s)
+ }\n""" % {"name": prop.getCIdentifierName(), "field": prop.getCppName(),
+-          "value": value, "member_obj": obj}
++          "value": value, "member_obj": obj, "val": val}
+             setters += decl
+         return setters
+ 
+@@ -376,6 +384,7 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \tif err := client.Create(object); err != nil {
+ \t\treturn fmt.Errorf("Creation of resource %(name)s on %%v", client.GetServer())
+ \t}
++\td.SetId(object.uuid)
+ \treturn nil
+ }
+ """ % {"camel": ResName(ident.getCppName()),
+-- 
+2.7.4
+

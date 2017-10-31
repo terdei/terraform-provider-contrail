@@ -1,0 +1,84 @@
+From 7fd0e5f6cd0f56628aac6e9c69c88565ca5ecc0d Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Thu, 28 Sep 2017 18:14:18 +0200
+Subject: [PATCH 5/9] WIP: Draft on Read generation
+
+---
+ terraform_mappings.py | 29 +++++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index 2bf8356..3c5f651 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -255,7 +255,7 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \tif err := client.Create(object); err != nil {
+ \t\treturn fmt.Errorf("Creation of resource %(name)s on %%v", client.GetServer())
+ \t}
+-\td.SetId(object.uuid)
++\td.SetId(object.GetUuid())
+ \treturn nil
+ }
+ """ % {"camel": ResName(ctype.getName()), "client": self._SnippetGetClient(),
+@@ -378,18 +378,18 @@ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interf
+         decl = """
+ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \t%(client)s
+-\tobject := new(%(name)s)
+-\tSet%(name)sFromResource(object, d, m)
++\tobject := new(%(type)s)
++\tSet%(type)sFromResource(object, d, m)
+ 
+ \tif err := client.Create(object); err != nil {
+-\t\treturn fmt.Errorf("Creation of resource %(name)s on %%v", client.GetServer())
++\t\treturn fmt.Errorf("Creation of resource %(type)s on %%v", client.GetServer())
+ \t}
+-\td.SetId(object.uuid)
++\td.SetId(object.GetUuid())
+ \treturn nil
+ }
+ """ % {"camel": ResName(ident.getCppName()),
+        "client": self._SnippetGetClient(),
+-       "name": ident.getCppName()}
++       "type": ident.getCppName() }
+         file.write(decl)
+ 
+ # ------------------- Read Object -------------------------------
+@@ -397,9 +397,17 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+         decl = """
+ func %(camel)sRead(d *schema.ResourceData, m interface{}) error {
+ \t%(client)s
++\tbase, err := client.FindByUuid("%(typename)s", d.Id())
++\tif err != nil {
++\t\treturn fmt.Errorf("Read resource %(typename)s on %%v", client.GetServer())
++\t}
++\tobject := base.(*%(type)s)
++//\tWrite%(type)sToResource(object, d, m)
+ \treturn nil
+ }
+-""" % {"camel": ResName(ident.getCppName()), "client": self._SnippetGetClient()}
++""" % {"camel": ResName(ident.getCppName()),
++       "client": self._SnippetGetClient(),
++       "type": ident.getCppName(), "typename": ident.getName()}
+         file.write(decl)
+ 
+ # ------------------- Update Object -------------------------------
+@@ -417,9 +425,14 @@ func %(camel)sUpdate(d *schema.ResourceData, m interface{}) error {
+         decl = """
+ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+ \t%(client)s
++\tif err := client.DeleteByUuid("%(typename)s", d.Id()); err != nil {
++\t\treturn fmt.Errorf("Deletion of resource %(typename)s on %%v", client.GetServer())
++\t}
++\td.SetId("")
+ \treturn nil
+ }
+-""" % {"camel": ResName(ident.getCppName()), "client": self._SnippetGetClient()}
++""" % {"camel": ResName(ident.getCppName()),
++       "client": self._SnippetGetClient(), "typename": ident.getName()}
+         file.write(decl)
+ 
+ # ------------------- Generate (public method) -------------------------------
+-- 
+2.7.4
+

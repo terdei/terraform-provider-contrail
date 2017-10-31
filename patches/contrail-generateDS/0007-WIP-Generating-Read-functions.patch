@@ -1,0 +1,306 @@
+From 30ba1729325e37792bf89a91f1b9e341994c6178 Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Thu, 5 Oct 2017 10:37:38 +0200
+Subject: [PATCH 7/9] WIP: Generating Read functions
+
+---
+ terraform_mappings.py | 144 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 121 insertions(+), 23 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index 37e82a0..f3426c7 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -10,12 +10,16 @@ from ifmap_global import CamelCase, getGoLangType
+ 
+ def dump(obj):
+     """Helper for logging objects."""
++    skip_fn = True
++    use_lines = True
+     objstr = "%s -> " % obj.__str__()
+     pattern = re.compile("^__.*__$")
+     for attr in dir(obj):
+-        if pattern.match(attr):
++        if pattern.match(attr) and skip_fn:
+             continue
+         objstr += ("@.%s = %s; " % (attr, getattr(obj, attr)))
++        if use_lines:
++            objstr += "\n"
+     return objstr
+ 
+ def ResName(name):
+@@ -47,7 +51,13 @@ def IsPodType(name):
+ 
+ # ------------------- Terraform mappings Class -------------------------------
+ class TerraformMappingsGenerator(object):
++    _NAME = "contrail"
++    @property
++    def NAME(self):
++        return type(self)._NAME
++
+     def __init__(self, parser, type_map, identifiers, metadata):
++        self.once = True
+         self._parser = parser
+         self._type_map = type_map
+         self._metadata_map = metadata
+@@ -69,16 +79,18 @@ class TerraformMappingsGenerator(object):
+ package resources
+ 
+ import (
+-    //"github.com/Juniper/contrail-go-api"
+     "github.com/hashicorp/terraform/helper/schema"
+ )
+ 
+ var ContrailResourcesMap = map[string]*schema.Resource{
+ """
+         file.write(decl)
+-        for ident in self._identifier_map.values():
+-            decl = '\t"%s": %s(),\n' % \
+-                   (ident.getName(), ResName(ident.getCppName()))
++        for ident in sorted(self._identifier_map.values(),
++                            key=lambda x: x.getCIdentifierName()):
++            decl = '\t"%(provider)s_%(name)s": %(res)s(),\n' % {
++                "name": ident.getCIdentifierName().lower(),
++                "res": ResName(ident.getCppName()),
++                "provider": self.NAME }
+             file.write(decl)
+ 
+         decl = """
+@@ -92,6 +104,9 @@ var ContrailResourcesMap = map[string]*schema.Resource{
+         """ Generate the class corresponding to an IF-MAP Identifier
+         defined in the schema.
+         """
++# Normalize names for terraform resources
++# Terraform requires resource names as:
++#'only contain lowercase alphanumeric characters & underscores.'
+         file = self._parser.makeFile(filename)
+ 
+         header = """//
+@@ -107,6 +122,7 @@ import (
+ 
+         "github.com/hashicorp/terraform/helper/schema"
+         "github.com/Juniper/contrail-go-api"
++        "github.com/davecgh/go-spew/spew"
+ )
+ 
+ """
+@@ -146,6 +162,7 @@ import (
+                 continue
+             self._GenerateCType(deptype, file)
+         self._GenerateCTypeTerraformResourceSetFrom(ctype, file)
++        self._GenerateCTypeTerraformResourceWriteTo(ctype, file)
+         #self._GenerateCTypeTerraformResourceCreate(ctype, file)
+         self._GenerateCTypeTerraformResourceRead(ctype, file)
+         #self._GenerateCTypeTerraformResourceUpdate(ctype, file)
+@@ -161,9 +178,23 @@ func %(camel)s() map[string]*schema.Schema {
+         file.write(decl)
+ 
+         for member in ctype.getDataMembers():
++            #print "Member dump: " + dump(member.xsd_object) + "\m"
+             elem = ""
++            req = ''
+             mtype = TerraformTypeName(member.xsd_object.getType(),
+                                           orig_name = True)
++            if member.xsd_object.required == True:
++                req = 'true'
++            elif member.xsd_object.required == False:
++                req = 'false'
++            elif member.xsd_object.required == 'optional':
++                req = 'false'
++            else:
++                print "For " + ctype.getName() + "->" + member.membername +\
++                    " field 'optional' is not handled correctly! Value:" +\
++                    member.xsd_object.required.__str__() +\
++                    str(type(member.xsd_object.required))
++                req = 'false'
+             if member.isComplex or member.isSequence:
+                 if member.isComplex:
+                     elem = "\n\t\t\tElem: %s," % (SchemaName(mtype) + "()")
+@@ -173,11 +204,13 @@ func %(camel)s() map[string]*schema.Schema {
+ 
+             decl = """\t\t"%(name)s": &schema.Schema{
+ \t\t\t // Cmplx: %(cpx)s; Seq: %(seq)s; Type: %(xsdtype)s
+-\t\t\tRequired: true,
++\t\t\tRequired: %(req)s,
+ \t\t\tType: %(type)s,%(elem)s
+ \t\t},\n""" % {'name': member.membername, 'type':mtype, 'elem':elem, 'cpx':
+                member.isComplex, 'seq': member.isSequence, 'xsdtype':
+-               member.xsd_object.getType()}
++               member.xsd_object.getType(),
++               "req": req
++               }
+             file.write(decl)
+         file.write('\t}\n}\n')
+ 
+@@ -212,7 +245,7 @@ func %(camel)s() map[string]*schema.Schema {
+         return setters
+ 
+ # ------------------- Set From Resource CType -------------------------------
+-    def _GenerateCTypeTerraformResourceSetFrom(self, ident, file):
++    def _GenerateCTypeTerraformResourceSetFrom(self, ctype, file):
+         decl = """
+ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
+ \tkey := strings.Join(prefix, ".")
+@@ -220,9 +253,69 @@ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interf
+ \t\tkey = key + "."
+ \t}
+ %(setters)s}
+-""" %{"camel": ident.getName(), "setters":
+-      '\t'.join(self._GenerateCTypeSetPropertyMethods(ident).splitlines(True)),
+-      "name": ident.getName()}
++""" %{"camel": ctype.getName(), "setters":
++      '\t'.join(self._GenerateCTypeSetPropertyMethods(ctype).splitlines(True)),
++      "name": ctype.getName()}
++        file.write(decl)
++
++# ------------------- Properties Writer CType -------------------------------
++    def _GenerateCTypeWritePropertyMethods(self, ctype):
++        writers = "\n"
++        for member in ctype.getDataMembers():
++            origtype = member.xsd_object.getType()
++            gotype = getGoLangType(origtype)
++            is_pod = IsPodType(gotype)
++            field = CamelCase(member.membername)
++            setter = "d.Set(\"%(name)s\", object.%(field)s)\n" % {
++                "name": member.membername, "field": field }
++            ptr = "" if member.isSequence else "*"
++            ttype = TerraformTypeName(origtype, orig_name = True)
++            #obj = ""
++            #val = "val"
++            #if not is_pod:
++                #obj = "\tmember := new(%s)\n" % origtype
++                #setme = "\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")" % { "type": origtype, "name": member.membername }
++            if member.isSequence:
++                #if not is_pod:
++                    #gotype = "*"+origtype
++                #obj = "arr := make([]%(gotype)s, len(object.%(field)s.([]interface{})))" % gotype
++                setter = """\t%(name)s_arr := make([]%(gotype)s, len(object.%(field)s))
++\tfor _, v := range object.%(field)s {
++\t\t%(name)s_arr = append(%(name)s_arr, v)
++\t}
++\td.Set(\"%(name)s\", %(name)s_arr)\n""" % { "gotype": gotype, "field": field, "ttype": ttype,
++            "name": member.membername }
++            #if not is_pod and not member.isSequence:
++                #val = "_"
++            #decl = """\tif %(val)s, ok := d.GetOk(key+"%(name)s"); ok {
++#%(member_obj)s%(setme)s
++#}\n""" % {"name": member.membername, "member_obj": obj, "setme": setme,
++          #"val": val}
++
++            # ORIG - wrong table/list handling
++            if not is_pod:
++                setter = "Write%(type)sToResource(%(ptr)sobject.%(member)s, d, m, key + \"%(name)s\")\n" % {
++                    "name": member.membername,
++                    "type": origtype, "member": field,
++                    "ptr": ptr}
++                if member.isSequence:
++                    setter = "// object.%s => DON'T KNOW (yet) HOW TO HANDLE THIS CASE AS TERRAFORM RESOURCES\n" % field
++            writers += setter
++        return writers
++
++# ------------------- Write To Resource CType -------------------------------
++    def _GenerateCTypeTerraformResourceWriteTo(self, ctype, file):
++        decl = """
++func Write%(name)sToResource(object %(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
++\tkey := strings.Join(prefix, ".")
++\tif len(key) != 0 {
++\t\tkey = key + "."
++\t}
++%(writers)s
++}
++""" %{ "client": self._SnippetGetClient(), "writers":
++      '\t'.join(self._GenerateCTypeWritePropertyMethods(ctype).splitlines(True)),
++      "name": ctype.getName() }
+         file.write(decl)
+ 
+ # ------------------- Resource CType -------------------------------
+@@ -328,7 +421,7 @@ func %(schema)s() map[string]*schema.Schema {
+             decl = """\t\t"%(name)s": &schema.Schema{
+ \t\t\tRequired: true,
+ \t\t\tType: %(type)s,
+-%(elem)s\t\t},\n""" % {"name": prop.getCIdentifierName(),
++%(elem)s\t\t},\n""" % {"name": prop.getCIdentifierName().lower(),
+                        "type": prop_type, "elem": elem}
+             file.write(decl)
+             ctype = prop.getCType()
+@@ -339,7 +432,7 @@ func %(schema)s() map[string]*schema.Schema {
+         decl = """\t}\n}\n"""
+         file.write(decl)
+ 
+-# ------------------- Properties Setter -------------------------------
++# ------------------- Properties Setter Object -------------------------------
+     def _GenerateSetPropertyMethods(self, ident):
+         setters = ""
+         for prop in ident.getProperties():
+@@ -350,11 +443,12 @@ func %(schema)s() map[string]*schema.Schema {
+             val = "val"
+             if not is_pod:
+                 val = "_"
+-                obj = "\tmember := new(%(type)s)\n\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")\n" % {"type": gotype, "name": prop.getCIdentifierName()}
++                obj = "\tmember := new(%(type)s)\n\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")\n" % {"type": gotype, "name":
++                                        prop.getCIdentifierName().lower()}
+                 value = "member"
+             decl = """if %(val)s, ok := d.GetOk("%(name)s"); ok {
+ %(member_obj)s\tobject.Set%(field)s(%(value)s)
+-}\n""" % {"name": prop.getCIdentifierName(), "field": prop.getCppName(),
++}\n""" % {"name": prop.getCIdentifierName().lower(), "field": prop.getCppName(),
+           "value": value, "member_obj": obj, "val": val}
+             setters += decl
+         return setters
+@@ -374,26 +468,27 @@ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interf
+       "name": ident.getCppName()}
+         file.write(decl)
+ 
+-# ------------------- Properties Writer -------------------------------
++# ------------------- Properties Writer Object -------------------------------
+     def _GenerateWritePropertyMethods(self, ident):
+         writers = "\n"
+         for prop in ident.getProperties():
+             gotype = prop.getGoLangTypename()
+             is_pod = IsPodType(gotype)
+             setter = "d.Set(\"%(name)s\", object.Get%(field)s())\n" % {
+-                "name": prop.getCIdentifierName(), "field": prop.getCppName()}
++                "name": prop.getCIdentifierName().lower(),
++                "field": prop.getCppName()}
+             if not is_pod:
+-                setter = "Write%(field)sToResource(object.Get%(field)s(), d, m, key + \"%(name)s\")\n" % \
+-                { "type": ident.getCppName(),
+-                 "name": prop.getCIdentifierName(),
+-                 "field": prop.getCppName()}
++                setter = "Write%(member)sToResource(object.Get%(field)s(), d, m, key + \"%(name)s\")\n" % {
++                    "name": prop.getCIdentifierName().lower(),
++                    "field": prop.getCppName(),
++                    "member": gotype }
+             writers += setter
+         return writers
+ 
+ # ------------------- Write To Resource Object -------------------------------
+     def _GenerateTerraformResourceWriteTo(self, ident, file):
+         decl = """
+-func Write%(camel)sToResource(object *%(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
++func Write%(camel)sToResource(object %(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
+ \tkey := strings.Join(prefix, ".")
+ \tif len(key) != 0 {
+ \t\tkey = key + "."
+@@ -410,6 +505,9 @@ func Write%(camel)sToResource(object *%(name)s, d *schema.ResourceData, m interf
+     def _GenerateTerraformResourceCreate(self, ident, file):
+         decl = """
+ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
++\t// SPEW
++\tspew.Dump(d)
++\t// SPEW
+ \t%(client)s
+ \tobject := new(%(type)s)
+ \tSet%(type)sFromResource(object, d, m)
+@@ -435,7 +533,7 @@ func %(camel)sRead(d *schema.ResourceData, m interface{}) error {
+ \t\treturn fmt.Errorf("Read resource %(typename)s on %%v", client.GetServer())
+ \t}
+ \tobject := base.(*%(type)s)
+-\tWrite%(type)sToResource(object, d, m)
++\tWrite%(type)sToResource(*object, d, m)
+ \treturn nil
+ }
+ """ % {"camel": ResName(ident.getCppName()),
+-- 
+2.7.4
+

@@ -1,0 +1,101 @@
+From 0a11851d99940aa817e199501b757666f8b1d9e0 Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Fri, 29 Sep 2017 16:43:17 +0200
+Subject: [PATCH 6/9] WIP: Generating writers for Object classes
+
+---
+ terraform_mappings.py | 43 ++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index 3c5f651..37e82a0 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -112,6 +112,7 @@ import (
+ """
+         file.write(header)
+         self._GenerateTerraformResourceSetFrom(ident, file)
++        self._GenerateTerraformResourceWriteTo(ident, file)
+         self._GenerateTerraformResourceCreate(ident, file)
+         self._GenerateTerraformResourceRead(ident, file)
+         self._GenerateTerraformResourceUpdate(ident, file)
+@@ -181,7 +182,7 @@ func %(camel)s() map[string]*schema.Schema {
+         file.write('\t}\n}\n')
+ 
+ # ------------------- Properties Setter CType -------------------------------
+-    def _GenerateCTypePropertyMethods(self, ctype):
++    def _GenerateCTypeSetPropertyMethods(self, ctype):
+         setters = ""
+         for member in ctype.getDataMembers():
+             origtype = member.xsd_object.getType()
+@@ -220,7 +221,7 @@ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interf
+ \t}
+ %(setters)s}
+ """ %{"camel": ident.getName(), "setters":
+-      '\t'.join(self._GenerateCTypePropertyMethods(ident).splitlines(True)),
++      '\t'.join(self._GenerateCTypeSetPropertyMethods(ident).splitlines(True)),
+       "name": ident.getName()}
+         file.write(decl)
+ 
+@@ -339,7 +340,7 @@ func %(schema)s() map[string]*schema.Schema {
+         file.write(decl)
+ 
+ # ------------------- Properties Setter -------------------------------
+-    def _GeneratePropertyMethods(self, ident):
++    def _GenerateSetPropertyMethods(self, ident):
+         setters = ""
+         for prop in ident.getProperties():
+             gotype = prop.getGoLangTypename()
+@@ -369,7 +370,39 @@ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interf
+ %(setters)s
+ }
+ """ %{"camel": ident.getCppName(), "setters":
+-      '\t'.join(self._GeneratePropertyMethods(ident).splitlines(True)),
++      '\t'.join(self._GenerateSetPropertyMethods(ident).splitlines(True)),
++      "name": ident.getCppName()}
++        file.write(decl)
++
++# ------------------- Properties Writer -------------------------------
++    def _GenerateWritePropertyMethods(self, ident):
++        writers = "\n"
++        for prop in ident.getProperties():
++            gotype = prop.getGoLangTypename()
++            is_pod = IsPodType(gotype)
++            setter = "d.Set(\"%(name)s\", object.Get%(field)s())\n" % {
++                "name": prop.getCIdentifierName(), "field": prop.getCppName()}
++            if not is_pod:
++                setter = "Write%(field)sToResource(object.Get%(field)s(), d, m, key + \"%(name)s\")\n" % \
++                { "type": ident.getCppName(),
++                 "name": prop.getCIdentifierName(),
++                 "field": prop.getCppName()}
++            writers += setter
++        return writers
++
++# ------------------- Write To Resource Object -------------------------------
++    def _GenerateTerraformResourceWriteTo(self, ident, file):
++        decl = """
++func Write%(camel)sToResource(object *%(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
++\tkey := strings.Join(prefix, ".")
++\tif len(key) != 0 {
++\t\tkey = key + "."
++\t}
++%(writers)s
++}
++""" %{"camel": ident.getCppName(), "client": self._SnippetGetClient(),
++      "writers":
++      '\t'.join(self._GenerateWritePropertyMethods(ident).splitlines(True)),
+       "name": ident.getCppName()}
+         file.write(decl)
+ 
+@@ -402,7 +435,7 @@ func %(camel)sRead(d *schema.ResourceData, m interface{}) error {
+ \t\treturn fmt.Errorf("Read resource %(typename)s on %%v", client.GetServer())
+ \t}
+ \tobject := base.(*%(type)s)
+-//\tWrite%(type)sToResource(object, d, m)
++\tWrite%(type)sToResource(object, d, m)
+ \treturn nil
+ }
+ """ % {"camel": ResName(ident.getCppName()),
+-- 
+2.7.4
+
