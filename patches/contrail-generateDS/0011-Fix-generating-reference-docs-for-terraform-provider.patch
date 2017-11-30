@@ -1,7 +1,7 @@
 From 64c7c3fa88a575c8968d7d2af94595f8ac6f4e48 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Tue, 14 Nov 2017 13:03:07 +0100
-Subject: [PATCH 11/11] Fix generating reference docs for terraform provider
+Subject: [PATCH 11/13] Fix generating reference docs for terraform provider
 
 ---
  terraform_mappings.py | 83 ++++++++++++++++++++++++++-------------------------

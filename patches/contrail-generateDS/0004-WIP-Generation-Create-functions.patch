@@ -1,7 +1,7 @@
 From 3345ab5b288e3236529d373348d6f5d6539e2873 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Thu, 28 Sep 2017 15:05:21 +0200
-Subject: [PATCH 04/11] WIP: Generation Create functions
+Subject: [PATCH 04/13] WIP: Generation Create functions
 
 ---
  golang_api.py         | 41 +++++++++++++++++++++--------------------

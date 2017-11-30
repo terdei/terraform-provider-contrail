@@ -1,0 +1,328 @@
+From 8e4666fa7e1ccd7541f9f12f9c7046ca83c76b0b Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Tue, 21 Nov 2017 15:57:35 +0100
+Subject: [PATCH 12/13] Generate schema for object references
+
+---
+ terraform_mappings.py | 182 ++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 145 insertions(+), 37 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index 3043638..800692e 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -173,8 +173,6 @@ Reference for terraform_%s_provider resources schema:
+         for ctype in sorted(self._top_level_map.values(),
+                             key=lambda x: x.getCIdentifierName()):
+             for deptype in ctype.getDependentTypes():
+-                if deptype.getName() in self._ctype_docs:
+-                    continue
+                 self._GenerateCTypeDocs(deptype, file)
+             self._GenerateCTypeDocs(ctype, file)
+ 
+@@ -182,7 +180,7 @@ Reference for terraform_%s_provider resources schema:
+     def _GenerateResourceDocfile(self, ident, file):
+         decl = """
+ \tname = <schema.TypeString>
+-\tparent_fq_name = <schema.TypeString>
++\tparent_uuid = <schema.TypeString> // If not set, default parent will be used
+ """
+         file.write(decl)
+         for prop in ident.getProperties():
+@@ -190,9 +188,11 @@ Reference for terraform_%s_provider resources schema:
+             if prop_type == "schema.TypeList":
+                 prop_type = 'contrail_' + prop.getGoLangTypename()
+             descr = prop._xelement.description
+-            elem = '\t%(name)s = <%(type)s>%(desc)s\n' % {
++            elem = '\t%(name)s = <%(type)s>%(opt)s%(desc)s\n' % {
+                 "name": prop.getCIdentifierName(),
+                 "type": prop_type,
++                "opt": " (Required)" if ResolveOptional(
++                    prop._xelement.getOptional()) else '',
+                 "desc": ' // ' + descr if descr is not None else ""}
+             file.write(elem)
+ 
+@@ -206,14 +206,18 @@ Reference for terraform_%s_provider resources schema:
+             if member.isSequence:
+                 mtype = ' [ %s ] ' % mtype
+             descr = member.xsd_object.description
+-            elem = '\n\t"%(name)s" = <%(type)s>%(desc)s' % {
++            elem = '\n\t"%(name)s" = <%(type)s>%(opt)s%(desc)s' % {
+                 'name': member.membername.lower(),
+                 'type': mtype,
++                'opt': ' (Required)' if ResolveOptional(
++                    member.xsd_object.required) else '',
+                 "desc": ' // ' + descr if descr is not None else ""}
+             file.write(elem)
+ 
+ # ------------------- CType snippet docs -------------------------------
+     def _GenerateCTypeDocs(self, ctype, file):
++        if ctype.getName() in self._ctype_docs:
++            return
+         self._ctype_docs.add(ctype.getName())
+         decl = '%(provider)s_%(name)s {' % {
+             "name": ctype.getName(),
+@@ -227,9 +231,11 @@ Reference for terraform_%s_provider resources schema:
+         """ Generate the class corresponding to an IF-MAP Identifier
+         defined in the schema.
+         """
+-# Normalize names for terraform resources
+-# Terraform requires resource names as:
+-#'only contain lowercase alphanumeric characters & underscores.'
++        fields = [prop.getCIdentifierName() for prop in ident.getProperties()]
++        fields.extend(self._IdentifierLinks(ident))
++        # Normalize names for terraform resources
++        # Terraform requires resource names as:
++        # 'only contain lowercase alphanumeric characters & underscores.'
+         file = self._parser.makeFile(filename)
+ 
+         header = """//
+@@ -291,6 +297,9 @@ import (
+         self._GenerateCTypeTerraformResourceWriteTo(ctype, file)
+         self._GenerateCTypeTerraformResourceRead(ctype, file)
+         self._GenerateCTypeTerraformResource(ctype, file)
++        # mark as generated
++        ctypename = ctype.getName()
++        self._top_level_map[ctypename] = self._type_map[ctypename]
+ 
+ # ------------------- Schema CType -------------------------------
+     def _GenerateCTypeTerraformResourceSchema(self, ctype, file):
+@@ -432,10 +441,6 @@ func %(camel)s() *schema.Resource {
+ """ % {"camel": ResName(ctype.getName())}
+         file.write(decl)
+ 
+-        # mark as generated
+-        ctypename = ctype.getName()
+-        self._top_level_map[ctypename] = self._type_map[ctypename]
+-
+ # ------------------- Create CType -------------------------------
+     def _GenerateCTypeTerraformResourceCreate(self, ctype, file):
+         decl = """
+@@ -500,11 +505,18 @@ func %(camel)s() *schema.Resource {
+ 
+ # ------------------- Schema Object -------------------------------
+     def _GenerateTerraformResourceSchema(self, ident, file):
+-        """ Generate the terraform element schema
++        """Generate the terraform element schema.
++
+         Use prop.getOperations() to determine possible acions (CRUD)
+         """
+-        # TODO Use prop.getOperations() to determine possible CRUD actions
+-        # TODO Verify if prop.getOperations() is usable/reliable
++        # Set references CTypes as referenced
++        for link_info in ident.getLinksInfo():
++            if not ident.isLinkHas(link_info):
++                datatype = self._getAttrType(ident, link_info)
++                if datatype:
++                    self._top_level_map[datatype] = self._type_map[datatype]
++
++        # TODO(KR) Use prop.getOperations() to determine possible CRUD actions
+         decl = """
+ func %(schema)s() map[string]*schema.Schema {
+ \treturn map[string]*schema.Schema{
+@@ -512,9 +524,9 @@ func %(schema)s() map[string]*schema.Schema {
+ \t\t\tType: schema.TypeString,
+ \t\t\tRequired: true,
+ \t\t},
+-\t\t"parent_fq_name": &schema.Schema{
++\t\t"parent_uuid": &schema.Schema{
+ \t\t\tType: schema.TypeString,
+-\t\t\tRequired: true,
++\t\t\tOptional: true,
+ \t\t},
+ """ % {"schema": SchemaName(ident.getCppName())}
+         file.write(decl)
+@@ -525,33 +537,104 @@ func %(schema)s() map[string]*schema.Schema {
+             # print udump(ident.getProperties(), max_depth=2)
+             self.once = False
+         for prop in ident.getProperties():
++            # Mark CType as referenced
++            ctype = prop.getCType()
++            if ctype:
++                ctypename = ctype.getName()
++                self._top_level_map[ctypename] = self._type_map[ctypename]
++
+             prop_type = TerraformTypeName(prop.getGoLangTypename())
+             required = "Required: true" if \
+                 ResolveOptional(prop._xelement.getOptional()) \
+                 else "Optional: true"
+             elem = ''
+             if prop_type == "schema.TypeList":
+-                elem = '\t\t\tElem: ' + ResName(prop.getGoLangTypename()) + "(),\n"
++                elem = '\t\t\tElem: ' + ResName(prop.getGoLangTypename()) +\
++                    "(),\n"
+             decl = """\t\t"%(name)s": &schema.Schema{
+ \t\t\t%(req)s,
+ \t\t\tType: %(type)s,
+ %(elem)s\t\t},\n""" % {"name": prop.getCIdentifierName().lower(),
+                        "type": prop_type, "elem": elem,
+-                       "req": required }
++                       "req": required}
+             file.write(decl)
+-            ctype = prop.getCType()
+-            if ctype:
+-                ctypename = ctype.getName()
+-                self._top_level_map[ctypename] = self._type_map[ctypename]
+ 
++        self._GenerateRefsMethods(ident, file)
+         decl = """\t}\n}\n"""
+         file.write(decl)
+ 
++# ------------------- Refs Schema Object --------------------------
++    def _GenerateRefsMethods(self, ident, file):
++        for link_info in ident.getLinksInfo():
++            if not ident.isLinkRef(link_info):
++                continue
++            link_to = ident.getLinkTo(link_info)
++            self._SnippetRefRead(ident, link_to, '_refs', file)
++            self._SnippetRefAccessor(ident, link_to, '_refs', file)
++            self._SnippetRefModifiers(ident, link_info, file)
++
++    def _getAttrType(self, ident, link_info):
++        xlink = ident.getLink(link_info)
++        if xlink.getXsdType():
++            ctype = xlink.getCType()
++            if ctype is not None:
++                return ctype.getName()
++        return None
++
++# ------------------- BackRefs Schema Object --------------------------
++    def _GenerateBackRefsMethods(self, ident, file):
++        for back_link in ident.getBackLinksInfo():
++            link_from = ident.getBackLinkFrom(back_link)
++            self._SnippetRefRead(ident, link_from, '_back_refs', file)
++            self._SnippetRefAccessor(ident, link_from, '_back_refs', file)
++
++# ------------------- Snippet method suffix - refs --------------------------
++    def _SnippetMethodSuffix(self, suffix):
++        expr = re.compile(r'_([a-z])')
++        return expr.sub(lambda x: x.group(1).upper(), suffix)
++
++# ------------------- Snippet Refs Read Object --------------------------
++    def _SnippetRefAccessor(self, ident, ref, suffix, file):
++        pass
++
++    def _SnippetRefRead(self, ident, ref, suffix, file):
++        pass
++
++# ------------------- Snippet Refs Accessor Object --------------------------
++    def _SnippetRefModifiers(self, ident, link_info, file):
++
++        datatype = self._getAttrType(ident, link_info)
++        link_to = ident.getLinkTo(link_info)
++        elem = "Resource%s()" % link_to.getCppName()
++        name = link_to.getCIdentifierName().lower()
++        if datatype:
++            elem = """&schema.Resource{
++\t\t\t\tSchema: map[string]*schema.Schema{
++\t\t\t\t\t"to": &schema.Schema{
++\t\t\t\t\t\tType: schema.TypeList,
++\t\t\t\t\t\tElem: Resource%(reftype)s(),
++\t\t\t\t\t\tRequired: true,
++\t\t\t\t\t},
++\t\t\t\t\t"attr": &schema.Schema{
++\t\t\t\t\t\tType: schema.TypeList,
++\t\t\t\t\t\tElem: Resource%(datatype)s(),
++\t\t\t\t\t\tRequired: true,
++\t\t\t\t\t},
++\t\t\t\t},
++\t\t\t}""" % {"datatype": datatype, "reftype": link_to.getCppName()}
++
++        decl = """\t\t"%(name)s_refs": &schema.Schema{
++\t\t\tOptional: true,
++\t\t\tType: schema.TypeList,
++\t\t\tElem: %(elem)s,
++\t\t},\n""" % {"name": name, "elem": elem}
++        file.write(decl)
++
+ # ------------------- Property Setter Snippet Object --------------------------
+     def _SnippetSetObjProperty(self, prop):
+         gotype = prop.getGoLangTypename()
+         is_pod = IsPodType(gotype)
+-        value = "val.(%(type)s)" % { "type": gotype }
++        value = "val.(%(type)s)" % {"type": gotype}
+         obj = ""
+         val = "val"
+         if not is_pod:
+@@ -659,8 +742,16 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \t// SPEW
+ \t%(client)s
+ \tobject := new(%(type)s)
+-\t//object.SetName(d.Get("name").(string))
+-\tobject.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
++\tobject.SetName(d.Get("name").(string))
++\tif puuid_obj, ok := d.GetOk("parent_uuid"); ok {
++\t\tpuuid := puuid_obj.(string)
++\t\tparent, err := client.FindByUuid(object.GetDefaultParentType(), puuid)
++\t\tif err != nil {
++\t\t\treturn fmt.Errorf("retrieving Parent with uuid %%s of type %%s for resource %%s (%%s)", puuid, object.GetDefaultParentType(), d.Get("name"), "%(type)s")
++\t\t}
++\t\tobject.SetParent(parent)
++\t}
++\t//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
+ \tSet%(type)sFromResource(object, d, m)
+ 
+ \tif err := client.Create(object); err != nil {
+@@ -735,16 +826,16 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+ 
+         self._GenerateTypeMap(dirname)
+         for ident in self._identifier_map.values():
+-            filename = os.path.join(
+-                dirname, ident.getCIdentifierName() + ".go")
+-            self._GenerateObject(ident, filename)
++            fname = os.path.join(dirname, ident.getCIdentifierName() + ".go")
++            self._GenerateObject(ident, fname)
+ 
+         self._PromoteInnerTypes()
+-        self._GenerateDocfile(dirname)
+         for ctype in self._top_level_map.values():
+-            filename = os.path.join(
+-                dirname, ctype.getCIdentifierName() + ".go")
+-            self._GenerateStructType(ctype, filename)
++            fname = os.path.join(dirname, ctype.getCIdentifierName() + ".go")
++            self._GenerateStructType(ctype, fname)
++
++        # Reference docs
++        self._GenerateDocfile(dirname)
+ 
+     def _PromoteInnerTypes(self):
+         inner_type_map = {}
+@@ -757,10 +848,6 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+             for itype, typeset in inner_type_map.iteritems():
+                 if len(typeset) == 1:
+                     continue
+-
+-                # print "promote %s" % itype
+-                # for typ in typeset:
+-                #     print "    %s" % typ.getName()
+                 self._top_level_map[itype] = self._type_map[itype]
+                 promoted.append(itype)
+ 
+@@ -788,3 +875,24 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+                 inner_type_map[mtype] = [top_level]
+ 
+             self._ExamineInnerTypes(inner_type_map, top_level, deptype)
++
++    def _IdentifierLinks(self, ident):
++        """ Returns the list of all the links (children, refs, back_refs)
++        of a specific identifier.
++        """
++        fields = []
++        for link_info in ident.getLinksInfo():
++            if ident.isLinkRef(link_info):
++                suffix = '_refs'
++            elif ident.isLinkHas(link_info):
++                suffix = 's'
++            else:
++                suffix = '_refs'
++            link_to = ident.getLinkTo(link_info)
++            fields.append(link_to.getCIdentifierName() + suffix)
++        for back_link in ident.getBackLinksInfo():
++            link_from = ident.getBackLinkFrom(back_link)
++            fields.append(link_from.getCIdentifierName() + '_back_refs')
++
++        return fields
++
+-- 
+2.7.4
+

@@ -1,7 +1,7 @@
 From cce67db61663d0908cdc181082f9bba274359bdb Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Thu, 5 Oct 2017 14:17:54 +0200
-Subject: [PATCH 08/11] WIP: Handle all values of `required` field
+Subject: [PATCH 08/13] WIP: Handle all values of `required` field
 
 ---
  terraform_mappings.py | 15 +++++++++++----
