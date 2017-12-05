@@ -35,21 +35,12 @@ resource "contrail_virtual_network_refs" "spockrefs" {
 			ipam_subnets {
 				subnet_name = "spock_subnet"
 				subnet {
-					ip_prefix = "10.10.10.0"
+					ip_prefix = "10.10.20.0"
 					ip_prefix_len = 24
 				}
 			}
 		}
 	}
-}
-
-resource "contrail_subnet" "sub_spocknet" {
-	name = "sub_spocknet"
-	subnet_ip_prefix {
-		ip_prefix = "10.10.10.0"
-		ip_prefix_len = 24
-	}
-	display_name = "sub spocknet"
 }
 
 resource "contrail_network_ipam" "spock_ipam" {
