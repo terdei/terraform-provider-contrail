@@ -1,7 +1,7 @@
 From 30ba1729325e37792bf89a91f1b9e341994c6178 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Thu, 5 Oct 2017 10:37:38 +0200
-Subject: [PATCH 07/15] WIP: Generating Read functions
+Subject: [PATCH 07/16] WIP: Generating Read functions
 
 ---
  terraform_mappings.py | 144 ++++++++++++++++++++++++++++++++++++++++++--------

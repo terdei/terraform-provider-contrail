@@ -1,7 +1,7 @@
 From 4d29397f063164ff715721481c1fcf8b28de8c8e Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Fri, 15 Sep 2017 15:40:48 +0200
-Subject: [PATCH 01/15] Generator for terraform provider mappings
+Subject: [PATCH 01/16] Generator for terraform provider mappings
 
 ---
  ccmap.py              |    8 +

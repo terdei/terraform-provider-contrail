@@ -1,7 +1,7 @@
 From 7fd0e5f6cd0f56628aac6e9c69c88565ca5ecc0d Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Thu, 28 Sep 2017 18:14:18 +0200
-Subject: [PATCH 05/15] WIP: Draft on Read generation
+Subject: [PATCH 05/16] WIP: Draft on Read generation
 
 ---
  terraform_mappings.py | 29 +++++++++++++++++++++--------

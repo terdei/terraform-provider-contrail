@@ -1,7 +1,7 @@
 From f44ffe8ba9d2c45a9bfae0b98788d4fab820a79c Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Fri, 1 Dec 2017 16:25:27 +0100
-Subject: [PATCH 14/15] WIP: Handling refs
+Subject: [PATCH 14/16] WIP: Handling refs
 
 ---
  terraform_mappings.py | 89 +++++++++++++++++++++++++++++----------------------

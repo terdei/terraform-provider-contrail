@@ -1,7 +1,7 @@
 From 8e4666fa7e1ccd7541f9f12f9c7046ca83c76b0b Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Tue, 21 Nov 2017 15:57:35 +0100
-Subject: [PATCH 12/15] Generate schema for object references
+Subject: [PATCH 12/16] Generate schema for object references
 
 ---
  terraform_mappings.py | 182 ++++++++++++++++++++++++++++++++++++++++----------

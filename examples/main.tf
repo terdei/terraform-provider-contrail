@@ -45,6 +45,7 @@ resource "contrail_virtual_network_refs" "spockrefs" {
 
 resource "contrail_network_ipam" "spock_ipam" {
 	name = "spock_ipam"
+	#dns_nameservers = ["1.1.1.1", "2.2.2.2", "3.3.3.3", "8.8.8.8"]
 }
 
 output "spocknet-id" {
