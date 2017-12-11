@@ -1,7 +1,7 @@
 From 5187cc1215f4b310718f2b2ff9bd91a8e255dac8 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Tue, 5 Dec 2017 12:11:35 +0100
-Subject: [PATCH 15/16] Handling refs to manipulate nested objects
+Subject: [PATCH 15/17] Handling refs to manipulate nested objects
 
 ---
  terraform_mappings.py | 96 ++++++++++++++++++++++++++++++++++-----------------

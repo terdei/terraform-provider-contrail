@@ -1,7 +1,7 @@
 From 246f0c89ffa36bbbecaa025dadf737c16aab6cdd Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Tue, 26 Sep 2017 16:54:29 +0200
-Subject: [PATCH 02/16] WIP: Generating setters for CType types
+Subject: [PATCH 02/17] WIP: Generating setters for CType types
 
 ---
  terraform_mappings.py | 881 ++++++++++----------------------------------------

@@ -1,7 +1,7 @@
 From f9f3f6387f98593d91d0420ec500e05224078640 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Wed, 27 Sep 2017 12:12:26 +0200
-Subject: [PATCH 03/16] WIP: Generating Setters for CRUD functions
+Subject: [PATCH 03/17] WIP: Generating Setters for CRUD functions
 
 ---
  terraform_mappings.py | 59 +++++++++++++++++++++++----------------------------

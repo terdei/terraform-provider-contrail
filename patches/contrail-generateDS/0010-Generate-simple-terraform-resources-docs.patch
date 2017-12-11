@@ -1,7 +1,7 @@
 From 477e4837f33c55b4e9f84553604a401a5b5d7f63 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Wed, 8 Nov 2017 11:03:24 +0100
-Subject: [PATCH 10/16] Generate simple terraform resources docs
+Subject: [PATCH 10/17] Generate simple terraform resources docs
 
 ---
  terraform_mappings.py | 61 ++++++++++++++++++++++++++++++++++++++++++++++++---

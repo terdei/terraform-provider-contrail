@@ -1,7 +1,7 @@
 From 4470e69acfbfd41202dcd1a774ac8b337a088360 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Wed, 25 Oct 2017 11:16:30 +0200
-Subject: [PATCH 09/16] Handling resource names and FQNames
+Subject: [PATCH 09/17] Handling resource names and FQNames
 
 ---
  golang_api.py         |  20 ++--

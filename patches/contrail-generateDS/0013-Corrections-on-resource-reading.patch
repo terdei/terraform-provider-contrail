@@ -1,7 +1,7 @@
 From 789fb866531a281aa7906b23e63d26b556679485 Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Thu, 30 Nov 2017 16:29:22 +0100
-Subject: [PATCH 13/16] Corrections on resource reading
+Subject: [PATCH 13/17] Corrections on resource reading
 
 ---
  terraform_mappings.py | 404 ++++++++++++++++++++++++++++++++++++++++----------

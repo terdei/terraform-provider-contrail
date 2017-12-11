@@ -1,7 +1,7 @@
 From f17b856c5d2ac0933d4a8ef1767e1d97f6b4769e Mon Sep 17 00:00:00 2001
 From: Kamil Renczewski <kamil.renczewski@codilime.com>
 Date: Thu, 7 Dec 2017 15:45:37 +0100
-Subject: [PATCH 16/16] Fixed refreshing elements
+Subject: [PATCH 16/17] Fixed refreshing elements
 
 ---
  terraform_mappings.py | 193 ++++++++++++++++++++++++++------------------------
