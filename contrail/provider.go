@@ -1,4 +1,4 @@
-package terracontrail
+package contrail
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 	"log"
 
-	"./resources"
+	"terraform-provider-contrail/contrail/resources"
 )
 
 var mutexKV = mutexkv.NewMutexKV()

@@ -6,13 +6,13 @@ import (
 	"github.com/hashicorp/terraform/plugin"
 	"github.com/hashicorp/terraform/terraform"
 
-	"./contrail"
+	"terraform-provider-contrail/contrail"
 )
 
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
 		ProviderFunc: func() terraform.ResourceProvider {
-			return terracontrail.Provider()
+			return contrail.Provider()
 		},
 	})
 }
