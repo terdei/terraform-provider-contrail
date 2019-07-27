@@ -1,0 +1,87 @@
+Index: client.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- client.go	(revision 498aac31fb22c28db3d62ed3bfde7902ba2532a7)
++++ client.go	(date 1564228650000)
+@@ -179,7 +179,7 @@
+ // The object must have been initialized with a name.
+ func (c *Client) Create(ptr IObject) error {
+ 	xtype := typename(ptr)
+-	url := fmt.Sprintf("http://%s:%d/%ss", c.server, c.port, xtype)
++	url := fmt.Sprintf("https://%s:%d/%ss", c.server, c.port, xtype)
+ 
+ 	objJson, err := json.Marshal(ptr)
+ 	if err != nil {
+@@ -319,7 +319,7 @@
+ 
+ // DeleteByUuid deletes the specified object.
+ func (c *Client) DeleteByUuid(typename, uuid string) error {
+-	url := fmt.Sprintf("http://%s:%d/%s/%s",
++	url := fmt.Sprintf("https://%s:%d/%s/%s",
+ 		c.server, c.port, typename, uuid)
+ 	resp, err := c.httpDelete(url)
+ 	if err != nil {
+@@ -359,14 +359,14 @@
+ 
+ // FindByUuid reads an object identified by UUID.
+ func (c *Client) FindByUuid(typename string, uuid string) (IObject, error) {
+-	url := fmt.Sprintf("http://%s:%d/%s/%s", c.server, c.port,
++	url := fmt.Sprintf("https://%s:%d/%s/%s", c.server, c.port,
+ 		typename, uuid)
+ 	return c.readObject(typename, url)
+ }
+ 
+ // UuidByName returns the UUID of an object as identified by its fully qualified name.
+ func (c *Client) UuidByName(typename string, fqn string) (string, error) {
+-	url := fmt.Sprintf("http://%s:%d/fqname-to-id", c.server, c.port)
++	url := fmt.Sprintf("https://%s:%d/fqname-to-id", c.server, c.port)
+ 	request := struct {
+ 		Typename string   `json:"type"`
+ 		Fq_name  []string `json:"fq_name"`
+@@ -415,7 +415,7 @@
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	url := fmt.Sprintf("http://%s:%d/id-to-fqname", c.server, c.port)
++	url := fmt.Sprintf("https://%s:%d/id-to-fqname", c.server, c.port)
+ 	resp, err := c.httpPost(url, "application/json", bytes.NewReader(data))
+ 	if err != nil {
+ 		return nil, err
+@@ -446,7 +446,7 @@
+ 		return nil, err
+ 	}
+ 	href := fmt.Sprintf(
+-		"http://%s:%d/%s/%s", c.server, c.port, typename, uuid)
++		"https://%s:%d/%s/%s", c.server, c.port, typename, uuid)
+ 	return c.readObject(typename, href)
+ }
+ 
+@@ -460,7 +460,7 @@
+ 		values.Add("parent_id", parentID)
+ 	}
+ 
+-	url := fmt.Sprintf("http://%s:%d/%ss", c.server, c.port, typename)
++	url := fmt.Sprintf("https://%s:%d/%ss", c.server, c.port, typename)
+ 	if len(values) > 0 {
+ 		url += fmt.Sprintf("?%s", values.Encode())
+ 	}
+@@ -514,7 +514,7 @@
+ 	}
+ 	values.Add("detail", "true")
+ 
+-	url := fmt.Sprintf("http://%s:%d/%ss?%s",
++	url := fmt.Sprintf("https://%s:%d/%ss?%s",
+ 		c.server, c.port, typename, values.Encode())
+ 	resp, err := c.httpGet(url)
+ 	if err != nil {
+@@ -618,7 +618,7 @@
+ 	if err != nil {
+ 		return err
+ 	}
+-	url := fmt.Sprintf("http://%s:%d/ref-update", c.server, c.port)
++	url := fmt.Sprintf("https://%s:%d/ref-update", c.server, c.port)
+ 	resp, err := c.httpPost(url, "application/json", bytes.NewReader(data))
+ 	if err != nil {
+ 		return err
