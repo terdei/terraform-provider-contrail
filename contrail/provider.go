@@ -9,7 +9,7 @@ import (
 
 	"log"
 
-	"terraform-provider-contrail/contrail/resources"
+	"github.com/terraform-provider-contrail/contrail/resources"
 )
 
 var mutexKV = mutexkv.NewMutexKV()

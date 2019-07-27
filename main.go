@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform/plugin"
 	"github.com/hashicorp/terraform/terraform"
 
-	"terraform-provider-contrail/contrail"
+	"github.com/terraform-provider-contrail/contrail"
 )
 
 func main() {

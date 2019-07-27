@@ -10,7 +10,6 @@ for repo in $Repos; do
 	[ -d "$Dir" ] && echo "Skipping fetching $repo - directory $Dir already exists" && continue
 	git clone "$repo"
 done
-
 for p in $(find ./terraform-provider-contrail/patches/ -type f -name '*.patch' | sort -n); do
 	cd "$TopDir"
 	target="$(basename "$(dirname "$p")")"
