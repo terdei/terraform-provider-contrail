@@ -54,11 +54,25 @@ func SetServiceHealthCheckTypeFromMap(object *ServiceHealthCheckType, d *schema.
 		object.Delay = mDelay
 	}
 
+	mDelayusecsObj := vmap["delayUsecs"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mDelayusecsObj) {
+		log.Printf("Setting delayUsecs  Delayusecs <<%T>> => %#v", mDelayusecsObj, mDelayusecsObj)
+		mDelayusecs := mDelayusecsObj.(int)
+		object.Delayusecs = mDelayusecs
+	}
+
 	mTimeoutObj := vmap["timeout"] // [CPLX; Seq -> 0; 0]
 	if CheckTerraformMap(mTimeoutObj) {
 		log.Printf("Setting timeout  Timeout <<%T>> => %#v", mTimeoutObj, mTimeoutObj)
 		mTimeout := mTimeoutObj.(int)
 		object.Timeout = mTimeout
+	}
+
+	mTimeoutusecsObj := vmap["timeoutUsecs"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mTimeoutusecsObj) {
+		log.Printf("Setting timeoutUsecs  Timeoutusecs <<%T>> => %#v", mTimeoutusecsObj, mTimeoutusecsObj)
+		mTimeoutusecs := mTimeoutusecsObj.(int)
+		object.Timeoutusecs = mTimeoutusecs
 	}
 
 	mMaxRetriesObj := vmap["max_retries"] // [CPLX; Seq -> 0; 0]
@@ -99,7 +113,9 @@ func TakeServiceHealthCheckTypeAsMap(object *ServiceHealthCheckType) map[string]
 	omap["health_check_type"] = object.HealthCheckType
 	omap["monitor_type"] = object.MonitorType
 	omap["delay"] = object.Delay
+	omap["delayUsecs"] = object.Delayusecs
 	omap["timeout"] = object.Timeout
+	omap["timeoutUsecs"] = object.Timeoutusecs
 	omap["max_retries"] = object.MaxRetries
 	omap["http_method"] = object.HttpMethod
 	omap["url_path"] = object.UrlPath
@@ -130,9 +146,19 @@ func ResourceServiceHealthCheckTypeSchema() map[string]*schema.Schema {
 			Required: true,
 			Type:     schema.TypeInt,
 		},
+		"delayusecs": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:integer
+			Optional: true,
+			Type:     schema.TypeInt,
+		},
 		"timeout": &schema.Schema{
 			// Cmplx: 0; Seq: False; Type: xsd:integer
 			Required: true,
+			Type:     schema.TypeInt,
+		},
+		"timeoutusecs": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:integer
+			Optional: true,
 			Type:     schema.TypeInt,
 		},
 		"max_retries": &schema.Schema{

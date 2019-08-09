@@ -26,6 +26,13 @@ func SetPortMapFromMap(object *PortMap, d *schema.ResourceData, m interface{}, v
 	log.Printf("SPEW: %v", spew.Sdump(vmap))
 	// SPEW
 
+	mProtocolObj := vmap["protocol"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mProtocolObj) {
+		log.Printf("Setting protocol  Protocol <<%T>> => %#v", mProtocolObj, mProtocolObj)
+		mProtocol := mProtocolObj.(string)
+		object.Protocol = mProtocol
+	}
+
 	mSrcPortObj := vmap["src_port"] // [CPLX; Seq -> 0; 0]
 	if CheckTerraformMap(mSrcPortObj) {
 		log.Printf("Setting src_port  SrcPort <<%T>> => %#v", mSrcPortObj, mSrcPortObj)
@@ -46,6 +53,7 @@ func SetPortMapFromMap(object *PortMap, d *schema.ResourceData, m interface{}, v
 func TakePortMapAsMap(object *PortMap) map[string]interface{} {
 	omap := make(map[string]interface{})
 
+	omap["protocol"] = object.Protocol
 	omap["src_port"] = object.SrcPort
 	omap["dst_port"] = object.DstPort
 
@@ -54,6 +62,11 @@ func TakePortMapAsMap(object *PortMap) map[string]interface{} {
 
 func ResourcePortMapSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
+		"protocol": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:string
+			Optional: true,
+			Type:     schema.TypeString,
+		},
 		"src_port": &schema.Schema{
 			// Cmplx: 0; Seq: False; Type: xsd:integer
 			Optional: true,

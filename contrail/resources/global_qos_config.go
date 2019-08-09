@@ -23,6 +23,11 @@ func SetGlobalQosConfigFromResource(object *GlobalQosConfig, d *schema.ResourceD
 		key = key + "."
 	}
 	log.Printf("[SetGlobalQosConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("control_traffic_dscp"); ok {
+		member := new(ControlTrafficDscpType)
+		SetControlTrafficDscpTypeFromMap(member, d, m, (val.([]interface{}))[0])
+		object.SetControlTrafficDscp(member)
+	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
 		SetIdPermsTypeFromMap(member, d, m, (val.([]interface{}))[0])
@@ -52,12 +57,28 @@ func SetRefsGlobalQosConfigFromResource(object *GlobalQosConfig, d *schema.Resou
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsGlobalQosConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
 
 func WriteGlobalQosConfigToResource(object GlobalQosConfig, d *schema.ResourceData, m interface{}) {
 
+	control_traffic_dscpObj := object.GetControlTrafficDscp()
+	d.Set("control_traffic_dscp", TakeControlTrafficDscpTypeAsMap(&control_traffic_dscpObj))
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -71,6 +92,8 @@ func WriteGlobalQosConfigToResource(object GlobalQosConfig, d *schema.ResourceDa
 func TakeGlobalQosConfigAsMap(object *GlobalQosConfig) map[string]interface{} {
 	omap := make(map[string]interface{})
 
+	control_traffic_dscpObj := object.GetControlTrafficDscp()
+	omap["control_traffic_dscp"] = TakeControlTrafficDscpTypeAsMap(&control_traffic_dscpObj)
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -88,6 +111,13 @@ func UpdateGlobalQosConfigFromResource(object *GlobalQosConfig, d *schema.Resour
 		key = key + "."
 	}
 
+	if d.HasChange("control_traffic_dscp") {
+		if val, ok := d.GetOk("control_traffic_dscp"); ok {
+			member := new(ControlTrafficDscpType)
+			SetControlTrafficDscpTypeFromMap(member, d, m, (val.([]interface{}))[0])
+			object.SetControlTrafficDscp(member)
+		}
+	}
 	if d.HasChange("id_perms") {
 		if val, ok := d.GetOk("id_perms"); ok {
 			member := new(IdPermsType)
@@ -241,6 +271,11 @@ func ResourceGlobalQosConfigSchema() map[string]*schema.Schema {
 			Optional: true,
 		},
 		// Properties
+		"control_traffic_dscp": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceControlTrafficDscpType(),
+		},
 		"id_perms": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -263,6 +298,20 @@ func ResourceGlobalQosConfigSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceGlobalQosConfigRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceGlobalQosConfig() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceGlobalQosConfigCreate,
@@ -270,5 +319,15 @@ func ResourceGlobalQosConfig() *schema.Resource {
 		Update: ResourceGlobalQosConfigUpdate,
 		Delete: ResourceGlobalQosConfigDelete,
 		Schema: ResourceGlobalQosConfigSchema(),
+	}
+}
+
+func ResourceGlobalQosConfigRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceGlobalQosConfigRefsCreate,
+		Read:   ResourceGlobalQosConfigRefsRead,
+		Update: ResourceGlobalQosConfigRefsUpdate,
+		Delete: ResourceGlobalQosConfigRefsDelete,
+		Schema: ResourceGlobalQosConfigRefsSchema(),
 	}
 }

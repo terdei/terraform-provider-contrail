@@ -68,6 +68,13 @@ func SetLoadbalancerMemberTypeFromMap(object *LoadbalancerMemberType, d *schema.
 		object.Address = mAddress
 	}
 
+	mSubnetIdObj := vmap["subnet_id"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mSubnetIdObj) {
+		log.Printf("Setting subnet_id  SubnetId <<%T>> => %#v", mSubnetIdObj, mSubnetIdObj)
+		mSubnetId := mSubnetIdObj.(string)
+		object.SubnetId = mSubnetId
+	}
+
 	log.Printf("FINISHED LoadbalancerMemberType object: %#v", object)
 }
 
@@ -80,6 +87,7 @@ func TakeLoadbalancerMemberTypeAsMap(object *LoadbalancerMemberType) map[string]
 	omap["protocol_port"] = object.ProtocolPort
 	omap["weight"] = object.Weight
 	omap["address"] = object.Address
+	omap["subnet_id"] = object.SubnetId
 
 	return omap
 }
@@ -114,6 +122,11 @@ func ResourceLoadbalancerMemberTypeSchema() map[string]*schema.Schema {
 		"address": &schema.Schema{
 			// Cmplx: 0; Seq: False; Type: xsd:string
 			Required: true,
+			Type:     schema.TypeString,
+		},
+		"subnet_id": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:string
+			Optional: true,
 			Type:     schema.TypeString,
 		},
 	}

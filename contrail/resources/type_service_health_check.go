@@ -18,7 +18,9 @@ const (
 	service_health_check_annotations
 	service_health_check_display_name
 	service_health_check_service_instance_refs
+	service_health_check_tag_refs
 	service_health_check_virtual_machine_interface_back_refs
+	service_health_check_bgp_as_a_service_back_refs
 )
 
 type ServiceHealthCheck struct {
@@ -29,7 +31,9 @@ type ServiceHealthCheck struct {
 	annotations                         KeyValuePairs
 	display_name                        string
 	service_instance_refs               contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
 	virtual_machine_interface_back_refs contrail.ReferenceList
+	bgp_as_a_service_back_refs          contrail.ReferenceList
 	valid                               big.Int
 	modified                            big.Int
 	baseMap                             map[string]contrail.ReferenceList
@@ -208,6 +212,90 @@ func (obj *ServiceHealthCheck) SetServiceInstanceList(
 	}
 }
 
+func (obj *ServiceHealthCheck) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(service_health_check_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *ServiceHealthCheck) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *ServiceHealthCheck) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(service_health_check_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, service_health_check_tag_refs, 1)
+	return nil
+}
+
+func (obj *ServiceHealthCheck) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(service_health_check_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, service_health_check_tag_refs, 1)
+	return nil
+}
+
+func (obj *ServiceHealthCheck) ClearTag() {
+	if (obj.valid.Bit(service_health_check_tag_refs) != 0) &&
+		(obj.modified.Bit(service_health_check_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, service_health_check_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, service_health_check_tag_refs, 1)
+}
+
+func (obj *ServiceHealthCheck) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *ServiceHealthCheck) readVirtualMachineInterfaceBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(service_health_check_virtual_machine_interface_back_refs) == 0) {
@@ -226,6 +314,26 @@ func (obj *ServiceHealthCheck) GetVirtualMachineInterfaceBackRefs() (
 		return nil, err
 	}
 	return obj.virtual_machine_interface_back_refs, nil
+}
+
+func (obj *ServiceHealthCheck) readBgpAsAServiceBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(service_health_check_bgp_as_a_service_back_refs) == 0) {
+		err := obj.GetField(obj, "bgp_as_a_service_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *ServiceHealthCheck) GetBgpAsAServiceBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readBgpAsAServiceBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.bgp_as_a_service_back_refs, nil
 }
 
 func (obj *ServiceHealthCheck) MarshalJSON() ([]byte, error) {
@@ -289,6 +397,15 @@ func (obj *ServiceHealthCheck) MarshalJSON() ([]byte, error) {
 		msg["service_instance_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -334,10 +451,22 @@ func (obj *ServiceHealthCheck) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, service_health_check_display_name, 1)
 			}
 			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, service_health_check_tag_refs, 1)
+			}
+			break
 		case "virtual_machine_interface_back_refs":
 			err = json.Unmarshal(value, &obj.virtual_machine_interface_back_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, service_health_check_virtual_machine_interface_back_refs, 1)
+			}
+			break
+		case "bgp_as_a_service_back_refs":
+			err = json.Unmarshal(value, &obj.bgp_as_a_service_back_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, service_health_check_bgp_as_a_service_back_refs, 1)
 			}
 			break
 		case "service_instance_refs":
@@ -445,6 +574,25 @@ func (obj *ServiceHealthCheck) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(service_health_check_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -457,6 +605,18 @@ func (obj *ServiceHealthCheck) UpdateReferences() error {
 			obj, "service-instance",
 			obj.service_instance_refs,
 			obj.baseMap["service-instance"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(service_health_check_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

@@ -15,6 +15,7 @@ const (
 	virtual_network_ecmp_hashing_include_fields int = iota
 	virtual_network_virtual_network_properties
 	virtual_network_provider_properties
+	virtual_network_is_provider_network
 	virtual_network_virtual_network_network_id
 	virtual_network_port_security_enabled
 	virtual_network_route_target_list
@@ -26,22 +27,36 @@ const (
 	virtual_network_flood_unknown_unicast
 	virtual_network_multi_policy_service_chains_enabled
 	virtual_network_address_allocation_mode
+	virtual_network_mac_learning_enabled
+	virtual_network_mac_limit_control
+	virtual_network_mac_move_control
+	virtual_network_mac_aging_time
+	virtual_network_pbb_evpn_enable
+	virtual_network_pbb_etree_enable
+	virtual_network_layer2_control_word
 	virtual_network_id_perms
 	virtual_network_perms2
 	virtual_network_annotations
 	virtual_network_display_name
+	virtual_network_security_logging_object_refs
 	virtual_network_qos_config_refs
 	virtual_network_network_ipam_refs
 	virtual_network_network_policy_refs
+	virtual_network_virtual_network_refs
 	virtual_network_access_control_lists
 	virtual_network_floating_ip_pools
 	virtual_network_alias_ip_pools
 	virtual_network_routing_instances
 	virtual_network_route_table_refs
+	virtual_network_bridge_domains
+	virtual_network_bgpvpn_refs
+	virtual_network_tag_refs
+	virtual_network_virtual_network_back_refs
 	virtual_network_virtual_machine_interface_back_refs
 	virtual_network_instance_ip_back_refs
 	virtual_network_physical_router_back_refs
 	virtual_network_logical_router_back_refs
+	virtual_network_firewall_rule_back_refs
 )
 
 type VirtualNetwork struct {
@@ -49,6 +64,7 @@ type VirtualNetwork struct {
 	ecmp_hashing_include_fields         EcmpHashingIncludeFields
 	virtual_network_properties          VirtualNetworkType
 	provider_properties                 ProviderDetails
+	is_provider_network                 bool
 	virtual_network_network_id          int
 	port_security_enabled               bool
 	route_target_list                   RouteTargetList
@@ -60,22 +76,36 @@ type VirtualNetwork struct {
 	flood_unknown_unicast               bool
 	multi_policy_service_chains_enabled bool
 	address_allocation_mode             string
+	mac_learning_enabled                bool
+	mac_limit_control                   MACLimitControlType
+	mac_move_control                    MACMoveLimitControlType
+	mac_aging_time                      int
+	pbb_evpn_enable                     bool
+	pbb_etree_enable                    bool
+	layer2_control_word                 bool
 	id_perms                            IdPermsType
 	perms2                              PermType2
 	annotations                         KeyValuePairs
 	display_name                        string
+	security_logging_object_refs        contrail.ReferenceList
 	qos_config_refs                     contrail.ReferenceList
 	network_ipam_refs                   contrail.ReferenceList
 	network_policy_refs                 contrail.ReferenceList
+	virtual_network_refs                contrail.ReferenceList
 	access_control_lists                contrail.ReferenceList
 	floating_ip_pools                   contrail.ReferenceList
 	alias_ip_pools                      contrail.ReferenceList
 	routing_instances                   contrail.ReferenceList
 	route_table_refs                    contrail.ReferenceList
+	bridge_domains                      contrail.ReferenceList
+	bgpvpn_refs                         contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
+	virtual_network_back_refs           contrail.ReferenceList
 	virtual_machine_interface_back_refs contrail.ReferenceList
 	instance_ip_back_refs               contrail.ReferenceList
 	physical_router_back_refs           contrail.ReferenceList
 	logical_router_back_refs            contrail.ReferenceList
+	firewall_rule_back_refs             contrail.ReferenceList
 	valid                               big.Int
 	modified                            big.Int
 	baseMap                             map[string]contrail.ReferenceList
@@ -150,6 +180,15 @@ func (obj *VirtualNetwork) GetProviderProperties() ProviderDetails {
 func (obj *VirtualNetwork) SetProviderProperties(value *ProviderDetails) {
 	obj.provider_properties = *value
 	obj.modified.SetBit(&obj.modified, virtual_network_provider_properties, 1)
+}
+
+func (obj *VirtualNetwork) GetIsProviderNetwork() bool {
+	return obj.is_provider_network
+}
+
+func (obj *VirtualNetwork) SetIsProviderNetwork(value bool) {
+	obj.is_provider_network = value
+	obj.modified.SetBit(&obj.modified, virtual_network_is_provider_network, 1)
 }
 
 func (obj *VirtualNetwork) GetVirtualNetworkNetworkId() int {
@@ -249,6 +288,69 @@ func (obj *VirtualNetwork) GetAddressAllocationMode() string {
 func (obj *VirtualNetwork) SetAddressAllocationMode(value string) {
 	obj.address_allocation_mode = value
 	obj.modified.SetBit(&obj.modified, virtual_network_address_allocation_mode, 1)
+}
+
+func (obj *VirtualNetwork) GetMacLearningEnabled() bool {
+	return obj.mac_learning_enabled
+}
+
+func (obj *VirtualNetwork) SetMacLearningEnabled(value bool) {
+	obj.mac_learning_enabled = value
+	obj.modified.SetBit(&obj.modified, virtual_network_mac_learning_enabled, 1)
+}
+
+func (obj *VirtualNetwork) GetMacLimitControl() MACLimitControlType {
+	return obj.mac_limit_control
+}
+
+func (obj *VirtualNetwork) SetMacLimitControl(value *MACLimitControlType) {
+	obj.mac_limit_control = *value
+	obj.modified.SetBit(&obj.modified, virtual_network_mac_limit_control, 1)
+}
+
+func (obj *VirtualNetwork) GetMacMoveControl() MACMoveLimitControlType {
+	return obj.mac_move_control
+}
+
+func (obj *VirtualNetwork) SetMacMoveControl(value *MACMoveLimitControlType) {
+	obj.mac_move_control = *value
+	obj.modified.SetBit(&obj.modified, virtual_network_mac_move_control, 1)
+}
+
+func (obj *VirtualNetwork) GetMacAgingTime() int {
+	return obj.mac_aging_time
+}
+
+func (obj *VirtualNetwork) SetMacAgingTime(value int) {
+	obj.mac_aging_time = value
+	obj.modified.SetBit(&obj.modified, virtual_network_mac_aging_time, 1)
+}
+
+func (obj *VirtualNetwork) GetPbbEvpnEnable() bool {
+	return obj.pbb_evpn_enable
+}
+
+func (obj *VirtualNetwork) SetPbbEvpnEnable(value bool) {
+	obj.pbb_evpn_enable = value
+	obj.modified.SetBit(&obj.modified, virtual_network_pbb_evpn_enable, 1)
+}
+
+func (obj *VirtualNetwork) GetPbbEtreeEnable() bool {
+	return obj.pbb_etree_enable
+}
+
+func (obj *VirtualNetwork) SetPbbEtreeEnable(value bool) {
+	obj.pbb_etree_enable = value
+	obj.modified.SetBit(&obj.modified, virtual_network_pbb_etree_enable, 1)
+}
+
+func (obj *VirtualNetwork) GetLayer2ControlWord() bool {
+	return obj.layer2_control_word
+}
+
+func (obj *VirtualNetwork) SetLayer2ControlWord(value bool) {
+	obj.layer2_control_word = value
+	obj.modified.SetBit(&obj.modified, virtual_network_layer2_control_word, 1)
 }
 
 func (obj *VirtualNetwork) GetIdPerms() IdPermsType {
@@ -365,6 +467,110 @@ func (obj *VirtualNetwork) GetRoutingInstances() (
 		return nil, err
 	}
 	return obj.routing_instances, nil
+}
+
+func (obj *VirtualNetwork) readBridgeDomains() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_network_bridge_domains) == 0) {
+		err := obj.GetField(obj, "bridge_domains")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualNetwork) GetBridgeDomains() (
+	contrail.ReferenceList, error) {
+	err := obj.readBridgeDomains()
+	if err != nil {
+		return nil, err
+	}
+	return obj.bridge_domains, nil
+}
+
+func (obj *VirtualNetwork) readSecurityLoggingObjectRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_network_security_logging_object_refs) == 0) {
+		err := obj.GetField(obj, "security_logging_object_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualNetwork) GetSecurityLoggingObjectRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readSecurityLoggingObjectRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.security_logging_object_refs, nil
+}
+
+func (obj *VirtualNetwork) AddSecurityLoggingObject(
+	rhs *SecurityLoggingObject) error {
+	err := obj.readSecurityLoggingObjectRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_security_logging_object_refs) == 0 {
+		obj.storeReferenceBase("security-logging-object", obj.security_logging_object_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.security_logging_object_refs = append(obj.security_logging_object_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_network_security_logging_object_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) DeleteSecurityLoggingObject(uuid string) error {
+	err := obj.readSecurityLoggingObjectRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_security_logging_object_refs) == 0 {
+		obj.storeReferenceBase("security-logging-object", obj.security_logging_object_refs)
+	}
+
+	for i, ref := range obj.security_logging_object_refs {
+		if ref.Uuid == uuid {
+			obj.security_logging_object_refs = append(
+				obj.security_logging_object_refs[:i],
+				obj.security_logging_object_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_network_security_logging_object_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) ClearSecurityLoggingObject() {
+	if (obj.valid.Bit(virtual_network_security_logging_object_refs) != 0) &&
+		(obj.modified.Bit(virtual_network_security_logging_object_refs) == 0) {
+		obj.storeReferenceBase("security-logging-object", obj.security_logging_object_refs)
+	}
+	obj.security_logging_object_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_network_security_logging_object_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_network_security_logging_object_refs, 1)
+}
+
+func (obj *VirtualNetwork) SetSecurityLoggingObjectList(
+	refList []contrail.ReferencePair) {
+	obj.ClearSecurityLoggingObject()
+	obj.security_logging_object_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.security_logging_object_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
 }
 
 func (obj *VirtualNetwork) readQosConfigRefs() error {
@@ -619,6 +825,90 @@ func (obj *VirtualNetwork) SetNetworkPolicyList(
 	}
 }
 
+func (obj *VirtualNetwork) readVirtualNetworkRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_network_virtual_network_refs) == 0) {
+		err := obj.GetField(obj, "virtual_network_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualNetwork) GetVirtualNetworkRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readVirtualNetworkRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.virtual_network_refs, nil
+}
+
+func (obj *VirtualNetwork) AddVirtualNetwork(
+	rhs *VirtualNetwork) error {
+	err := obj.readVirtualNetworkRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_virtual_network_refs) == 0 {
+		obj.storeReferenceBase("virtual-network", obj.virtual_network_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.virtual_network_refs = append(obj.virtual_network_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_network_virtual_network_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) DeleteVirtualNetwork(uuid string) error {
+	err := obj.readVirtualNetworkRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_virtual_network_refs) == 0 {
+		obj.storeReferenceBase("virtual-network", obj.virtual_network_refs)
+	}
+
+	for i, ref := range obj.virtual_network_refs {
+		if ref.Uuid == uuid {
+			obj.virtual_network_refs = append(
+				obj.virtual_network_refs[:i],
+				obj.virtual_network_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_network_virtual_network_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) ClearVirtualNetwork() {
+	if (obj.valid.Bit(virtual_network_virtual_network_refs) != 0) &&
+		(obj.modified.Bit(virtual_network_virtual_network_refs) == 0) {
+		obj.storeReferenceBase("virtual-network", obj.virtual_network_refs)
+	}
+	obj.virtual_network_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_network_virtual_network_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_network_virtual_network_refs, 1)
+}
+
+func (obj *VirtualNetwork) SetVirtualNetworkList(
+	refList []contrail.ReferencePair) {
+	obj.ClearVirtualNetwork()
+	obj.virtual_network_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.virtual_network_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *VirtualNetwork) readRouteTableRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(virtual_network_route_table_refs) == 0) {
@@ -703,6 +993,194 @@ func (obj *VirtualNetwork) SetRouteTableList(
 	}
 }
 
+func (obj *VirtualNetwork) readBgpvpnRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_network_bgpvpn_refs) == 0) {
+		err := obj.GetField(obj, "bgpvpn_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualNetwork) GetBgpvpnRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readBgpvpnRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.bgpvpn_refs, nil
+}
+
+func (obj *VirtualNetwork) AddBgpvpn(
+	rhs *Bgpvpn) error {
+	err := obj.readBgpvpnRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_bgpvpn_refs) == 0 {
+		obj.storeReferenceBase("bgpvpn", obj.bgpvpn_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.bgpvpn_refs = append(obj.bgpvpn_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_network_bgpvpn_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) DeleteBgpvpn(uuid string) error {
+	err := obj.readBgpvpnRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_bgpvpn_refs) == 0 {
+		obj.storeReferenceBase("bgpvpn", obj.bgpvpn_refs)
+	}
+
+	for i, ref := range obj.bgpvpn_refs {
+		if ref.Uuid == uuid {
+			obj.bgpvpn_refs = append(
+				obj.bgpvpn_refs[:i],
+				obj.bgpvpn_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_network_bgpvpn_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) ClearBgpvpn() {
+	if (obj.valid.Bit(virtual_network_bgpvpn_refs) != 0) &&
+		(obj.modified.Bit(virtual_network_bgpvpn_refs) == 0) {
+		obj.storeReferenceBase("bgpvpn", obj.bgpvpn_refs)
+	}
+	obj.bgpvpn_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_network_bgpvpn_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_network_bgpvpn_refs, 1)
+}
+
+func (obj *VirtualNetwork) SetBgpvpnList(
+	refList []contrail.ReferencePair) {
+	obj.ClearBgpvpn()
+	obj.bgpvpn_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.bgpvpn_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *VirtualNetwork) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_network_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualNetwork) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *VirtualNetwork) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_network_tag_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_network_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_network_tag_refs, 1)
+	return nil
+}
+
+func (obj *VirtualNetwork) ClearTag() {
+	if (obj.valid.Bit(virtual_network_tag_refs) != 0) &&
+		(obj.modified.Bit(virtual_network_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_network_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_network_tag_refs, 1)
+}
+
+func (obj *VirtualNetwork) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *VirtualNetwork) readVirtualNetworkBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_network_virtual_network_back_refs) == 0) {
+		err := obj.GetField(obj, "virtual_network_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualNetwork) GetVirtualNetworkBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readVirtualNetworkBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.virtual_network_back_refs, nil
+}
+
 func (obj *VirtualNetwork) readVirtualMachineInterfaceBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(virtual_network_virtual_machine_interface_back_refs) == 0) {
@@ -783,6 +1261,26 @@ func (obj *VirtualNetwork) GetLogicalRouterBackRefs() (
 	return obj.logical_router_back_refs, nil
 }
 
+func (obj *VirtualNetwork) readFirewallRuleBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_network_firewall_rule_back_refs) == 0) {
+		err := obj.GetField(obj, "firewall_rule_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualNetwork) GetFirewallRuleBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readFirewallRuleBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.firewall_rule_back_refs, nil
+}
+
 func (obj *VirtualNetwork) MarshalJSON() ([]byte, error) {
 	msg := map[string]*json.RawMessage{}
 	err := obj.MarshalCommon(msg)
@@ -815,6 +1313,15 @@ func (obj *VirtualNetwork) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		msg["provider_properties"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_is_provider_network) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.is_provider_network)
+		if err != nil {
+			return nil, err
+		}
+		msg["is_provider_network"] = &value
 	}
 
 	if obj.modified.Bit(virtual_network_virtual_network_network_id) != 0 {
@@ -916,6 +1423,69 @@ func (obj *VirtualNetwork) MarshalJSON() ([]byte, error) {
 		msg["address_allocation_mode"] = &value
 	}
 
+	if obj.modified.Bit(virtual_network_mac_learning_enabled) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_learning_enabled)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_learning_enabled"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_mac_limit_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_limit_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_limit_control"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_mac_move_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_move_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_move_control"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_mac_aging_time) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_aging_time)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_aging_time"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_pbb_evpn_enable) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.pbb_evpn_enable)
+		if err != nil {
+			return nil, err
+		}
+		msg["pbb_evpn_enable"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_pbb_etree_enable) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.pbb_etree_enable)
+		if err != nil {
+			return nil, err
+		}
+		msg["pbb_etree_enable"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_layer2_control_word) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.layer2_control_word)
+		if err != nil {
+			return nil, err
+		}
+		msg["layer2_control_word"] = &value
+	}
+
 	if obj.modified.Bit(virtual_network_id_perms) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.id_perms)
@@ -952,6 +1522,15 @@ func (obj *VirtualNetwork) MarshalJSON() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if len(obj.security_logging_object_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.security_logging_object_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["security_logging_object_refs"] = &value
+	}
+
 	if len(obj.qos_config_refs) > 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.qos_config_refs)
@@ -979,6 +1558,15 @@ func (obj *VirtualNetwork) MarshalJSON() ([]byte, error) {
 		msg["network_policy_refs"] = &value
 	}
 
+	if len(obj.virtual_network_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.virtual_network_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["virtual_network_refs"] = &value
+	}
+
 	if len(obj.route_table_refs) > 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.route_table_refs)
@@ -986,6 +1574,24 @@ func (obj *VirtualNetwork) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		msg["route_table_refs"] = &value
+	}
+
+	if len(obj.bgpvpn_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.bgpvpn_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["bgpvpn_refs"] = &value
+	}
+
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
 	}
 
 	return json.Marshal(msg)
@@ -1019,6 +1625,12 @@ func (obj *VirtualNetwork) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.provider_properties)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, virtual_network_provider_properties, 1)
+			}
+			break
+		case "is_provider_network":
+			err = json.Unmarshal(value, &obj.is_provider_network)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_is_provider_network, 1)
 			}
 			break
 		case "virtual_network_network_id":
@@ -1087,6 +1699,48 @@ func (obj *VirtualNetwork) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, virtual_network_address_allocation_mode, 1)
 			}
 			break
+		case "mac_learning_enabled":
+			err = json.Unmarshal(value, &obj.mac_learning_enabled)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_mac_learning_enabled, 1)
+			}
+			break
+		case "mac_limit_control":
+			err = json.Unmarshal(value, &obj.mac_limit_control)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_mac_limit_control, 1)
+			}
+			break
+		case "mac_move_control":
+			err = json.Unmarshal(value, &obj.mac_move_control)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_mac_move_control, 1)
+			}
+			break
+		case "mac_aging_time":
+			err = json.Unmarshal(value, &obj.mac_aging_time)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_mac_aging_time, 1)
+			}
+			break
+		case "pbb_evpn_enable":
+			err = json.Unmarshal(value, &obj.pbb_evpn_enable)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_pbb_evpn_enable, 1)
+			}
+			break
+		case "pbb_etree_enable":
+			err = json.Unmarshal(value, &obj.pbb_etree_enable)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_pbb_etree_enable, 1)
+			}
+			break
+		case "layer2_control_word":
+			err = json.Unmarshal(value, &obj.layer2_control_word)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_layer2_control_word, 1)
+			}
+			break
 		case "id_perms":
 			err = json.Unmarshal(value, &obj.id_perms)
 			if err == nil {
@@ -1111,10 +1765,22 @@ func (obj *VirtualNetwork) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, virtual_network_display_name, 1)
 			}
 			break
+		case "security_logging_object_refs":
+			err = json.Unmarshal(value, &obj.security_logging_object_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_security_logging_object_refs, 1)
+			}
+			break
 		case "qos_config_refs":
 			err = json.Unmarshal(value, &obj.qos_config_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, virtual_network_qos_config_refs, 1)
+			}
+			break
+		case "virtual_network_refs":
+			err = json.Unmarshal(value, &obj.virtual_network_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_virtual_network_refs, 1)
 			}
 			break
 		case "access_control_lists":
@@ -1147,6 +1813,30 @@ func (obj *VirtualNetwork) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, virtual_network_route_table_refs, 1)
 			}
 			break
+		case "bridge_domains":
+			err = json.Unmarshal(value, &obj.bridge_domains)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_bridge_domains, 1)
+			}
+			break
+		case "bgpvpn_refs":
+			err = json.Unmarshal(value, &obj.bgpvpn_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_bgpvpn_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_tag_refs, 1)
+			}
+			break
+		case "virtual_network_back_refs":
+			err = json.Unmarshal(value, &obj.virtual_network_back_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_virtual_network_back_refs, 1)
+			}
+			break
 		case "virtual_machine_interface_back_refs":
 			err = json.Unmarshal(value, &obj.virtual_machine_interface_back_refs)
 			if err == nil {
@@ -1169,6 +1859,12 @@ func (obj *VirtualNetwork) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.logical_router_back_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, virtual_network_logical_router_back_refs, 1)
+			}
+			break
+		case "firewall_rule_back_refs":
+			err = json.Unmarshal(value, &obj.firewall_rule_back_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_network_firewall_rule_back_refs, 1)
 			}
 			break
 		case "network_ipam_refs":
@@ -1265,6 +1961,15 @@ func (obj *VirtualNetwork) UpdateObject() ([]byte, error) {
 		msg["provider_properties"] = &value
 	}
 
+	if obj.modified.Bit(virtual_network_is_provider_network) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.is_provider_network)
+		if err != nil {
+			return nil, err
+		}
+		msg["is_provider_network"] = &value
+	}
+
 	if obj.modified.Bit(virtual_network_virtual_network_network_id) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.virtual_network_network_id)
@@ -1364,6 +2069,69 @@ func (obj *VirtualNetwork) UpdateObject() ([]byte, error) {
 		msg["address_allocation_mode"] = &value
 	}
 
+	if obj.modified.Bit(virtual_network_mac_learning_enabled) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_learning_enabled)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_learning_enabled"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_mac_limit_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_limit_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_limit_control"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_mac_move_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_move_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_move_control"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_mac_aging_time) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_aging_time)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_aging_time"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_pbb_evpn_enable) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.pbb_evpn_enable)
+		if err != nil {
+			return nil, err
+		}
+		msg["pbb_evpn_enable"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_pbb_etree_enable) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.pbb_etree_enable)
+		if err != nil {
+			return nil, err
+		}
+		msg["pbb_etree_enable"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_layer2_control_word) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.layer2_control_word)
+		if err != nil {
+			return nil, err
+		}
+		msg["layer2_control_word"] = &value
+	}
+
 	if obj.modified.Bit(virtual_network_id_perms) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.id_perms)
@@ -1398,6 +2166,25 @@ func (obj *VirtualNetwork) UpdateObject() ([]byte, error) {
 			return nil, err
 		}
 		msg["display_name"] = &value
+	}
+
+	if obj.modified.Bit(virtual_network_security_logging_object_refs) != 0 {
+		if len(obj.security_logging_object_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["security_logging_object_refs"] = &value
+		} else if !obj.hasReferenceBase("security-logging-object") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.security_logging_object_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["security_logging_object_refs"] = &value
+		}
 	}
 
 	if obj.modified.Bit(virtual_network_qos_config_refs) != 0 {
@@ -1457,6 +2244,25 @@ func (obj *VirtualNetwork) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(virtual_network_virtual_network_refs) != 0 {
+		if len(obj.virtual_network_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["virtual_network_refs"] = &value
+		} else if !obj.hasReferenceBase("virtual-network") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.virtual_network_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["virtual_network_refs"] = &value
+		}
+	}
+
 	if obj.modified.Bit(virtual_network_route_table_refs) != 0 {
 		if len(obj.route_table_refs) == 0 {
 			var value json.RawMessage
@@ -1476,10 +2282,60 @@ func (obj *VirtualNetwork) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(virtual_network_bgpvpn_refs) != 0 {
+		if len(obj.bgpvpn_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["bgpvpn_refs"] = &value
+		} else if !obj.hasReferenceBase("bgpvpn") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.bgpvpn_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["bgpvpn_refs"] = &value
+		}
+	}
+
+	if obj.modified.Bit(virtual_network_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *VirtualNetwork) UpdateReferences() error {
+
+	if (obj.modified.Bit(virtual_network_security_logging_object_refs) != 0) &&
+		len(obj.security_logging_object_refs) > 0 &&
+		obj.hasReferenceBase("security-logging-object") {
+		err := obj.UpdateReference(
+			obj, "security-logging-object",
+			obj.security_logging_object_refs,
+			obj.baseMap["security-logging-object"])
+		if err != nil {
+			return err
+		}
+	}
 
 	if (obj.modified.Bit(virtual_network_qos_config_refs) != 0) &&
 		len(obj.qos_config_refs) > 0 &&
@@ -1517,6 +2373,18 @@ func (obj *VirtualNetwork) UpdateReferences() error {
 		}
 	}
 
+	if (obj.modified.Bit(virtual_network_virtual_network_refs) != 0) &&
+		len(obj.virtual_network_refs) > 0 &&
+		obj.hasReferenceBase("virtual-network") {
+		err := obj.UpdateReference(
+			obj, "virtual-network",
+			obj.virtual_network_refs,
+			obj.baseMap["virtual-network"])
+		if err != nil {
+			return err
+		}
+	}
+
 	if (obj.modified.Bit(virtual_network_route_table_refs) != 0) &&
 		len(obj.route_table_refs) > 0 &&
 		obj.hasReferenceBase("route-table") {
@@ -1524,6 +2392,30 @@ func (obj *VirtualNetwork) UpdateReferences() error {
 			obj, "route-table",
 			obj.route_table_refs,
 			obj.baseMap["route-table"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(virtual_network_bgpvpn_refs) != 0) &&
+		len(obj.bgpvpn_refs) > 0 &&
+		obj.hasReferenceBase("bgpvpn") {
+		err := obj.UpdateReference(
+			obj, "bgpvpn",
+			obj.bgpvpn_refs,
+			obj.baseMap["bgpvpn"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(virtual_network_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

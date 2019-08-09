@@ -17,6 +17,7 @@ const (
 	alias_ip_pool_annotations
 	alias_ip_pool_display_name
 	alias_ip_pool_alias_ips
+	alias_ip_pool_tag_refs
 	alias_ip_pool_project_back_refs
 )
 
@@ -27,6 +28,7 @@ type AliasIpPool struct {
 	annotations       KeyValuePairs
 	display_name      string
 	alias_ips         contrail.ReferenceList
+	tag_refs          contrail.ReferenceList
 	project_back_refs contrail.ReferenceList
 	valid             big.Int
 	modified          big.Int
@@ -133,6 +135,90 @@ func (obj *AliasIpPool) GetAliasIps() (
 	return obj.alias_ips, nil
 }
 
+func (obj *AliasIpPool) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(alias_ip_pool_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *AliasIpPool) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *AliasIpPool) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(alias_ip_pool_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, alias_ip_pool_tag_refs, 1)
+	return nil
+}
+
+func (obj *AliasIpPool) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(alias_ip_pool_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, alias_ip_pool_tag_refs, 1)
+	return nil
+}
+
+func (obj *AliasIpPool) ClearTag() {
+	if (obj.valid.Bit(alias_ip_pool_tag_refs) != 0) &&
+		(obj.modified.Bit(alias_ip_pool_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, alias_ip_pool_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, alias_ip_pool_tag_refs, 1)
+}
+
+func (obj *AliasIpPool) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *AliasIpPool) readProjectBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(alias_ip_pool_project_back_refs) == 0) {
@@ -196,6 +282,15 @@ func (obj *AliasIpPool) MarshalJSON() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -239,6 +334,12 @@ func (obj *AliasIpPool) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.alias_ips)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, alias_ip_pool_alias_ips, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, alias_ip_pool_tag_refs, 1)
 			}
 			break
 		case "project_back_refs":
@@ -298,10 +399,41 @@ func (obj *AliasIpPool) UpdateObject() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if obj.modified.Bit(alias_ip_pool_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *AliasIpPool) UpdateReferences() error {
+
+	if (obj.modified.Bit(alias_ip_pool_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

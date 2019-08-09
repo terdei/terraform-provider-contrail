@@ -95,6 +95,20 @@ func SetRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m
 			object.AddVirtualNetwork(refObj.(*VirtualNetwork))
 		}
 	}
+	if val, ok := d.GetOk("network_ipam_refs"); ok {
+		log.Printf("Got ref network_ipam_refs -- will call: object.AddNetworkIpam(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("network-ipam", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving network-ipam by Uuid = %v as ref for NetworkIpam on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddNetworkIpam(refObj.(*NetworkIpam))
+		}
+	}
 	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -121,6 +135,34 @@ func SetRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m
 			}
 			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 			object.AddPhysicalRouter(refObj.(*PhysicalRouter))
+		}
+	}
+	if val, ok := d.GetOk("virtual_router_refs"); ok {
+		log.Printf("Got ref virtual_router_refs -- will call: object.AddVirtualRouter(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("virtual-router", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-router by Uuid = %v as ref for VirtualRouter on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddVirtualRouter(refObj.(*VirtualRouter))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
 		}
 	}
 
@@ -449,6 +491,11 @@ func ResourceInstanceIpRefsSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourceVirtualNetwork(),
 		},
+		"network_ipam_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceNetworkIpam(),
+		},
 		"virtual_machine_interface_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -458,6 +505,16 @@ func ResourceInstanceIpRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourcePhysicalRouter(),
+		},
+		"virtual_router_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceVirtualRouter(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

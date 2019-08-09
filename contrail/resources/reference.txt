@@ -11,6 +11,23 @@ resource "contrail_access_control_list" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_access_control_list_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_access_control_list" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_address_group" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	address_group_prefix = <contrail_SubnetListType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_address_group_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_address_group" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_alarm" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -21,6 +38,10 @@ resource "contrail_alarm" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_alarm_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_alarm" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_alias_ip" <name> {
 	name = <schema.TypeString>
@@ -36,6 +57,7 @@ resource "contrail_alias_ip_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_alias_ip" object to attach refs
 	project_refs = <contrail_Project>
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_alias_ip_pool" <name> {
 	name = <schema.TypeString>
@@ -44,6 +66,10 @@ resource "contrail_alias_ip_pool" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_alias_ip_pool_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_alias_ip_pool" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_analytics_node" <name> {
 	name = <schema.TypeString>
@@ -54,6 +80,10 @@ resource "contrail_analytics_node" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_analytics_node_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_analytics_node" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_api_access_list" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -62,6 +92,28 @@ resource "contrail_api_access_list" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_api_access_list_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_api_access_list" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_application_policy_set" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	all_applications = <schema.TypeBool>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_application_policy_set_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_application_policy_set" object to attach refs
+	firewall_policy_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_firewall_policy ref target
+		attr = <contrail_FirewallSequence> (Required) // ref link attribute data
+	}
+	global_vrouter_config_refs = <contrail_GlobalVrouterConfig>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_bgp_as_a_service" <name> {
 	name = <schema.TypeString>
@@ -80,6 +132,8 @@ resource "contrail_bgp_as_a_service" <name> {
 resource "contrail_bgp_as_a_service_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_bgp_as_a_service" object to attach refs
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
+	service_health_check_refs = <contrail_ServiceHealthCheck>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_bgp_router" <name> {
 	name = <schema.TypeString>
@@ -88,6 +142,43 @@ resource "contrail_bgp_router" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_bgp_router_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_bgp_router" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_bgpvpn" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	route_target_list = <contrail_RouteTargetList>
+	import_route_target_list = <contrail_RouteTargetList>
+	export_route_target_list = <contrail_RouteTargetList>
+	bgpvpn_type = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_bgpvpn_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_bgpvpn" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_bridge_domain" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	mac_learning_enabled = <schema.TypeBool>
+	mac_limit_control = <contrail_MACLimitControlType>
+	mac_move_control = <contrail_MACMoveLimitControlType>
+	mac_aging_time = <schema.TypeInt>
+	isid = <schema.TypeInt>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_bridge_domain_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_bridge_domain" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_config_node" <name> {
 	name = <schema.TypeString>
@@ -98,6 +189,10 @@ resource "contrail_config_node" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_config_node_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_config_node" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_config_root" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -105,6 +200,10 @@ resource "contrail_config_root" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_config_root_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_config_root" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_customer_attachment" <name> {
 	name = <schema.TypeString>
@@ -118,6 +217,7 @@ resource "contrail_customer_attachment_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_customer_attachment" object to attach refs
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
 	floating_ip_refs = <contrail_FloatingIp>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_database_node" <name> {
 	name = <schema.TypeString>
@@ -128,6 +228,10 @@ resource "contrail_database_node" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_database_node_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_database_node" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_discovery_service_assignment" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -135,6 +239,10 @@ resource "contrail_discovery_service_assignment" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_discovery_service_assignment_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_discovery_service_assignment" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_domain" <name> {
 	name = <schema.TypeString>
@@ -145,6 +253,10 @@ resource "contrail_domain" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_domain_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_domain" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_dsa_rule" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -153,6 +265,71 @@ resource "contrail_dsa_rule" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_dsa_rule_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_dsa_rule" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_e2_service_provider" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	e2_service_provider_promiscuous = <schema.TypeBool>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_e2_service_provider_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_e2_service_provider" object to attach refs
+	peering_policy_refs = <contrail_PeeringPolicy>
+	physical_router_refs = <contrail_PhysicalRouter>
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_firewall_policy" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_firewall_policy_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_firewall_policy" object to attach refs
+	firewall_rule_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_firewall_rule ref target
+		attr = <contrail_FirewallSequence> (Required) // ref link attribute data
+	}
+	security_logging_object_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_security_logging_object ref target
+		attr = <contrail_SloRateType> (Required) // ref link attribute data
+	}
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_firewall_rule" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	action_list = <contrail_ActionListType>
+	service = <contrail_FirewallServiceType>
+	endpoint_1 = <contrail_FirewallRuleEndpointType>
+	endpoint_2 = <contrail_FirewallRuleEndpointType>
+	match_tags = <contrail_FirewallRuleMatchTagsType>
+	match_tag_types = <contrail_FirewallRuleMatchTagsTypeIdList>
+	direction = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_firewall_rule_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_firewall_rule" object to attach refs
+	service_group_refs = <contrail_ServiceGroup>
+	address_group_refs = <contrail_AddressGroup>
+	virtual_network_refs = <contrail_VirtualNetwork>
+	security_logging_object_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_security_logging_object ref target
+		attr = <contrail_SloRateType> (Required) // ref link attribute data
+	}
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_floating_ip" <name> {
 	name = <schema.TypeString>
@@ -163,6 +340,7 @@ resource "contrail_floating_ip" <name> {
 	floating_ip_address_family = <schema.TypeString>
 	floating_ip_port_mappings_enable = <schema.TypeBool>
 	floating_ip_port_mappings = <contrail_PortMappings>
+	floating_ip_traffic_direction = <schema.TypeString>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
@@ -172,15 +350,20 @@ resource "contrail_floating_ip_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_floating_ip" object to attach refs
 	project_refs = <contrail_Project>
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_floating_ip_pool" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
-	floating_ip_pool_prefixes = <contrail_FloatingIpPoolType>
+	floating_ip_pool_subnets = <contrail_FloatingIpPoolSubnetType>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_floating_ip_pool_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_floating_ip_pool" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_forwarding_class" <name> {
 	name = <schema.TypeString>
@@ -197,14 +380,20 @@ resource "contrail_forwarding_class" <name> {
 resource "contrail_forwarding_class_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_forwarding_class" object to attach refs
 	qos_queue_refs = <contrail_QosQueue>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_global_qos_config" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	control_traffic_dscp = <contrail_ControlTrafficDscpType>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_global_qos_config_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_global_qos_config" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_global_system_config" <name> {
 	name = <schema.TypeString>
@@ -217,6 +406,9 @@ resource "contrail_global_system_config" <name> {
 	bgp_always_compare_med = <schema.TypeBool>
 	ip_fabric_subnets = <contrail_SubnetListType>
 	bgpaas_parameters = <contrail_BGPaaServiceParametersType>
+	mac_limit_control = <contrail_MACLimitControlType>
+	mac_move_control = <contrail_MACMoveLimitControlType>
+	mac_aging_time = <schema.TypeInt>
 	alarm_enable = <schema.TypeBool>
 	user_defined_log_statistics = <contrail_UserDefinedLogStatList>
 	id_perms = <contrail_IdPermsType>
@@ -227,6 +419,7 @@ resource "contrail_global_system_config" <name> {
 resource "contrail_global_system_config_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_global_system_config" object to attach refs
 	bgp_router_refs = <contrail_BgpRouter>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_global_vrouter_config" <name> {
 	name = <schema.TypeString>
@@ -237,11 +430,16 @@ resource "contrail_global_vrouter_config" <name> {
 	vxlan_network_identifier_mode = <schema.TypeString>
 	flow_export_rate = <schema.TypeInt>
 	flow_aging_timeout_list = <contrail_FlowAgingTimeoutList>
+	enable_security_logging = <schema.TypeBool>
 	forwarding_mode = <schema.TypeString>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_global_vrouter_config_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_global_vrouter_config" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_instance_ip" <name> {
 	name = <schema.TypeString>
@@ -263,8 +461,11 @@ resource "contrail_instance_ip" <name> {
 resource "contrail_instance_ip_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_instance_ip" object to attach refs
 	virtual_network_refs = <contrail_VirtualNetwork>
+	network_ipam_refs = <contrail_NetworkIpam>
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
 	physical_router_refs = <contrail_PhysicalRouter>
+	virtual_router_refs = <contrail_VirtualRouter>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_interface_route_table" <name> {
 	name = <schema.TypeString>
@@ -281,6 +482,7 @@ resource "contrail_interface_route_table_refs" <name> {
 		to = <schema.TypeString> (Required) // uuid of contrail_service_instance ref target
 		attr = <contrail_ServiceInterfaceTag> (Required) // ref link attribute data
 	}
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_loadbalancer" <name> {
 	name = <schema.TypeString>
@@ -297,6 +499,7 @@ resource "contrail_loadbalancer_refs" <name> {
 	service_appliance_set_refs = <contrail_ServiceApplianceSet>
 	service_instance_refs = <contrail_ServiceInstance>
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_loadbalancer_healthmonitor" <name> {
 	name = <schema.TypeString>
@@ -306,6 +509,10 @@ resource "contrail_loadbalancer_healthmonitor" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_loadbalancer_healthmonitor_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_loadbalancer_healthmonitor" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_loadbalancer_listener" <name> {
 	name = <schema.TypeString>
@@ -319,6 +526,7 @@ resource "contrail_loadbalancer_listener" <name> {
 resource "contrail_loadbalancer_listener_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_loadbalancer_listener" object to attach refs
 	loadbalancer_refs = <contrail_Loadbalancer>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_loadbalancer_member" <name> {
 	name = <schema.TypeString>
@@ -328,6 +536,10 @@ resource "contrail_loadbalancer_member" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_loadbalancer_member_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_loadbalancer_member" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_loadbalancer_pool" <name> {
 	name = <schema.TypeString>
@@ -347,6 +559,7 @@ resource "contrail_loadbalancer_pool_refs" <name> {
 	loadbalancer_listener_refs = <contrail_LoadbalancerListener>
 	service_appliance_set_refs = <contrail_ServiceApplianceSet>
 	loadbalancer_healthmonitor_refs = <contrail_LoadbalancerHealthmonitor>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_logical_interface" <name> {
 	name = <schema.TypeString>
@@ -361,11 +574,13 @@ resource "contrail_logical_interface" <name> {
 resource "contrail_logical_interface_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_logical_interface" object to attach refs
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_logical_router" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
 	configured_route_target_list = <contrail_RouteTargetList>
+	vxlan_network_identifier = <schema.TypeString>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
@@ -378,6 +593,9 @@ resource "contrail_logical_router_refs" <name> {
 	route_table_refs = <contrail_RouteTable>
 	virtual_network_refs = <contrail_VirtualNetwork>
 	service_instance_refs = <contrail_ServiceInstance>
+	physical_router_refs = <contrail_PhysicalRouter>
+	bgpvpn_refs = <contrail_Bgpvpn>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_namespace" <name> {
 	name = <schema.TypeString>
@@ -387,6 +605,23 @@ resource "contrail_namespace" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_namespace_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_namespace" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_network_device_config" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_network_device_config_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_network_device_config" object to attach refs
+	physical_router_refs = <contrail_PhysicalRouter>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_network_ipam" <name> {
 	name = <schema.TypeString>
@@ -402,6 +637,7 @@ resource "contrail_network_ipam" <name> {
 resource "contrail_network_ipam_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_network_ipam" object to attach refs
 	virtual_dns_refs = <contrail_VirtualDns>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_network_policy" <name> {
 	name = <schema.TypeString>
@@ -412,9 +648,27 @@ resource "contrail_network_policy" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_network_policy_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_network_policy" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_peering_policy" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	peering_service = <schema.TypeString> // Peering service type.
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_peering_policy_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_peering_policy" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_physical_interface" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	ethernet_segment_identifier = <schema.TypeString>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
@@ -423,18 +677,24 @@ resource "contrail_physical_interface" <name> {
 resource "contrail_physical_interface_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_physical_interface" object to attach refs
 	physical_interface_refs = <contrail_PhysicalInterface>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_physical_router" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
 	physical_router_management_ip = <schema.TypeString>
 	physical_router_dataplane_ip = <schema.TypeString>
+	physical_router_loopback_ip = <schema.TypeString>
 	physical_router_vendor_name = <schema.TypeString>
 	physical_router_product_name = <schema.TypeString>
 	physical_router_vnc_managed = <schema.TypeBool>
+	physical_router_role = <schema.TypeString>
+	physical_router_snmp = <schema.TypeBool>
+	physical_router_lldp = <schema.TypeBool>
 	physical_router_user_credentials = <contrail_UserCredentials>
 	physical_router_snmp_credentials = <contrail_SNMPCredentials>
 	physical_router_junos_service_ports = <contrail_JunosServicePorts>
+	telemetry_info = <contrail_TelemetryStateInfo>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
@@ -445,6 +705,19 @@ resource "contrail_physical_router_refs" <name> {
 	virtual_router_refs = <contrail_VirtualRouter>
 	bgp_router_refs = <contrail_BgpRouter>
 	virtual_network_refs = <contrail_VirtualNetwork>
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_policy_management" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_policy_management_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_policy_management" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_port_tuple" <name> {
 	name = <schema.TypeString>
@@ -454,10 +727,15 @@ resource "contrail_port_tuple" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_port_tuple_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_port_tuple" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_project" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
 	quota = <contrail_QuotaType>
+	vxlan_routing = <schema.TypeBool>
 	alarm_enable = <schema.TypeBool>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
@@ -472,6 +750,8 @@ resource "contrail_project_refs" <name> {
 	}
 	floating_ip_pool_refs = <contrail_FloatingIpPool>
 	alias_ip_pool_refs = <contrail_AliasIpPool>
+	application_policy_set_refs = <contrail_ApplicationPolicySet>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_provider_attachment" <name> {
 	name = <schema.TypeString>
@@ -484,6 +764,7 @@ resource "contrail_provider_attachment" <name> {
 resource "contrail_provider_attachment_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_provider_attachment" object to attach refs
 	virtual_router_refs = <contrail_VirtualRouter>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_qos_config" <name> {
 	name = <schema.TypeString>
@@ -501,6 +782,7 @@ resource "contrail_qos_config" <name> {
 resource "contrail_qos_config_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_qos_config" object to attach refs
 	global_system_config_refs = <contrail_GlobalSystemConfig>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_qos_queue" <name> {
 	name = <schema.TypeString>
@@ -512,6 +794,10 @@ resource "contrail_qos_queue" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_qos_queue_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_qos_queue" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_route_aggregate" <name> {
 	name = <schema.TypeString>
@@ -527,6 +813,7 @@ resource "contrail_route_aggregate_refs" <name> {
 		to = <schema.TypeString> (Required) // uuid of contrail_service_instance ref target
 		attr = <contrail_ServiceInterfaceTag> (Required) // ref link attribute data
 	}
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_route_table" <name> {
 	name = <schema.TypeString>
@@ -537,6 +824,10 @@ resource "contrail_route_table" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_route_table_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_route_table" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_route_target" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -545,6 +836,10 @@ resource "contrail_route_target" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_route_target_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_route_target" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_routing_instance" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -552,6 +847,10 @@ resource "contrail_routing_instance" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_routing_instance_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_routing_instance" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_routing_policy" <name> {
 	name = <schema.TypeString>
@@ -567,6 +866,7 @@ resource "contrail_routing_policy_refs" <name> {
 		to = <schema.TypeString> (Required) // uuid of contrail_service_instance ref target
 		attr = <contrail_RoutingPolicyServiceInstanceType> (Required) // ref link attribute data
 	}
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_security_group" <name> {
 	name = <schema.TypeString>
@@ -578,6 +878,32 @@ resource "contrail_security_group" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_security_group_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_security_group" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_security_logging_object" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	security_logging_object_rules = <contrail_SecurityLoggingObjectRuleListType> // List of rules along with logging rate for each rule. These are rules derived based on user configured rules on security-logging-object-network-policy and security-logging-object-security-group links
+	security_logging_object_rate = <schema.TypeInt> // Rate at security-logging-object level. When multiple rates are specified at different levels, the rate which specifies highest frequency is selected
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_security_logging_object_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_security_logging_object" object to attach refs
+	network_policy_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_network_policy ref target
+		attr = <contrail_SecurityLoggingObjectRuleListType> (Required) // ref link attribute data
+	}
+	security_group_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_security_group ref target
+		attr = <contrail_SecurityLoggingObjectRuleListType> (Required) // ref link attribute data
+	}
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_service_appliance" <name> {
 	name = <schema.TypeString>
@@ -596,6 +922,7 @@ resource "contrail_service_appliance_refs" <name> {
 		to = <schema.TypeString> (Required) // uuid of contrail_physical_interface ref target
 		attr = <contrail_ServiceApplianceInterfaceType> (Required) // ref link attribute data
 	}
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_service_appliance_set" <name> {
 	name = <schema.TypeString>
@@ -607,6 +934,53 @@ resource "contrail_service_appliance_set" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_service_appliance_set_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_service_appliance_set" object to attach refs
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_service_connection_module" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	e2_service = <schema.TypeString>
+	service_type = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_connection_module_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_service_connection_module" object to attach refs
+	service_object_refs = <contrail_ServiceObject>
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_service_endpoint" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_endpoint_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_service_endpoint" object to attach refs
+	service_connection_module_refs = <contrail_ServiceConnectionModule>
+	physical_router_refs = <contrail_PhysicalRouter>
+	service_object_refs = <contrail_ServiceObject>
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_service_group" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	service_group_firewall_service_list = <contrail_FirewallServiceGroupType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_group_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_service_group" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_service_health_check" <name> {
 	name = <schema.TypeString>
@@ -623,6 +997,7 @@ resource "contrail_service_health_check_refs" <name> {
 		to = <schema.TypeString> (Required) // uuid of contrail_service_instance ref target
 		attr = <contrail_ServiceInterfaceTag> (Required) // ref link attribute data
 	}
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_service_instance" <name> {
 	name = <schema.TypeString>
@@ -641,6 +1016,19 @@ resource "contrail_service_instance_refs" <name> {
 		to = <schema.TypeString> (Required) // uuid of contrail_instance_ip ref target
 		attr = <contrail_ServiceInterfaceTag> (Required) // ref link attribute data
 	}
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_service_object" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_object_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_service_object" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_service_template" <name> {
 	name = <schema.TypeString>
@@ -654,6 +1042,7 @@ resource "contrail_service_template" <name> {
 resource "contrail_service_template_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_service_template" object to attach refs
 	service_appliance_set_refs = <contrail_ServiceApplianceSet>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_subnet" <name> {
 	name = <schema.TypeString>
@@ -667,6 +1056,36 @@ resource "contrail_subnet" <name> {
 resource "contrail_subnet_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_subnet" object to attach refs
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_tag" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	tag_type_name = <schema.TypeString>
+	tag_value = <schema.TypeString>
+	tag_id = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_tag_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_tag" object to attach refs
+	tag_type_refs = <contrail_TagType>
+	tag_refs = <contrail_Tag>
+}
+resource "contrail_tag_type" <name> {
+	name = <schema.TypeString>
+	parent_uuid = <schema.TypeString> // If not set, default parent will be used
+	tag_type_id = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	annotations = <contrail_KeyValuePairs>
+	display_name = <schema.TypeString>
+}
+resource "contrail_tag_type_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_tag_type" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_virtual_dns" <name> {
 	name = <schema.TypeString>
@@ -677,6 +1096,10 @@ resource "contrail_virtual_dns" <name> {
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
 }
+resource "contrail_virtual_dns_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_virtual_dns" object to attach refs
+	tag_refs = <contrail_Tag>
+}
 resource "contrail_virtual_dns_record" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
@@ -685,6 +1108,10 @@ resource "contrail_virtual_dns_record" <name> {
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
 	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_dns_record_refs" <name> {
+	uuid = <schema.TypeString> // uuid of "contrail_virtual_dns_record" object to attach refs
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_virtual_ip" <name> {
 	name = <schema.TypeString>
@@ -699,6 +1126,7 @@ resource "contrail_virtual_ip_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_virtual_ip" object to attach refs
 	loadbalancer_pool_refs = <contrail_LoadbalancerPool>
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_virtual_machine" <name> {
 	name = <schema.TypeString>
@@ -711,6 +1139,7 @@ resource "contrail_virtual_machine" <name> {
 resource "contrail_virtual_machine_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_virtual_machine" object to attach refs
 	service_instance_refs = <contrail_ServiceInstance>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_virtual_machine_interface" <name> {
 	name = <schema.TypeString>
@@ -727,6 +1156,7 @@ resource "contrail_virtual_machine_interface" <name> {
 	virtual_machine_interface_properties = <contrail_VirtualMachineInterfacePropertiesType>
 	virtual_machine_interface_bindings = <contrail_KeyValuePairs>
 	virtual_machine_interface_fat_flow_protocols = <contrail_FatFlowProtocols>
+	vlan_tag_based_bridge_domain = <schema.TypeBool>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
@@ -734,6 +1164,7 @@ resource "contrail_virtual_machine_interface" <name> {
 }
 resource "contrail_virtual_machine_interface_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_virtual_machine_interface" object to attach refs
+	security_logging_object_refs = <contrail_SecurityLoggingObject>
 	qos_config_refs = <contrail_QosConfig>
 	security_group_refs = <contrail_SecurityGroup>
 	virtual_machine_interface_refs = <contrail_VirtualMachineInterface>
@@ -748,6 +1179,12 @@ resource "contrail_virtual_machine_interface_refs" <name> {
 	service_health_check_refs = <contrail_ServiceHealthCheck>
 	interface_route_table_refs = <contrail_InterfaceRouteTable>
 	physical_interface_refs = <contrail_PhysicalInterface>
+	bridge_domain_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_bridge_domain ref target
+		attr = <contrail_BridgeDomainMembershipType> (Required) // ref link attribute data
+	}
+	service_endpoint_refs = <contrail_ServiceEndpoint>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_virtual_network" <name> {
 	name = <schema.TypeString>
@@ -755,6 +1192,7 @@ resource "contrail_virtual_network" <name> {
 	ecmp_hashing_include_fields = <contrail_EcmpHashingIncludeFields>
 	virtual_network_properties = <contrail_VirtualNetworkType>
 	provider_properties = <contrail_ProviderDetails>
+	is_provider_network = <schema.TypeBool>
 	virtual_network_network_id = <schema.TypeInt>
 	port_security_enabled = <schema.TypeBool>
 	route_target_list = <contrail_RouteTargetList>
@@ -766,6 +1204,13 @@ resource "contrail_virtual_network" <name> {
 	flood_unknown_unicast = <schema.TypeBool>
 	multi_policy_service_chains_enabled = <schema.TypeBool>
 	address_allocation_mode = <schema.TypeString>
+	mac_learning_enabled = <schema.TypeBool>
+	mac_limit_control = <contrail_MACLimitControlType>
+	mac_move_control = <contrail_MACMoveLimitControlType>
+	mac_aging_time = <schema.TypeInt>
+	pbb_evpn_enable = <schema.TypeBool>
+	pbb_etree_enable = <schema.TypeBool>
+	layer2_control_word = <schema.TypeBool>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
@@ -773,6 +1218,7 @@ resource "contrail_virtual_network" <name> {
 }
 resource "contrail_virtual_network_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_virtual_network" object to attach refs
+	security_logging_object_refs = <contrail_SecurityLoggingObject>
 	qos_config_refs = <contrail_QosConfig>
 	network_ipam_refs {
 		to = <schema.TypeString> (Required) // uuid of contrail_network_ipam ref target
@@ -782,12 +1228,16 @@ resource "contrail_virtual_network_refs" <name> {
 		to = <schema.TypeString> (Required) // uuid of contrail_network_policy ref target
 		attr = <contrail_VirtualNetworkPolicyType> (Required) // ref link attribute data
 	}
+	virtual_network_refs = <contrail_VirtualNetwork>
 	route_table_refs = <contrail_RouteTable>
+	bgpvpn_refs = <contrail_Bgpvpn>
+	tag_refs = <contrail_Tag>
 }
 resource "contrail_virtual_router" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
 	virtual_router_type = <schema.TypeString>
+	virtual_router_vhost_user_mode = <schema.TypeString>
 	virtual_router_dpdk_enabled = <schema.TypeBool>
 	virtual_router_ip_address = <schema.TypeString>
 	id_perms = <contrail_IdPermsType>
@@ -797,7 +1247,12 @@ resource "contrail_virtual_router" <name> {
 }
 resource "contrail_virtual_router_refs" <name> {
 	uuid = <schema.TypeString> // uuid of "contrail_virtual_router" object to attach refs
+	network_ipam_refs {
+		to = <schema.TypeString> (Required) // uuid of contrail_network_ipam ref target
+		attr = <contrail_VirtualRouterNetworkIpamType> (Required) // ref link attribute data
+	}
 	virtual_machine_refs = <contrail_VirtualMachine>
+	tag_refs = <contrail_Tag>
 }
 contrail_AclRuleType {
 	"match_condition" = <contrail_MatchConditionType> (Required) // Match condition for packets
@@ -837,6 +1292,8 @@ contrail_MirrorActionType {
 	"juniper_header" = <schema.TypeBool> // This flag is used to determine with/without juniper-header
 	"nh_mode" = <schema.TypeString> // This mode used to determine static or dynamic nh 
 	"static_nh_header" = <contrail_StaticMirrorNhType> // vtep details required if static nh enabled
+	"nic_assisted_mirroring" = <schema.TypeBool> // This flag is used to select nic assisted mirroring
+	"nic_assisted_mirroring_vlan" = <schema.TypeInt> // The VLAN to be tagged on the traffic for NIC to Mirror
 }
 contrail_SubnetType {
 	"ip_prefix" = <schema.TypeString>
@@ -868,6 +1325,7 @@ contrail_AlarmOrList {
 contrail_AllocationPoolType {
 	"start" = <schema.TypeString>
 	"end" = <schema.TypeString>
+	"vrouter_specific_pool" = <schema.TypeBool>
 }
 contrail_AllowedAddressPair {
 	"ip" = <contrail_SubnetType>
@@ -881,8 +1339,16 @@ contrail_BGPaaServiceParametersType {
 	"port_start" = <schema.TypeInt>
 	"port_end" = <schema.TypeInt>
 }
+contrail_BridgeDomainMembershipType {
+	"vlan_tag" = <schema.TypeInt> // VLAN tag of the incoming packet that maps the                      virtual-machine-interface to bridge domain
+}
 contrail_CommunityAttributes {
 	"community_attribute" = < [ schema.TypeString ] >
+}
+contrail_ControlTrafficDscpType {
+	"control" = <schema.TypeInt> // DSCP value for control protocols traffic
+	"analytics" = <schema.TypeInt> // DSCP value for traffic towards analytics
+	"dns" = <schema.TypeInt> // DSCP value for DNS traffic
 }
 contrail_DhcpOptionType {
 	"dhcp_option_name" = <schema.TypeString> (Required) // Name of the DHCP option
@@ -928,8 +1394,38 @@ contrail_ProtocolType {
 contrail_FatFlowProtocols {
 	"fat_flow_protocol" = < [ contrail_ProtocolType ] >
 }
-contrail_FloatingIpPoolType {
-	"subnet" = < [ contrail_SubnetType ] > // Block of ip addresses for floating ip allocation. Currently not supported
+contrail_FirewallRuleEndpointType {
+	"subnet" = <contrail_SubnetType> // Any workload that belongs to this subnet
+	"virtual_network" = <schema.TypeString> // Any workload that belongs to this virtual network 
+	"address_group" = <schema.TypeString> // Any workload with interface in this address-group
+	"tags" = < [ schema.TypeString ] > // Any workload with tags matching tags in this list
+	"tag_ids" = < [ schema.TypeInt ] > // Any workload with tags ids matching all the tags ids in this list
+	"any" = <schema.TypeBool> // Match any workload
+}
+contrail_FirewallRuleMatchTagsType {
+	"tag_list" = < [ schema.TypeString ] > (Required)
+}
+contrail_FirewallRuleMatchTagsTypeIdList {
+	"tag_type" = < [ schema.TypeInt ] > (Required)
+}
+contrail_FirewallSequence {
+	"sequence" = <schema.TypeString> (Required)
+}
+contrail_FirewallServiceType {
+	"protocol" = <schema.TypeString> // Layer 4 protocol in ip packet
+	"protocol_id" = <schema.TypeInt> // Layer 4 protocol id in ip packet
+	"src_ports" = <contrail_PortType> // Range of source port for layer 4 protocol
+	"dst_ports" = <contrail_PortType> // Range of destination port for layer 4 protocol
+}
+contrail_FirewallServiceGroupType {
+	"firewall_service" = < [ contrail_FirewallServiceType ] > (Required)
+}
+contrail_PortType {
+	"start_port" = <schema.TypeInt> (Required)
+	"end_port" = <schema.TypeInt> (Required)
+}
+contrail_FloatingIpPoolSubnetType {
+	"subnet_uuid" = < [ schema.TypeString ] > // List of subnets associated with this floating ip pool.
 }
 contrail_FlowAgingTimeout {
 	"protocol" = <schema.TypeString>
@@ -1055,6 +1551,7 @@ contrail_LoadbalancerMemberType {
 	"protocol_port" = <schema.TypeInt> // Destination port for the application on the member.
 	"weight" = <schema.TypeInt> // Weight for load balancing
 	"address" = <schema.TypeString> (Required) // Ip address of the member
+	"subnet_id" = <schema.TypeString> // UUID of the subnet from where the members are reachable.
 }
 contrail_LoadbalancerPoolType {
 	"status" = <schema.TypeString> // Operating status for this loadbalancer pool.
@@ -1074,12 +1571,17 @@ contrail_LoadbalancerType {
 	"vip_address" = <schema.TypeString> // Virtual ip for this LBaaS
 	"admin_state" = <schema.TypeBool> // Administrative up or down
 }
+contrail_MACLimitControlType {
+	"mac_limit" = <schema.TypeInt> (Required) // Number of MACs that can be learnt
+	"mac_limit_action" = <schema.TypeString> // Action to be taken when MAC limit exceeds
+}
+contrail_MACMoveLimitControlType {
+	"mac_move_limit" = <schema.TypeInt> (Required) // Number of MAC moves permitted in mac move time window
+	"mac_move_time_window" = <schema.TypeInt> (Required) // MAC move time window
+	"mac_move_limit_action" = <schema.TypeString> // Action to be taken when MAC move limit exceeds
+}
 contrail_MacAddressesType {
 	"mac_address" = < [ schema.TypeString ] >
-}
-contrail_PortType {
-	"start_port" = <schema.TypeInt> (Required)
-	"end_port" = <schema.TypeInt> (Required)
 }
 contrail_StaticMirrorNhType {
 	"vtep_dst_ip_address" = <schema.TypeString> (Required) // ip address of destination vtep
@@ -1114,7 +1616,7 @@ contrail_PolicyBasedForwardingRuleType {
 	"protocol" = <schema.TypeString>
 }
 contrail_PolicyRuleType {
-	"rule_sequence" = <contrail_SequenceType> // Deprecated, Will be removed
+	"rule_sequence" = <contrail_SequenceType> // Deprecated, Will be removed because rules themselves are already an ordered list
 	"rule_uuid" = <schema.TypeString> // Rule UUID is identifier used in flow records to identify rule
 	"direction" = <schema.TypeString> (Required)
 	"protocol" = <schema.TypeString> (Required) // Layer 4 protocol in ip packet
@@ -1136,6 +1638,7 @@ contrail_SequenceType {
 	"minor" = <schema.TypeInt> (Required)
 }
 contrail_PortMap {
+	"protocol" = <schema.TypeString>
 	"src_port" = <schema.TypeInt>
 	"dst_port" = <schema.TypeInt>
 }
@@ -1178,6 +1681,8 @@ contrail_QuotaType {
 	"loadbalancer_member" = <schema.TypeInt> // Maximum number of loadbalancer member
 	"loadbalancer_healthmonitor" = <schema.TypeInt> // Maximum number of loadbalancer health monitors
 	"virtual_ip" = <schema.TypeInt> // Maximum number of virtual ips
+	"security_logging_object" = <schema.TypeInt> // Maximum number of security logging objects
+	"route_table" = <schema.TypeInt> // Maximum number of route tables
 }
 contrail_RbacPermType {
 	"role_name" = <schema.TypeString> (Required) // Name of the role
@@ -1223,15 +1728,24 @@ contrail_SNMPCredentials {
 	"v3_engine_boots" = <schema.TypeInt>
 	"v3_engine_time" = <schema.TypeInt>
 }
+contrail_SecurityLoggingObjectRuleEntryType {
+	"rule_uuid" = <schema.TypeString> // Rule UUID of network policy or security-group. When this is absent it implies all rules of security-group or network-policy
+	"rate" = <schema.TypeInt> // Rate at which sessions are logged. When rates are specified at multiple levels, the rate which specifies highest frequency is selected
+}
+contrail_SecurityLoggingObjectRuleListType {
+	"rule" = < [ contrail_SecurityLoggingObjectRuleEntryType ] > // List of rules along with logging rate for each rule. Both rule-uuid and rate are optional. When rule-uuid is absent then it means all rules of associated SG or network-policy
+}
 contrail_ServiceApplianceInterfaceType {
 	"interface_type" = <schema.TypeString>
 }
 contrail_ServiceHealthCheckType {
 	"enabled" = <schema.TypeBool> // Administratively enable or disable this health check.
-	"health_check_type" = <schema.TypeString> (Required) // Health check type, currently only link-local and end-to-end are supported
-	"monitor_type" = <schema.TypeString> (Required) // Protocol used to monitor health, currently only HTTP and ICMP(ping) is supported
-	"delay" = <schema.TypeInt> (Required) // Time in seconds  at which health check is repeated
+	"health_check_type" = <schema.TypeString> (Required) // Health check type, currently only link-local, end-to-end and segment are supported
+	"monitor_type" = <schema.TypeString> (Required) // Protocol used to monitor health, currently only HTTP, ICMP(ping), and BFD are supported
+	"delay" = <schema.TypeInt> (Required) // Time in seconds at which health check is repeated
+	"delayusecs" = <schema.TypeInt> // Time in micro seconds at which health check is repeated
 	"timeout" = <schema.TypeInt> (Required) // Time in seconds to wait for response
+	"timeoutusecs" = <schema.TypeInt> // Time in micro seconds to wait for response
 	"max_retries" = <schema.TypeInt> (Required) // Number of failures before declaring health bad
 	"http_method" = <schema.TypeString> // In case monitor protocol is HTTP, type of http method used like GET, PUT, POST etc
 	"url_path" = <schema.TypeString> // In case monitor protocol is HTTP, URL to be used. In case of ICMP, ip address
@@ -1282,8 +1796,21 @@ contrail_ServiceTemplateType {
 	"vrouter_instance_type" = <schema.TypeString> // Mechanism used to spawn service instance, when vrouter is spawning instances.Allowed values libvirt-qemu, docker or netns
 	"instance_data" = <schema.TypeString> // Opaque string (typically in json format) used to spawn a vrouter-instance.
 }
+contrail_SloRateType {
+	"rate" = <schema.TypeInt> // Rate at which sessions are logged
+}
 contrail_SubnetListType {
 	"subnet" = < [ contrail_SubnetType ] >
+}
+contrail_TelemetryResourceInfo {
+	"name" = <schema.TypeString>
+	"path" = <schema.TypeString>
+	"rate" = <schema.TypeString>
+}
+contrail_TelemetryStateInfo {
+	"resource" = < [ contrail_TelemetryResourceInfo ] >
+	"server_ip" = <schema.TypeString>
+	"server_port" = <schema.TypeInt>
 }
 contrail_TimerType {
 	"start_time" = <schema.TypeString> (Required)
@@ -1316,7 +1843,7 @@ contrail_VirtualDnsRecordType {
 contrail_VirtualDnsType {
 	"domain_name" = <schema.TypeString> (Required) // Default domain name for this virtual DNS server
 	"dynamic_records_from_client" = <schema.TypeBool> // Allow automatic addition of records on VM launch, default is True
-	"record_order" = <schema.TypeString> // Order of DNS load balancing, fixed, random, round-robin
+	"record_order" = <schema.TypeString> // Order of DNS load balancing, fixed, random, round-robin. Default is random
 	"default_ttl_seconds" = <schema.TypeInt> // Default Time To Live for DNS records
 	"next_virtual_dns" = <schema.TypeString> // Next virtual DNS server to lookup if record is not found. Default is proxy to infrastructure DNS
 	"floating_ip_record" = <schema.TypeString> // Decides how floating ip records are added
@@ -1353,6 +1880,10 @@ contrail_VirtualNetworkType {
 	"forwarding_mode" = <schema.TypeString> // Packet forwarding mode for this virtual network
 	"rpf" = <schema.TypeString> // Flag used to disable Reverse Path Forwarding(RPF) check for this network
 	"mirror_destination" = <schema.TypeBool> // Flag to mark the virtual network as mirror destination network
+}
+contrail_VirtualRouterNetworkIpamType {
+	"allocation_pools" = < [ contrail_AllocationPoolType ] > // List of ranges of ip address for vrouter specific allocation
+	"subnet" = < [ contrail_SubnetType ] > // List of ip prefix and length for vrouter specific subnets
 }
 contrail_VnSubnetsType {
 	"ipam_subnets" = < [ contrail_IpamSubnetType ] >

@@ -28,6 +28,9 @@ func SetLogicalRouterFromResource(object *LogicalRouter, d *schema.ResourceData,
 		SetRouteTargetListFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetConfiguredRouteTargetList(member)
 	}
+	if val, ok := d.GetOk("vxlan_network_identifier"); ok {
+		object.SetVxlanNetworkIdentifier(val.(string))
+	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
 		SetIdPermsTypeFromMap(member, d, m, (val.([]interface{}))[0])
@@ -127,6 +130,48 @@ func SetRefsLogicalRouterFromResource(object *LogicalRouter, d *schema.ResourceD
 			object.AddServiceInstance(refObj.(*ServiceInstance))
 		}
 	}
+	if val, ok := d.GetOk("physical_router_refs"); ok {
+		log.Printf("Got ref physical_router_refs -- will call: object.AddPhysicalRouter(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("physical-router", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving physical-router by Uuid = %v as ref for PhysicalRouter on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddPhysicalRouter(refObj.(*PhysicalRouter))
+		}
+	}
+	if val, ok := d.GetOk("bgpvpn_refs"); ok {
+		log.Printf("Got ref bgpvpn_refs -- will call: object.AddBgpvpn(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("bgpvpn", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving bgpvpn by Uuid = %v as ref for Bgpvpn on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddBgpvpn(refObj.(*Bgpvpn))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -135,6 +180,7 @@ func WriteLogicalRouterToResource(object LogicalRouter, d *schema.ResourceData, 
 
 	configured_route_target_listObj := object.GetConfiguredRouteTargetList()
 	d.Set("configured_route_target_list", TakeRouteTargetListAsMap(&configured_route_target_listObj))
+	d.Set("vxlan_network_identifier", object.GetVxlanNetworkIdentifier())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -150,6 +196,7 @@ func TakeLogicalRouterAsMap(object *LogicalRouter) map[string]interface{} {
 
 	configured_route_target_listObj := object.GetConfiguredRouteTargetList()
 	omap["configured_route_target_list"] = TakeRouteTargetListAsMap(&configured_route_target_listObj)
+	omap["vxlan_network_identifier"] = object.GetVxlanNetworkIdentifier()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -172,6 +219,11 @@ func UpdateLogicalRouterFromResource(object *LogicalRouter, d *schema.ResourceDa
 			member := new(RouteTargetList)
 			SetRouteTargetListFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetConfiguredRouteTargetList(member)
+		}
+	}
+	if d.HasChange("vxlan_network_identifier") {
+		if val, ok := d.GetOk("vxlan_network_identifier"); ok {
+			object.SetVxlanNetworkIdentifier(val.(string))
 		}
 	}
 	if d.HasChange("id_perms") {
@@ -332,6 +384,10 @@ func ResourceLogicalRouterSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourceRouteTargetList(),
 		},
+		"vxlan_network_identifier": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeString,
+		},
 		"id_perms": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -384,6 +440,21 @@ func ResourceLogicalRouterRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceServiceInstance(),
+		},
+		"physical_router_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourcePhysicalRouter(),
+		},
+		"bgpvpn_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceBgpvpn(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

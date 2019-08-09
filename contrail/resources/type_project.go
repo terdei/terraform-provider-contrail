@@ -13,11 +13,13 @@ import (
 
 const (
 	project_quota int = iota
+	project_vxlan_routing
 	project_alarm_enable
 	project_id_perms
 	project_perms2
 	project_annotations
 	project_display_name
+	project_security_logging_objects
 	project_namespace_refs
 	project_security_groups
 	project_virtual_networks
@@ -41,7 +43,16 @@ const (
 	project_virtual_ips
 	project_loadbalancer_listeners
 	project_loadbalancers
+	project_bgpvpns
 	project_alarms
+	project_service_groups
+	project_address_groups
+	project_firewall_rules
+	project_firewall_policys
+	project_application_policy_sets
+	project_application_policy_set_refs
+	project_tags
+	project_tag_refs
 	project_floating_ip_back_refs
 	project_alias_ip_back_refs
 )
@@ -49,11 +60,13 @@ const (
 type Project struct {
 	contrail.ObjectBase
 	quota                       QuotaType
+	vxlan_routing               bool
 	alarm_enable                bool
 	id_perms                    IdPermsType
 	perms2                      PermType2
 	annotations                 KeyValuePairs
 	display_name                string
+	security_logging_objects    contrail.ReferenceList
 	namespace_refs              contrail.ReferenceList
 	security_groups             contrail.ReferenceList
 	virtual_networks            contrail.ReferenceList
@@ -77,7 +90,16 @@ type Project struct {
 	virtual_ips                 contrail.ReferenceList
 	loadbalancer_listeners      contrail.ReferenceList
 	loadbalancers               contrail.ReferenceList
+	bgpvpns                     contrail.ReferenceList
 	alarms                      contrail.ReferenceList
+	service_groups              contrail.ReferenceList
+	address_groups              contrail.ReferenceList
+	firewall_rules              contrail.ReferenceList
+	firewall_policys            contrail.ReferenceList
+	application_policy_sets     contrail.ReferenceList
+	application_policy_set_refs contrail.ReferenceList
+	tags                        contrail.ReferenceList
+	tag_refs                    contrail.ReferenceList
 	floating_ip_back_refs       contrail.ReferenceList
 	alias_ip_back_refs          contrail.ReferenceList
 	valid                       big.Int
@@ -138,6 +160,15 @@ func (obj *Project) SetQuota(value *QuotaType) {
 	obj.modified.SetBit(&obj.modified, project_quota, 1)
 }
 
+func (obj *Project) GetVxlanRouting() bool {
+	return obj.vxlan_routing
+}
+
+func (obj *Project) SetVxlanRouting(value bool) {
+	obj.vxlan_routing = value
+	obj.modified.SetBit(&obj.modified, project_vxlan_routing, 1)
+}
+
 func (obj *Project) GetAlarmEnable() bool {
 	return obj.alarm_enable
 }
@@ -181,6 +212,26 @@ func (obj *Project) GetDisplayName() string {
 func (obj *Project) SetDisplayName(value string) {
 	obj.display_name = value
 	obj.modified.SetBit(&obj.modified, project_display_name, 1)
+}
+
+func (obj *Project) readSecurityLoggingObjects() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_security_logging_objects) == 0) {
+		err := obj.GetField(obj, "security_logging_objects")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetSecurityLoggingObjects() (
+	contrail.ReferenceList, error) {
+	err := obj.readSecurityLoggingObjects()
+	if err != nil {
+		return nil, err
+	}
+	return obj.security_logging_objects, nil
 }
 
 func (obj *Project) readSecurityGroups() error {
@@ -583,6 +634,26 @@ func (obj *Project) GetLoadbalancers() (
 	return obj.loadbalancers, nil
 }
 
+func (obj *Project) readBgpvpns() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_bgpvpns) == 0) {
+		err := obj.GetField(obj, "bgpvpns")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetBgpvpns() (
+	contrail.ReferenceList, error) {
+	err := obj.readBgpvpns()
+	if err != nil {
+		return nil, err
+	}
+	return obj.bgpvpns, nil
+}
+
 func (obj *Project) readAlarms() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(project_alarms) == 0) {
@@ -601,6 +672,126 @@ func (obj *Project) GetAlarms() (
 		return nil, err
 	}
 	return obj.alarms, nil
+}
+
+func (obj *Project) readServiceGroups() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_service_groups) == 0) {
+		err := obj.GetField(obj, "service_groups")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetServiceGroups() (
+	contrail.ReferenceList, error) {
+	err := obj.readServiceGroups()
+	if err != nil {
+		return nil, err
+	}
+	return obj.service_groups, nil
+}
+
+func (obj *Project) readAddressGroups() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_address_groups) == 0) {
+		err := obj.GetField(obj, "address_groups")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetAddressGroups() (
+	contrail.ReferenceList, error) {
+	err := obj.readAddressGroups()
+	if err != nil {
+		return nil, err
+	}
+	return obj.address_groups, nil
+}
+
+func (obj *Project) readFirewallRules() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_firewall_rules) == 0) {
+		err := obj.GetField(obj, "firewall_rules")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetFirewallRules() (
+	contrail.ReferenceList, error) {
+	err := obj.readFirewallRules()
+	if err != nil {
+		return nil, err
+	}
+	return obj.firewall_rules, nil
+}
+
+func (obj *Project) readFirewallPolicys() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_firewall_policys) == 0) {
+		err := obj.GetField(obj, "firewall_policys")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetFirewallPolicys() (
+	contrail.ReferenceList, error) {
+	err := obj.readFirewallPolicys()
+	if err != nil {
+		return nil, err
+	}
+	return obj.firewall_policys, nil
+}
+
+func (obj *Project) readApplicationPolicySets() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_application_policy_sets) == 0) {
+		err := obj.GetField(obj, "application_policy_sets")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetApplicationPolicySets() (
+	contrail.ReferenceList, error) {
+	err := obj.readApplicationPolicySets()
+	if err != nil {
+		return nil, err
+	}
+	return obj.application_policy_sets, nil
+}
+
+func (obj *Project) readTags() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_tags) == 0) {
+		err := obj.GetField(obj, "tags")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetTags() (
+	contrail.ReferenceList, error) {
+	err := obj.readTags()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tags, nil
 }
 
 func (obj *Project) readNamespaceRefs() error {
@@ -855,6 +1046,174 @@ func (obj *Project) SetAliasIpPoolList(
 	}
 }
 
+func (obj *Project) readApplicationPolicySetRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_application_policy_set_refs) == 0) {
+		err := obj.GetField(obj, "application_policy_set_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetApplicationPolicySetRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readApplicationPolicySetRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.application_policy_set_refs, nil
+}
+
+func (obj *Project) AddApplicationPolicySet(
+	rhs *ApplicationPolicySet) error {
+	err := obj.readApplicationPolicySetRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(project_application_policy_set_refs) == 0 {
+		obj.storeReferenceBase("application-policy-set", obj.application_policy_set_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.application_policy_set_refs = append(obj.application_policy_set_refs, ref)
+	obj.modified.SetBit(&obj.modified, project_application_policy_set_refs, 1)
+	return nil
+}
+
+func (obj *Project) DeleteApplicationPolicySet(uuid string) error {
+	err := obj.readApplicationPolicySetRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(project_application_policy_set_refs) == 0 {
+		obj.storeReferenceBase("application-policy-set", obj.application_policy_set_refs)
+	}
+
+	for i, ref := range obj.application_policy_set_refs {
+		if ref.Uuid == uuid {
+			obj.application_policy_set_refs = append(
+				obj.application_policy_set_refs[:i],
+				obj.application_policy_set_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, project_application_policy_set_refs, 1)
+	return nil
+}
+
+func (obj *Project) ClearApplicationPolicySet() {
+	if (obj.valid.Bit(project_application_policy_set_refs) != 0) &&
+		(obj.modified.Bit(project_application_policy_set_refs) == 0) {
+		obj.storeReferenceBase("application-policy-set", obj.application_policy_set_refs)
+	}
+	obj.application_policy_set_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, project_application_policy_set_refs, 1)
+	obj.modified.SetBit(&obj.modified, project_application_policy_set_refs, 1)
+}
+
+func (obj *Project) SetApplicationPolicySetList(
+	refList []contrail.ReferencePair) {
+	obj.ClearApplicationPolicySet()
+	obj.application_policy_set_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.application_policy_set_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *Project) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(project_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Project) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *Project) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(project_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, project_tag_refs, 1)
+	return nil
+}
+
+func (obj *Project) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(project_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, project_tag_refs, 1)
+	return nil
+}
+
+func (obj *Project) ClearTag() {
+	if (obj.valid.Bit(project_tag_refs) != 0) &&
+		(obj.modified.Bit(project_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, project_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, project_tag_refs, 1)
+}
+
+func (obj *Project) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *Project) readFloatingIpBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(project_floating_ip_back_refs) == 0) {
@@ -909,6 +1268,15 @@ func (obj *Project) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		msg["quota"] = &value
+	}
+
+	if obj.modified.Bit(project_vxlan_routing) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.vxlan_routing)
+		if err != nil {
+			return nil, err
+		}
+		msg["vxlan_routing"] = &value
 	}
 
 	if obj.modified.Bit(project_alarm_enable) != 0 {
@@ -983,6 +1351,24 @@ func (obj *Project) MarshalJSON() ([]byte, error) {
 		msg["alias_ip_pool_refs"] = &value
 	}
 
+	if len(obj.application_policy_set_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.application_policy_set_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["application_policy_set_refs"] = &value
+	}
+
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -1002,6 +1388,12 @@ func (obj *Project) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.quota)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, project_quota, 1)
+			}
+			break
+		case "vxlan_routing":
+			err = json.Unmarshal(value, &obj.vxlan_routing)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_vxlan_routing, 1)
 			}
 			break
 		case "alarm_enable":
@@ -1032,6 +1424,12 @@ func (obj *Project) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.display_name)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, project_display_name, 1)
+			}
+			break
+		case "security_logging_objects":
+			err = json.Unmarshal(value, &obj.security_logging_objects)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_security_logging_objects, 1)
 			}
 			break
 		case "security_groups":
@@ -1166,10 +1564,64 @@ func (obj *Project) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, project_loadbalancers, 1)
 			}
 			break
+		case "bgpvpns":
+			err = json.Unmarshal(value, &obj.bgpvpns)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_bgpvpns, 1)
+			}
+			break
 		case "alarms":
 			err = json.Unmarshal(value, &obj.alarms)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, project_alarms, 1)
+			}
+			break
+		case "service_groups":
+			err = json.Unmarshal(value, &obj.service_groups)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_service_groups, 1)
+			}
+			break
+		case "address_groups":
+			err = json.Unmarshal(value, &obj.address_groups)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_address_groups, 1)
+			}
+			break
+		case "firewall_rules":
+			err = json.Unmarshal(value, &obj.firewall_rules)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_firewall_rules, 1)
+			}
+			break
+		case "firewall_policys":
+			err = json.Unmarshal(value, &obj.firewall_policys)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_firewall_policys, 1)
+			}
+			break
+		case "application_policy_sets":
+			err = json.Unmarshal(value, &obj.application_policy_sets)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_application_policy_sets, 1)
+			}
+			break
+		case "application_policy_set_refs":
+			err = json.Unmarshal(value, &obj.application_policy_set_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_application_policy_set_refs, 1)
+			}
+			break
+		case "tags":
+			err = json.Unmarshal(value, &obj.tags)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_tags, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, project_tag_refs, 1)
 			}
 			break
 		case "floating_ip_back_refs":
@@ -1232,6 +1684,15 @@ func (obj *Project) UpdateObject() ([]byte, error) {
 			return nil, err
 		}
 		msg["quota"] = &value
+	}
+
+	if obj.modified.Bit(project_vxlan_routing) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.vxlan_routing)
+		if err != nil {
+			return nil, err
+		}
+		msg["vxlan_routing"] = &value
 	}
 
 	if obj.modified.Bit(project_alarm_enable) != 0 {
@@ -1336,6 +1797,44 @@ func (obj *Project) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(project_application_policy_set_refs) != 0 {
+		if len(obj.application_policy_set_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["application_policy_set_refs"] = &value
+		} else if !obj.hasReferenceBase("application-policy-set") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.application_policy_set_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["application_policy_set_refs"] = &value
+		}
+	}
+
+	if obj.modified.Bit(project_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -1372,6 +1871,30 @@ func (obj *Project) UpdateReferences() error {
 			obj, "alias-ip-pool",
 			obj.alias_ip_pool_refs,
 			obj.baseMap["alias-ip-pool"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(project_application_policy_set_refs) != 0) &&
+		len(obj.application_policy_set_refs) > 0 &&
+		obj.hasReferenceBase("application-policy-set") {
+		err := obj.UpdateReference(
+			obj, "application-policy-set",
+			obj.application_policy_set_refs,
+			obj.baseMap["application-policy-set"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(project_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

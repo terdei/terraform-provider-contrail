@@ -18,16 +18,18 @@ const (
 	access_control_list_perms2
 	access_control_list_annotations
 	access_control_list_display_name
+	access_control_list_tag_refs
 )
 
 type AccessControlList struct {
 	contrail.ObjectBase
 	access_control_list_entries AclEntriesType
-	access_control_list_hash    int
+	access_control_list_hash    uint64
 	id_perms                    IdPermsType
 	perms2                      PermType2
 	annotations                 KeyValuePairs
 	display_name                string
+	tag_refs                    contrail.ReferenceList
 	valid                       big.Int
 	modified                    big.Int
 	baseMap                     map[string]contrail.ReferenceList
@@ -86,11 +88,11 @@ func (obj *AccessControlList) SetAccessControlListEntries(value *AclEntriesType)
 	obj.modified.SetBit(&obj.modified, access_control_list_access_control_list_entries, 1)
 }
 
-func (obj *AccessControlList) GetAccessControlListHash() int {
+func (obj *AccessControlList) GetAccessControlListHash() uint64 {
 	return obj.access_control_list_hash
 }
 
-func (obj *AccessControlList) SetAccessControlListHash(value int) {
+func (obj *AccessControlList) SetAccessControlListHash(value uint64) {
 	obj.access_control_list_hash = value
 	obj.modified.SetBit(&obj.modified, access_control_list_access_control_list_hash, 1)
 }
@@ -129,6 +131,90 @@ func (obj *AccessControlList) GetDisplayName() string {
 func (obj *AccessControlList) SetDisplayName(value string) {
 	obj.display_name = value
 	obj.modified.SetBit(&obj.modified, access_control_list_display_name, 1)
+}
+
+func (obj *AccessControlList) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(access_control_list_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *AccessControlList) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *AccessControlList) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(access_control_list_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, access_control_list_tag_refs, 1)
+	return nil
+}
+
+func (obj *AccessControlList) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(access_control_list_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, access_control_list_tag_refs, 1)
+	return nil
+}
+
+func (obj *AccessControlList) ClearTag() {
+	if (obj.valid.Bit(access_control_list_tag_refs) != 0) &&
+		(obj.modified.Bit(access_control_list_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, access_control_list_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, access_control_list_tag_refs, 1)
+}
+
+func (obj *AccessControlList) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
 }
 
 func (obj *AccessControlList) MarshalJSON() ([]byte, error) {
@@ -192,6 +278,15 @@ func (obj *AccessControlList) MarshalJSON() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -241,6 +336,12 @@ func (obj *AccessControlList) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.display_name)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, access_control_list_display_name, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, access_control_list_tag_refs, 1)
 			}
 			break
 		}
@@ -312,10 +413,41 @@ func (obj *AccessControlList) UpdateObject() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if obj.modified.Bit(access_control_list_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *AccessControlList) UpdateReferences() error {
+
+	if (obj.modified.Bit(access_control_list_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

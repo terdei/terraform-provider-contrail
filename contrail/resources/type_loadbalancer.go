@@ -21,6 +21,7 @@ const (
 	loadbalancer_service_appliance_set_refs
 	loadbalancer_service_instance_refs
 	loadbalancer_virtual_machine_interface_refs
+	loadbalancer_tag_refs
 	loadbalancer_loadbalancer_listener_back_refs
 )
 
@@ -35,6 +36,7 @@ type Loadbalancer struct {
 	service_appliance_set_refs      contrail.ReferenceList
 	service_instance_refs           contrail.ReferenceList
 	virtual_machine_interface_refs  contrail.ReferenceList
+	tag_refs                        contrail.ReferenceList
 	loadbalancer_listener_back_refs contrail.ReferenceList
 	valid                           big.Int
 	modified                        big.Int
@@ -391,6 +393,90 @@ func (obj *Loadbalancer) SetVirtualMachineInterfaceList(
 	}
 }
 
+func (obj *Loadbalancer) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(loadbalancer_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Loadbalancer) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *Loadbalancer) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(loadbalancer_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, loadbalancer_tag_refs, 1)
+	return nil
+}
+
+func (obj *Loadbalancer) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(loadbalancer_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, loadbalancer_tag_refs, 1)
+	return nil
+}
+
+func (obj *Loadbalancer) ClearTag() {
+	if (obj.valid.Bit(loadbalancer_tag_refs) != 0) &&
+		(obj.modified.Bit(loadbalancer_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, loadbalancer_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, loadbalancer_tag_refs, 1)
+}
+
+func (obj *Loadbalancer) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *Loadbalancer) readLoadbalancerListenerBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(loadbalancer_loadbalancer_listener_back_refs) == 0) {
@@ -499,6 +585,15 @@ func (obj *Loadbalancer) MarshalJSON() ([]byte, error) {
 		msg["virtual_machine_interface_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -566,6 +661,12 @@ func (obj *Loadbalancer) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.virtual_machine_interface_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, loadbalancer_virtual_machine_interface_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, loadbalancer_tag_refs, 1)
 			}
 			break
 		case "loadbalancer_listener_back_refs":
@@ -700,6 +801,25 @@ func (obj *Loadbalancer) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(loadbalancer_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -736,6 +856,18 @@ func (obj *Loadbalancer) UpdateReferences() error {
 			obj, "virtual-machine-interface",
 			obj.virtual_machine_interface_refs,
 			obj.baseMap["virtual-machine-interface"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(loadbalancer_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

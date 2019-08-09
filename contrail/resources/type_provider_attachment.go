@@ -17,6 +17,7 @@ const (
 	provider_attachment_annotations
 	provider_attachment_display_name
 	provider_attachment_virtual_router_refs
+	provider_attachment_tag_refs
 )
 
 type ProviderAttachment struct {
@@ -26,6 +27,7 @@ type ProviderAttachment struct {
 	annotations         KeyValuePairs
 	display_name        string
 	virtual_router_refs contrail.ReferenceList
+	tag_refs            contrail.ReferenceList
 	valid               big.Int
 	modified            big.Int
 	baseMap             map[string]contrail.ReferenceList
@@ -195,6 +197,90 @@ func (obj *ProviderAttachment) SetVirtualRouterList(
 	}
 }
 
+func (obj *ProviderAttachment) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(provider_attachment_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *ProviderAttachment) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *ProviderAttachment) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(provider_attachment_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, provider_attachment_tag_refs, 1)
+	return nil
+}
+
+func (obj *ProviderAttachment) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(provider_attachment_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, provider_attachment_tag_refs, 1)
+	return nil
+}
+
+func (obj *ProviderAttachment) ClearTag() {
+	if (obj.valid.Bit(provider_attachment_tag_refs) != 0) &&
+		(obj.modified.Bit(provider_attachment_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, provider_attachment_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, provider_attachment_tag_refs, 1)
+}
+
+func (obj *ProviderAttachment) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *ProviderAttachment) MarshalJSON() ([]byte, error) {
 	msg := map[string]*json.RawMessage{}
 	err := obj.MarshalCommon(msg)
@@ -247,6 +333,15 @@ func (obj *ProviderAttachment) MarshalJSON() ([]byte, error) {
 		msg["virtual_router_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -290,6 +385,12 @@ func (obj *ProviderAttachment) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.virtual_router_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, provider_attachment_virtual_router_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, provider_attachment_tag_refs, 1)
 			}
 			break
 		}
@@ -362,6 +463,25 @@ func (obj *ProviderAttachment) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(provider_attachment_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -374,6 +494,18 @@ func (obj *ProviderAttachment) UpdateReferences() error {
 			obj, "virtual-router",
 			obj.virtual_router_refs,
 			obj.baseMap["virtual-router"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(provider_attachment_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

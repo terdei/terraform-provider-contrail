@@ -55,6 +55,19 @@ func SetGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.Res
 		SetBGPaaServiceParametersTypeFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetBgpaasParameters(member)
 	}
+	if val, ok := d.GetOk("mac_limit_control"); ok {
+		member := new(MACLimitControlType)
+		SetMACLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+		object.SetMacLimitControl(member)
+	}
+	if val, ok := d.GetOk("mac_move_control"); ok {
+		member := new(MACMoveLimitControlType)
+		SetMACMoveLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+		object.SetMacMoveControl(member)
+	}
+	if val, ok := d.GetOk("mac_aging_time"); ok {
+		object.SetMacAgingTime(val.(int))
+	}
 	if val, ok := d.GetOk("alarm_enable"); ok {
 		object.SetAlarmEnable(val.(bool))
 	}
@@ -106,6 +119,20 @@ func SetRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema
 			object.AddBgpRouter(refObj.(*BgpRouter))
 		}
 	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -124,6 +151,11 @@ func WriteGlobalSystemConfigToResource(object GlobalSystemConfig, d *schema.Reso
 	d.Set("ip_fabric_subnets", TakeSubnetListTypeAsMap(&ip_fabric_subnetsObj))
 	bgpaas_parametersObj := object.GetBgpaasParameters()
 	d.Set("bgpaas_parameters", TakeBGPaaServiceParametersTypeAsMap(&bgpaas_parametersObj))
+	mac_limit_controlObj := object.GetMacLimitControl()
+	d.Set("mac_limit_control", TakeMACLimitControlTypeAsMap(&mac_limit_controlObj))
+	mac_move_controlObj := object.GetMacMoveControl()
+	d.Set("mac_move_control", TakeMACMoveLimitControlTypeAsMap(&mac_move_controlObj))
+	d.Set("mac_aging_time", object.GetMacAgingTime())
 	d.Set("alarm_enable", object.GetAlarmEnable())
 	user_defined_log_statisticsObj := object.GetUserDefinedLogStatistics()
 	d.Set("user_defined_log_statistics", TakeUserDefinedLogStatListAsMap(&user_defined_log_statisticsObj))
@@ -152,6 +184,11 @@ func TakeGlobalSystemConfigAsMap(object *GlobalSystemConfig) map[string]interfac
 	omap["ip_fabric_subnets"] = TakeSubnetListTypeAsMap(&ip_fabric_subnetsObj)
 	bgpaas_parametersObj := object.GetBgpaasParameters()
 	omap["bgpaas_parameters"] = TakeBGPaaServiceParametersTypeAsMap(&bgpaas_parametersObj)
+	mac_limit_controlObj := object.GetMacLimitControl()
+	omap["mac_limit_control"] = TakeMACLimitControlTypeAsMap(&mac_limit_controlObj)
+	mac_move_controlObj := object.GetMacMoveControl()
+	omap["mac_move_control"] = TakeMACMoveLimitControlTypeAsMap(&mac_move_controlObj)
+	omap["mac_aging_time"] = object.GetMacAgingTime()
 	omap["alarm_enable"] = object.GetAlarmEnable()
 	user_defined_log_statisticsObj := object.GetUserDefinedLogStatistics()
 	omap["user_defined_log_statistics"] = TakeUserDefinedLogStatListAsMap(&user_defined_log_statisticsObj)
@@ -218,6 +255,25 @@ func UpdateGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.
 			member := new(BGPaaServiceParametersType)
 			SetBGPaaServiceParametersTypeFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetBgpaasParameters(member)
+		}
+	}
+	if d.HasChange("mac_limit_control") {
+		if val, ok := d.GetOk("mac_limit_control"); ok {
+			member := new(MACLimitControlType)
+			SetMACLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+			object.SetMacLimitControl(member)
+		}
+	}
+	if d.HasChange("mac_move_control") {
+		if val, ok := d.GetOk("mac_move_control"); ok {
+			member := new(MACMoveLimitControlType)
+			SetMACMoveLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+			object.SetMacMoveControl(member)
+		}
+	}
+	if d.HasChange("mac_aging_time") {
+		if val, ok := d.GetOk("mac_aging_time"); ok {
+			object.SetMacAgingTime(val.(int))
 		}
 	}
 	if d.HasChange("alarm_enable") {
@@ -421,6 +477,20 @@ func ResourceGlobalSystemConfigSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourceBGPaaServiceParametersType(),
 		},
+		"mac_limit_control": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceMACLimitControlType(),
+		},
+		"mac_move_control": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceMACMoveLimitControlType(),
+		},
+		"mac_aging_time": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeInt,
+		},
 		"alarm_enable": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeBool,
@@ -462,6 +532,11 @@ func ResourceGlobalSystemConfigRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceBgpRouter(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

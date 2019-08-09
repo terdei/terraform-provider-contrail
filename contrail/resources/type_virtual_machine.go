@@ -18,6 +18,7 @@ const (
 	virtual_machine_display_name
 	virtual_machine_virtual_machine_interfaces
 	virtual_machine_service_instance_refs
+	virtual_machine_tag_refs
 	virtual_machine_virtual_machine_interface_back_refs
 	virtual_machine_virtual_router_back_refs
 )
@@ -30,6 +31,7 @@ type VirtualMachine struct {
 	display_name                        string
 	virtual_machine_interfaces          contrail.ReferenceList
 	service_instance_refs               contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
 	virtual_machine_interface_back_refs contrail.ReferenceList
 	virtual_router_back_refs            contrail.ReferenceList
 	valid                               big.Int
@@ -221,6 +223,90 @@ func (obj *VirtualMachine) SetServiceInstanceList(
 	}
 }
 
+func (obj *VirtualMachine) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_machine_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualMachine) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *VirtualMachine) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_machine_tag_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachine) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_machine_tag_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachine) ClearTag() {
+	if (obj.valid.Bit(virtual_machine_tag_refs) != 0) &&
+		(obj.modified.Bit(virtual_machine_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_machine_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_machine_tag_refs, 1)
+}
+
+func (obj *VirtualMachine) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *VirtualMachine) readVirtualMachineInterfaceBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(virtual_machine_virtual_machine_interface_back_refs) == 0) {
@@ -313,6 +399,15 @@ func (obj *VirtualMachine) MarshalJSON() ([]byte, error) {
 		msg["service_instance_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -362,6 +457,12 @@ func (obj *VirtualMachine) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.service_instance_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, virtual_machine_service_instance_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_machine_tag_refs, 1)
 			}
 			break
 		case "virtual_machine_interface_back_refs":
@@ -446,6 +547,25 @@ func (obj *VirtualMachine) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(virtual_machine_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -458,6 +578,18 @@ func (obj *VirtualMachine) UpdateReferences() error {
 			obj, "service-instance",
 			obj.service_instance_refs,
 			obj.baseMap["service-instance"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(virtual_machine_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

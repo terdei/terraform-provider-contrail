@@ -194,6 +194,20 @@ func SetQuotaTypeFromMap(object *QuotaType, d *schema.ResourceData, m interface{
 		object.VirtualIp = mVirtualIp
 	}
 
+	mSecurityLoggingObjectObj := vmap["security_logging_object"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mSecurityLoggingObjectObj) {
+		log.Printf("Setting security_logging_object  SecurityLoggingObject <<%T>> => %#v", mSecurityLoggingObjectObj, mSecurityLoggingObjectObj)
+		mSecurityLoggingObject := mSecurityLoggingObjectObj.(int)
+		object.SecurityLoggingObject = mSecurityLoggingObject
+	}
+
+	mRouteTableObj := vmap["route_table"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mRouteTableObj) {
+		log.Printf("Setting route_table  RouteTable <<%T>> => %#v", mRouteTableObj, mRouteTableObj)
+		mRouteTable := mRouteTableObj.(int)
+		object.RouteTable = mRouteTable
+	}
+
 	log.Printf("FINISHED QuotaType object: %#v", object)
 }
 
@@ -224,6 +238,8 @@ func TakeQuotaTypeAsMap(object *QuotaType) map[string]interface{} {
 	omap["loadbalancer_member"] = object.LoadbalancerMember
 	omap["loadbalancer_healthmonitor"] = object.LoadbalancerHealthmonitor
 	omap["virtual_ip"] = object.VirtualIp
+	omap["security_logging_object"] = object.SecurityLoggingObject
+	omap["route_table"] = object.RouteTable
 
 	return omap
 }
@@ -346,6 +362,16 @@ func ResourceQuotaTypeSchema() map[string]*schema.Schema {
 			Type:     schema.TypeInt,
 		},
 		"virtual_ip": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:integer
+			Optional: true,
+			Type:     schema.TypeInt,
+		},
+		"security_logging_object": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:integer
+			Optional: true,
+			Type:     schema.TypeInt,
+		},
+		"route_table": &schema.Schema{
 			// Cmplx: 0; Seq: False; Type: xsd:integer
 			Optional: true,
 			Type:     schema.TypeInt,

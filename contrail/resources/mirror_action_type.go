@@ -90,6 +90,20 @@ func SetMirrorActionTypeFromMap(object *MirrorActionType, d *schema.ResourceData
 		object.StaticNhHeader = mStaticNhHeader
 	}
 
+	mNicAssistedMirroringObj := vmap["nic_assisted_mirroring"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mNicAssistedMirroringObj) {
+		log.Printf("Setting nic_assisted_mirroring  NicAssistedMirroring <<%T>> => %#v", mNicAssistedMirroringObj, mNicAssistedMirroringObj)
+		mNicAssistedMirroring := mNicAssistedMirroringObj.(bool)
+		object.NicAssistedMirroring = mNicAssistedMirroring
+	}
+
+	mNicAssistedMirroringVlanObj := vmap["nic_assisted_mirroring_vlan"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mNicAssistedMirroringVlanObj) {
+		log.Printf("Setting nic_assisted_mirroring_vlan  NicAssistedMirroringVlan <<%T>> => %#v", mNicAssistedMirroringVlanObj, mNicAssistedMirroringVlanObj)
+		mNicAssistedMirroringVlan := mNicAssistedMirroringVlanObj.(int)
+		object.NicAssistedMirroringVlan = mNicAssistedMirroringVlan
+	}
+
 	log.Printf("FINISHED MirrorActionType object: %#v", object)
 }
 
@@ -107,6 +121,8 @@ func TakeMirrorActionTypeAsMap(object *MirrorActionType) map[string]interface{} 
 	if object.StaticNhHeader != nil {
 		omap["static_nh_header"] = TakeStaticMirrorNhTypeAsMap(object.StaticNhHeader)
 	}
+	omap["nic_assisted_mirroring"] = object.NicAssistedMirroring
+	omap["nic_assisted_mirroring_vlan"] = object.NicAssistedMirroringVlan
 
 	return omap
 }
@@ -158,6 +174,16 @@ func ResourceMirrorActionTypeSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceStaticMirrorNhType(),
+		},
+		"nic_assisted_mirroring": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:boolean
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
+		"nic_assisted_mirroring_vlan": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:integer
+			Optional: true,
+			Type:     schema.TypeInt,
 		},
 	}
 }

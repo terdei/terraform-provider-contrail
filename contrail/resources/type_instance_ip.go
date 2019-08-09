@@ -26,9 +26,12 @@ const (
 	instance_ip_annotations
 	instance_ip_display_name
 	instance_ip_virtual_network_refs
+	instance_ip_network_ipam_refs
 	instance_ip_virtual_machine_interface_refs
 	instance_ip_physical_router_refs
+	instance_ip_virtual_router_refs
 	instance_ip_floating_ips
+	instance_ip_tag_refs
 	instance_ip_service_instance_back_refs
 )
 
@@ -48,9 +51,12 @@ type InstanceIp struct {
 	annotations                    KeyValuePairs
 	display_name                   string
 	virtual_network_refs           contrail.ReferenceList
+	network_ipam_refs              contrail.ReferenceList
 	virtual_machine_interface_refs contrail.ReferenceList
 	physical_router_refs           contrail.ReferenceList
+	virtual_router_refs            contrail.ReferenceList
 	floating_ips                   contrail.ReferenceList
+	tag_refs                       contrail.ReferenceList
 	service_instance_back_refs     contrail.ReferenceList
 	valid                          big.Int
 	modified                       big.Int
@@ -322,6 +328,90 @@ func (obj *InstanceIp) SetVirtualNetworkList(
 	}
 }
 
+func (obj *InstanceIp) readNetworkIpamRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(instance_ip_network_ipam_refs) == 0) {
+		err := obj.GetField(obj, "network_ipam_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *InstanceIp) GetNetworkIpamRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readNetworkIpamRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.network_ipam_refs, nil
+}
+
+func (obj *InstanceIp) AddNetworkIpam(
+	rhs *NetworkIpam) error {
+	err := obj.readNetworkIpamRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(instance_ip_network_ipam_refs) == 0 {
+		obj.storeReferenceBase("network-ipam", obj.network_ipam_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.network_ipam_refs = append(obj.network_ipam_refs, ref)
+	obj.modified.SetBit(&obj.modified, instance_ip_network_ipam_refs, 1)
+	return nil
+}
+
+func (obj *InstanceIp) DeleteNetworkIpam(uuid string) error {
+	err := obj.readNetworkIpamRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(instance_ip_network_ipam_refs) == 0 {
+		obj.storeReferenceBase("network-ipam", obj.network_ipam_refs)
+	}
+
+	for i, ref := range obj.network_ipam_refs {
+		if ref.Uuid == uuid {
+			obj.network_ipam_refs = append(
+				obj.network_ipam_refs[:i],
+				obj.network_ipam_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, instance_ip_network_ipam_refs, 1)
+	return nil
+}
+
+func (obj *InstanceIp) ClearNetworkIpam() {
+	if (obj.valid.Bit(instance_ip_network_ipam_refs) != 0) &&
+		(obj.modified.Bit(instance_ip_network_ipam_refs) == 0) {
+		obj.storeReferenceBase("network-ipam", obj.network_ipam_refs)
+	}
+	obj.network_ipam_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, instance_ip_network_ipam_refs, 1)
+	obj.modified.SetBit(&obj.modified, instance_ip_network_ipam_refs, 1)
+}
+
+func (obj *InstanceIp) SetNetworkIpamList(
+	refList []contrail.ReferencePair) {
+	obj.ClearNetworkIpam()
+	obj.network_ipam_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.network_ipam_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *InstanceIp) readVirtualMachineInterfaceRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(instance_ip_virtual_machine_interface_refs) == 0) {
@@ -490,6 +580,174 @@ func (obj *InstanceIp) SetPhysicalRouterList(
 	}
 }
 
+func (obj *InstanceIp) readVirtualRouterRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(instance_ip_virtual_router_refs) == 0) {
+		err := obj.GetField(obj, "virtual_router_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *InstanceIp) GetVirtualRouterRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readVirtualRouterRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.virtual_router_refs, nil
+}
+
+func (obj *InstanceIp) AddVirtualRouter(
+	rhs *VirtualRouter) error {
+	err := obj.readVirtualRouterRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(instance_ip_virtual_router_refs) == 0 {
+		obj.storeReferenceBase("virtual-router", obj.virtual_router_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.virtual_router_refs = append(obj.virtual_router_refs, ref)
+	obj.modified.SetBit(&obj.modified, instance_ip_virtual_router_refs, 1)
+	return nil
+}
+
+func (obj *InstanceIp) DeleteVirtualRouter(uuid string) error {
+	err := obj.readVirtualRouterRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(instance_ip_virtual_router_refs) == 0 {
+		obj.storeReferenceBase("virtual-router", obj.virtual_router_refs)
+	}
+
+	for i, ref := range obj.virtual_router_refs {
+		if ref.Uuid == uuid {
+			obj.virtual_router_refs = append(
+				obj.virtual_router_refs[:i],
+				obj.virtual_router_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, instance_ip_virtual_router_refs, 1)
+	return nil
+}
+
+func (obj *InstanceIp) ClearVirtualRouter() {
+	if (obj.valid.Bit(instance_ip_virtual_router_refs) != 0) &&
+		(obj.modified.Bit(instance_ip_virtual_router_refs) == 0) {
+		obj.storeReferenceBase("virtual-router", obj.virtual_router_refs)
+	}
+	obj.virtual_router_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, instance_ip_virtual_router_refs, 1)
+	obj.modified.SetBit(&obj.modified, instance_ip_virtual_router_refs, 1)
+}
+
+func (obj *InstanceIp) SetVirtualRouterList(
+	refList []contrail.ReferencePair) {
+	obj.ClearVirtualRouter()
+	obj.virtual_router_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.virtual_router_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *InstanceIp) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(instance_ip_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *InstanceIp) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *InstanceIp) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(instance_ip_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, instance_ip_tag_refs, 1)
+	return nil
+}
+
+func (obj *InstanceIp) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(instance_ip_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, instance_ip_tag_refs, 1)
+	return nil
+}
+
+func (obj *InstanceIp) ClearTag() {
+	if (obj.valid.Bit(instance_ip_tag_refs) != 0) &&
+		(obj.modified.Bit(instance_ip_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, instance_ip_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, instance_ip_tag_refs, 1)
+}
+
+func (obj *InstanceIp) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *InstanceIp) readServiceInstanceBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(instance_ip_service_instance_back_refs) == 0) {
@@ -643,6 +901,15 @@ func (obj *InstanceIp) MarshalJSON() ([]byte, error) {
 		msg["virtual_network_refs"] = &value
 	}
 
+	if len(obj.network_ipam_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.network_ipam_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["network_ipam_refs"] = &value
+	}
+
 	if len(obj.virtual_machine_interface_refs) > 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.virtual_machine_interface_refs)
@@ -659,6 +926,24 @@ func (obj *InstanceIp) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		msg["physical_router_refs"] = &value
+	}
+
+	if len(obj.virtual_router_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.virtual_router_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["virtual_router_refs"] = &value
+	}
+
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
 	}
 
 	return json.Marshal(msg)
@@ -760,6 +1045,12 @@ func (obj *InstanceIp) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, instance_ip_virtual_network_refs, 1)
 			}
 			break
+		case "network_ipam_refs":
+			err = json.Unmarshal(value, &obj.network_ipam_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, instance_ip_network_ipam_refs, 1)
+			}
+			break
 		case "virtual_machine_interface_refs":
 			err = json.Unmarshal(value, &obj.virtual_machine_interface_refs)
 			if err == nil {
@@ -772,10 +1063,22 @@ func (obj *InstanceIp) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, instance_ip_physical_router_refs, 1)
 			}
 			break
+		case "virtual_router_refs":
+			err = json.Unmarshal(value, &obj.virtual_router_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, instance_ip_virtual_router_refs, 1)
+			}
+			break
 		case "floating_ips":
 			err = json.Unmarshal(value, &obj.floating_ips)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, instance_ip_floating_ips, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, instance_ip_tag_refs, 1)
 			}
 			break
 		case "service_instance_back_refs":
@@ -955,6 +1258,25 @@ func (obj *InstanceIp) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(instance_ip_network_ipam_refs) != 0 {
+		if len(obj.network_ipam_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["network_ipam_refs"] = &value
+		} else if !obj.hasReferenceBase("network-ipam") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.network_ipam_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["network_ipam_refs"] = &value
+		}
+	}
+
 	if obj.modified.Bit(instance_ip_virtual_machine_interface_refs) != 0 {
 		if len(obj.virtual_machine_interface_refs) == 0 {
 			var value json.RawMessage
@@ -993,6 +1315,44 @@ func (obj *InstanceIp) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(instance_ip_virtual_router_refs) != 0 {
+		if len(obj.virtual_router_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["virtual_router_refs"] = &value
+		} else if !obj.hasReferenceBase("virtual-router") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.virtual_router_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["virtual_router_refs"] = &value
+		}
+	}
+
+	if obj.modified.Bit(instance_ip_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -1005,6 +1365,18 @@ func (obj *InstanceIp) UpdateReferences() error {
 			obj, "virtual-network",
 			obj.virtual_network_refs,
 			obj.baseMap["virtual-network"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(instance_ip_network_ipam_refs) != 0) &&
+		len(obj.network_ipam_refs) > 0 &&
+		obj.hasReferenceBase("network-ipam") {
+		err := obj.UpdateReference(
+			obj, "network-ipam",
+			obj.network_ipam_refs,
+			obj.baseMap["network-ipam"])
 		if err != nil {
 			return err
 		}
@@ -1029,6 +1401,30 @@ func (obj *InstanceIp) UpdateReferences() error {
 			obj, "physical-router",
 			obj.physical_router_refs,
 			obj.baseMap["physical-router"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(instance_ip_virtual_router_refs) != 0) &&
+		len(obj.virtual_router_refs) > 0 &&
+		obj.hasReferenceBase("virtual-router") {
+		err := obj.UpdateReference(
+			obj, "virtual-router",
+			obj.virtual_router_refs,
+			obj.baseMap["virtual-router"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(instance_ip_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

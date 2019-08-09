@@ -43,6 +43,9 @@ func SetFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m int
 		SetPortMappingsFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetFloatingIpPortMappings(member)
 	}
+	if val, ok := d.GetOk("floating_ip_traffic_direction"); ok {
+		object.SetFloatingIpTrafficDirection(val.(string))
+	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
 		SetIdPermsTypeFromMap(member, d, m, (val.([]interface{}))[0])
@@ -100,6 +103,20 @@ func SetRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m
 			object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
 		}
 	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -113,6 +130,7 @@ func WriteFloatingIpToResource(object FloatingIp, d *schema.ResourceData, m inte
 	d.Set("floating_ip_port_mappings_enable", object.GetFloatingIpPortMappingsEnable())
 	floating_ip_port_mappingsObj := object.GetFloatingIpPortMappings()
 	d.Set("floating_ip_port_mappings", TakePortMappingsAsMap(&floating_ip_port_mappingsObj))
+	d.Set("floating_ip_traffic_direction", object.GetFloatingIpTrafficDirection())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -133,6 +151,7 @@ func TakeFloatingIpAsMap(object *FloatingIp) map[string]interface{} {
 	omap["floating_ip_port_mappings_enable"] = object.GetFloatingIpPortMappingsEnable()
 	floating_ip_port_mappingsObj := object.GetFloatingIpPortMappings()
 	omap["floating_ip_port_mappings"] = TakePortMappingsAsMap(&floating_ip_port_mappingsObj)
+	omap["floating_ip_traffic_direction"] = object.GetFloatingIpTrafficDirection()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -180,6 +199,11 @@ func UpdateFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m 
 			member := new(PortMappings)
 			SetPortMappingsFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetFloatingIpPortMappings(member)
+		}
+	}
+	if d.HasChange("floating_ip_traffic_direction") {
+		if val, ok := d.GetOk("floating_ip_traffic_direction"); ok {
+			object.SetFloatingIpTrafficDirection(val.(string))
 		}
 	}
 	if d.HasChange("id_perms") {
@@ -360,6 +384,10 @@ func ResourceFloatingIpSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourcePortMappings(),
 		},
+		"floating_ip_traffic_direction": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeString,
+		},
 		"id_perms": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -397,6 +425,11 @@ func ResourceFloatingIpRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceVirtualMachineInterface(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

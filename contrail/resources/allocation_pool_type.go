@@ -40,6 +40,13 @@ func SetAllocationPoolTypeFromMap(object *AllocationPoolType, d *schema.Resource
 		object.End = mEnd
 	}
 
+	mVrouterSpecificPoolObj := vmap["vrouter_specific_pool"] // [CPLX; Seq -> 0; 0]
+	if CheckTerraformMap(mVrouterSpecificPoolObj) {
+		log.Printf("Setting vrouter_specific_pool  VrouterSpecificPool <<%T>> => %#v", mVrouterSpecificPoolObj, mVrouterSpecificPoolObj)
+		mVrouterSpecificPool := mVrouterSpecificPoolObj.(bool)
+		object.VrouterSpecificPool = mVrouterSpecificPool
+	}
+
 	log.Printf("FINISHED AllocationPoolType object: %#v", object)
 }
 
@@ -48,6 +55,7 @@ func TakeAllocationPoolTypeAsMap(object *AllocationPoolType) map[string]interfac
 
 	omap["start"] = object.Start
 	omap["end"] = object.End
+	omap["vrouter_specific_pool"] = object.VrouterSpecificPool
 
 	return omap
 }
@@ -63,6 +71,11 @@ func ResourceAllocationPoolTypeSchema() map[string]*schema.Schema {
 			// Cmplx: 0; Seq: False; Type: xsd:string
 			Optional: true,
 			Type:     schema.TypeString,
+		},
+		"vrouter_specific_pool": &schema.Schema{
+			// Cmplx: 0; Seq: False; Type: xsd:boolean
+			Optional: true,
+			Type:     schema.TypeBool,
 		},
 	}
 }

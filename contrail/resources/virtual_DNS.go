@@ -57,6 +57,20 @@ func SetRefsVirtualDnsFromResource(object *VirtualDns, d *schema.ResourceData, m
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsVirtualDnsFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -284,6 +298,20 @@ func ResourceVirtualDnsSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceVirtualDnsRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceVirtualDns() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceVirtualDnsCreate,
@@ -291,5 +319,15 @@ func ResourceVirtualDns() *schema.Resource {
 		Update: ResourceVirtualDnsUpdate,
 		Delete: ResourceVirtualDnsDelete,
 		Schema: ResourceVirtualDnsSchema(),
+	}
+}
+
+func ResourceVirtualDnsRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceVirtualDnsRefsCreate,
+		Read:   ResourceVirtualDnsRefsRead,
+		Update: ResourceVirtualDnsRefsUpdate,
+		Delete: ResourceVirtualDnsRefsDelete,
+		Schema: ResourceVirtualDnsRefsSchema(),
 	}
 }

@@ -23,10 +23,10 @@ func SetFloatingIpPoolFromResource(object *FloatingIpPool, d *schema.ResourceDat
 		key = key + "."
 	}
 	log.Printf("[SetFloatingIpPoolFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("floating_ip_pool_prefixes"); ok {
-		member := new(FloatingIpPoolType)
-		SetFloatingIpPoolTypeFromMap(member, d, m, (val.([]interface{}))[0])
-		object.SetFloatingIpPoolPrefixes(member)
+	if val, ok := d.GetOk("floating_ip_pool_subnets"); ok {
+		member := new(FloatingIpPoolSubnetType)
+		SetFloatingIpPoolSubnetTypeFromMap(member, d, m, (val.([]interface{}))[0])
+		object.SetFloatingIpPoolSubnets(member)
 	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
@@ -57,14 +57,28 @@ func SetRefsFloatingIpPoolFromResource(object *FloatingIpPool, d *schema.Resourc
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsFloatingIpPoolFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
 
 func WriteFloatingIpPoolToResource(object FloatingIpPool, d *schema.ResourceData, m interface{}) {
 
-	floating_ip_pool_prefixesObj := object.GetFloatingIpPoolPrefixes()
-	d.Set("floating_ip_pool_prefixes", TakeFloatingIpPoolTypeAsMap(&floating_ip_pool_prefixesObj))
+	floating_ip_pool_subnetsObj := object.GetFloatingIpPoolSubnets()
+	d.Set("floating_ip_pool_subnets", TakeFloatingIpPoolSubnetTypeAsMap(&floating_ip_pool_subnetsObj))
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -78,8 +92,8 @@ func WriteFloatingIpPoolToResource(object FloatingIpPool, d *schema.ResourceData
 func TakeFloatingIpPoolAsMap(object *FloatingIpPool) map[string]interface{} {
 	omap := make(map[string]interface{})
 
-	floating_ip_pool_prefixesObj := object.GetFloatingIpPoolPrefixes()
-	omap["floating_ip_pool_prefixes"] = TakeFloatingIpPoolTypeAsMap(&floating_ip_pool_prefixesObj)
+	floating_ip_pool_subnetsObj := object.GetFloatingIpPoolSubnets()
+	omap["floating_ip_pool_subnets"] = TakeFloatingIpPoolSubnetTypeAsMap(&floating_ip_pool_subnetsObj)
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -97,11 +111,11 @@ func UpdateFloatingIpPoolFromResource(object *FloatingIpPool, d *schema.Resource
 		key = key + "."
 	}
 
-	if d.HasChange("floating_ip_pool_prefixes") {
-		if val, ok := d.GetOk("floating_ip_pool_prefixes"); ok {
-			member := new(FloatingIpPoolType)
-			SetFloatingIpPoolTypeFromMap(member, d, m, (val.([]interface{}))[0])
-			object.SetFloatingIpPoolPrefixes(member)
+	if d.HasChange("floating_ip_pool_subnets") {
+		if val, ok := d.GetOk("floating_ip_pool_subnets"); ok {
+			member := new(FloatingIpPoolSubnetType)
+			SetFloatingIpPoolSubnetTypeFromMap(member, d, m, (val.([]interface{}))[0])
+			object.SetFloatingIpPoolSubnets(member)
 		}
 	}
 	if d.HasChange("id_perms") {
@@ -257,10 +271,10 @@ func ResourceFloatingIpPoolSchema() map[string]*schema.Schema {
 			Optional: true,
 		},
 		// Properties
-		"floating_ip_pool_prefixes": &schema.Schema{
+		"floating_ip_pool_subnets": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceFloatingIpPoolType(),
+			Elem:     ResourceFloatingIpPoolSubnetType(),
 		},
 		"id_perms": &schema.Schema{
 			Optional: true,
@@ -284,6 +298,20 @@ func ResourceFloatingIpPoolSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceFloatingIpPoolRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceFloatingIpPool() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceFloatingIpPoolCreate,
@@ -291,5 +319,15 @@ func ResourceFloatingIpPool() *schema.Resource {
 		Update: ResourceFloatingIpPoolUpdate,
 		Delete: ResourceFloatingIpPoolDelete,
 		Schema: ResourceFloatingIpPoolSchema(),
+	}
+}
+
+func ResourceFloatingIpPoolRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceFloatingIpPoolRefsCreate,
+		Read:   ResourceFloatingIpPoolRefsRead,
+		Update: ResourceFloatingIpPoolRefsUpdate,
+		Delete: ResourceFloatingIpPoolRefsDelete,
+		Schema: ResourceFloatingIpPoolRefsSchema(),
 	}
 }

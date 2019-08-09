@@ -38,6 +38,9 @@ func SetVirtualNetworkFromResource(object *VirtualNetwork, d *schema.ResourceDat
 		SetProviderDetailsFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetProviderProperties(member)
 	}
+	if val, ok := d.GetOk("is_provider_network"); ok {
+		object.SetIsProviderNetwork(val.(bool))
+	}
 	if val, ok := d.GetOk("virtual_network_network_id"); ok {
 		object.SetVirtualNetworkNetworkId(val.(int))
 	}
@@ -77,6 +80,31 @@ func SetVirtualNetworkFromResource(object *VirtualNetwork, d *schema.ResourceDat
 	if val, ok := d.GetOk("address_allocation_mode"); ok {
 		object.SetAddressAllocationMode(val.(string))
 	}
+	if val, ok := d.GetOk("mac_learning_enabled"); ok {
+		object.SetMacLearningEnabled(val.(bool))
+	}
+	if val, ok := d.GetOk("mac_limit_control"); ok {
+		member := new(MACLimitControlType)
+		SetMACLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+		object.SetMacLimitControl(member)
+	}
+	if val, ok := d.GetOk("mac_move_control"); ok {
+		member := new(MACMoveLimitControlType)
+		SetMACMoveLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+		object.SetMacMoveControl(member)
+	}
+	if val, ok := d.GetOk("mac_aging_time"); ok {
+		object.SetMacAgingTime(val.(int))
+	}
+	if val, ok := d.GetOk("pbb_evpn_enable"); ok {
+		object.SetPbbEvpnEnable(val.(bool))
+	}
+	if val, ok := d.GetOk("pbb_etree_enable"); ok {
+		object.SetPbbEtreeEnable(val.(bool))
+	}
+	if val, ok := d.GetOk("layer2_control_word"); ok {
+		object.SetLayer2ControlWord(val.(bool))
+	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
 		SetIdPermsTypeFromMap(member, d, m, (val.([]interface{}))[0])
@@ -106,6 +134,20 @@ func SetRefsVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resourc
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsVirtualNetworkFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("security_logging_object_refs"); ok {
+		log.Printf("Got ref security_logging_object_refs -- will call: object.AddSecurityLoggingObject(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("security-logging-object", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving security-logging-object by Uuid = %v as ref for SecurityLoggingObject on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddSecurityLoggingObject(refObj.(*SecurityLoggingObject))
+		}
+	}
 	if val, ok := d.GetOk("qos_config_refs"); ok {
 		log.Printf("Got ref qos_config_refs -- will call: object.AddQosConfig(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -154,6 +196,20 @@ func SetRefsVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resourc
 			object.AddNetworkPolicy(refObj.(*NetworkPolicy), *dataObj)
 		}
 	}
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("virtual-network", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-network by Uuid = %v as ref for VirtualNetwork on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+		}
+	}
 	if val, ok := d.GetOk("route_table_refs"); ok {
 		log.Printf("Got ref route_table_refs -- will call: object.AddRouteTable(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -168,6 +224,34 @@ func SetRefsVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resourc
 			object.AddRouteTable(refObj.(*RouteTable))
 		}
 	}
+	if val, ok := d.GetOk("bgpvpn_refs"); ok {
+		log.Printf("Got ref bgpvpn_refs -- will call: object.AddBgpvpn(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("bgpvpn", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving bgpvpn by Uuid = %v as ref for Bgpvpn on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddBgpvpn(refObj.(*Bgpvpn))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -180,6 +264,7 @@ func WriteVirtualNetworkToResource(object VirtualNetwork, d *schema.ResourceData
 	d.Set("virtual_network_properties", TakeVirtualNetworkTypeAsMap(&virtual_network_propertiesObj))
 	provider_propertiesObj := object.GetProviderProperties()
 	d.Set("provider_properties", TakeProviderDetailsAsMap(&provider_propertiesObj))
+	d.Set("is_provider_network", object.GetIsProviderNetwork())
 	d.Set("virtual_network_network_id", object.GetVirtualNetworkNetworkId())
 	d.Set("port_security_enabled", object.GetPortSecurityEnabled())
 	route_target_listObj := object.GetRouteTargetList()
@@ -194,6 +279,15 @@ func WriteVirtualNetworkToResource(object VirtualNetwork, d *schema.ResourceData
 	d.Set("flood_unknown_unicast", object.GetFloodUnknownUnicast())
 	d.Set("multi_policy_service_chains_enabled", object.GetMultiPolicyServiceChainsEnabled())
 	d.Set("address_allocation_mode", object.GetAddressAllocationMode())
+	d.Set("mac_learning_enabled", object.GetMacLearningEnabled())
+	mac_limit_controlObj := object.GetMacLimitControl()
+	d.Set("mac_limit_control", TakeMACLimitControlTypeAsMap(&mac_limit_controlObj))
+	mac_move_controlObj := object.GetMacMoveControl()
+	d.Set("mac_move_control", TakeMACMoveLimitControlTypeAsMap(&mac_move_controlObj))
+	d.Set("mac_aging_time", object.GetMacAgingTime())
+	d.Set("pbb_evpn_enable", object.GetPbbEvpnEnable())
+	d.Set("pbb_etree_enable", object.GetPbbEtreeEnable())
+	d.Set("layer2_control_word", object.GetLayer2ControlWord())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -213,6 +307,7 @@ func TakeVirtualNetworkAsMap(object *VirtualNetwork) map[string]interface{} {
 	omap["virtual_network_properties"] = TakeVirtualNetworkTypeAsMap(&virtual_network_propertiesObj)
 	provider_propertiesObj := object.GetProviderProperties()
 	omap["provider_properties"] = TakeProviderDetailsAsMap(&provider_propertiesObj)
+	omap["is_provider_network"] = object.GetIsProviderNetwork()
 	omap["virtual_network_network_id"] = object.GetVirtualNetworkNetworkId()
 	omap["port_security_enabled"] = object.GetPortSecurityEnabled()
 	route_target_listObj := object.GetRouteTargetList()
@@ -227,6 +322,15 @@ func TakeVirtualNetworkAsMap(object *VirtualNetwork) map[string]interface{} {
 	omap["flood_unknown_unicast"] = object.GetFloodUnknownUnicast()
 	omap["multi_policy_service_chains_enabled"] = object.GetMultiPolicyServiceChainsEnabled()
 	omap["address_allocation_mode"] = object.GetAddressAllocationMode()
+	omap["mac_learning_enabled"] = object.GetMacLearningEnabled()
+	mac_limit_controlObj := object.GetMacLimitControl()
+	omap["mac_limit_control"] = TakeMACLimitControlTypeAsMap(&mac_limit_controlObj)
+	mac_move_controlObj := object.GetMacMoveControl()
+	omap["mac_move_control"] = TakeMACMoveLimitControlTypeAsMap(&mac_move_controlObj)
+	omap["mac_aging_time"] = object.GetMacAgingTime()
+	omap["pbb_evpn_enable"] = object.GetPbbEvpnEnable()
+	omap["pbb_etree_enable"] = object.GetPbbEtreeEnable()
+	omap["layer2_control_word"] = object.GetLayer2ControlWord()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -263,6 +367,11 @@ func UpdateVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resource
 			member := new(ProviderDetails)
 			SetProviderDetailsFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetProviderProperties(member)
+		}
+	}
+	if d.HasChange("is_provider_network") {
+		if val, ok := d.GetOk("is_provider_network"); ok {
+			object.SetIsProviderNetwork(val.(bool))
 		}
 	}
 	if d.HasChange("virtual_network_network_id") {
@@ -324,6 +433,45 @@ func UpdateVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resource
 	if d.HasChange("address_allocation_mode") {
 		if val, ok := d.GetOk("address_allocation_mode"); ok {
 			object.SetAddressAllocationMode(val.(string))
+		}
+	}
+	if d.HasChange("mac_learning_enabled") {
+		if val, ok := d.GetOk("mac_learning_enabled"); ok {
+			object.SetMacLearningEnabled(val.(bool))
+		}
+	}
+	if d.HasChange("mac_limit_control") {
+		if val, ok := d.GetOk("mac_limit_control"); ok {
+			member := new(MACLimitControlType)
+			SetMACLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+			object.SetMacLimitControl(member)
+		}
+	}
+	if d.HasChange("mac_move_control") {
+		if val, ok := d.GetOk("mac_move_control"); ok {
+			member := new(MACMoveLimitControlType)
+			SetMACMoveLimitControlTypeFromMap(member, d, m, (val.([]interface{}))[0])
+			object.SetMacMoveControl(member)
+		}
+	}
+	if d.HasChange("mac_aging_time") {
+		if val, ok := d.GetOk("mac_aging_time"); ok {
+			object.SetMacAgingTime(val.(int))
+		}
+	}
+	if d.HasChange("pbb_evpn_enable") {
+		if val, ok := d.GetOk("pbb_evpn_enable"); ok {
+			object.SetPbbEvpnEnable(val.(bool))
+		}
+	}
+	if d.HasChange("pbb_etree_enable") {
+		if val, ok := d.GetOk("pbb_etree_enable"); ok {
+			object.SetPbbEtreeEnable(val.(bool))
+		}
+	}
+	if d.HasChange("layer2_control_word") {
+		if val, ok := d.GetOk("layer2_control_word"); ok {
+			object.SetLayer2ControlWord(val.(bool))
 		}
 	}
 	if d.HasChange("id_perms") {
@@ -494,6 +642,10 @@ func ResourceVirtualNetworkSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourceProviderDetails(),
 		},
+		"is_provider_network": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
 		"virtual_network_network_id": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeInt,
@@ -541,6 +693,36 @@ func ResourceVirtualNetworkSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
+		"mac_learning_enabled": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
+		"mac_limit_control": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceMACLimitControlType(),
+		},
+		"mac_move_control": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceMACMoveLimitControlType(),
+		},
+		"mac_aging_time": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeInt,
+		},
+		"pbb_evpn_enable": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
+		"pbb_etree_enable": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
+		"layer2_control_word": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
 		"id_perms": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -568,6 +750,11 @@ func ResourceVirtualNetworkRefsSchema() map[string]*schema.Schema {
 		"uuid": &schema.Schema{
 			Type:     schema.TypeString,
 			Required: true,
+		},
+		"security_logging_object_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceSecurityLoggingObject(),
 		},
 		"qos_config_refs": &schema.Schema{
 			Optional: true,
@@ -608,10 +795,25 @@ func ResourceVirtualNetworkRefsSchema() map[string]*schema.Schema {
 				},
 			},
 		},
+		"virtual_network_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceVirtualNetwork(),
+		},
 		"route_table_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceRouteTable(),
+		},
+		"bgpvpn_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceBgpvpn(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

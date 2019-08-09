@@ -20,6 +20,7 @@ const (
 	service_appliance_set_annotations
 	service_appliance_set_display_name
 	service_appliance_set_service_appliances
+	service_appliance_set_tag_refs
 	service_appliance_set_service_template_back_refs
 	service_appliance_set_loadbalancer_pool_back_refs
 	service_appliance_set_loadbalancer_back_refs
@@ -35,6 +36,7 @@ type ServiceApplianceSet struct {
 	annotations                      KeyValuePairs
 	display_name                     string
 	service_appliances               contrail.ReferenceList
+	tag_refs                         contrail.ReferenceList
 	service_template_back_refs       contrail.ReferenceList
 	loadbalancer_pool_back_refs      contrail.ReferenceList
 	loadbalancer_back_refs           contrail.ReferenceList
@@ -170,6 +172,90 @@ func (obj *ServiceApplianceSet) GetServiceAppliances() (
 	return obj.service_appliances, nil
 }
 
+func (obj *ServiceApplianceSet) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(service_appliance_set_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *ServiceApplianceSet) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *ServiceApplianceSet) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(service_appliance_set_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, service_appliance_set_tag_refs, 1)
+	return nil
+}
+
+func (obj *ServiceApplianceSet) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(service_appliance_set_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, service_appliance_set_tag_refs, 1)
+	return nil
+}
+
+func (obj *ServiceApplianceSet) ClearTag() {
+	if (obj.valid.Bit(service_appliance_set_tag_refs) != 0) &&
+		(obj.modified.Bit(service_appliance_set_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, service_appliance_set_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, service_appliance_set_tag_refs, 1)
+}
+
+func (obj *ServiceApplianceSet) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *ServiceApplianceSet) readServiceTemplateBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(service_appliance_set_service_template_back_refs) == 0) {
@@ -300,6 +386,15 @@ func (obj *ServiceApplianceSet) MarshalJSON() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -361,6 +456,12 @@ func (obj *ServiceApplianceSet) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.service_appliances)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, service_appliance_set_service_appliances, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, service_appliance_set_tag_refs, 1)
 			}
 			break
 		case "service_template_back_refs":
@@ -459,10 +560,41 @@ func (obj *ServiceApplianceSet) UpdateObject() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if obj.modified.Bit(service_appliance_set_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *ServiceApplianceSet) UpdateReferences() error {
+
+	if (obj.modified.Bit(service_appliance_set_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

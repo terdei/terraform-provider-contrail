@@ -29,4 +29,6 @@ type QuotaType struct {
 	LoadbalancerMember        int `json:"loadbalancer_member,omitempty"`
 	LoadbalancerHealthmonitor int `json:"loadbalancer_healthmonitor,omitempty"`
 	VirtualIp                 int `json:"virtual_ip,omitempty"`
+	SecurityLoggingObject     int `json:"security_logging_object,omitempty"`
+	RouteTable                int `json:"route_table,omitempty"`
 }

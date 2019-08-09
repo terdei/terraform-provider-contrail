@@ -25,6 +25,7 @@ const (
 	loadbalancer_pool_service_appliance_set_refs
 	loadbalancer_pool_loadbalancer_members
 	loadbalancer_pool_loadbalancer_healthmonitor_refs
+	loadbalancer_pool_tag_refs
 	loadbalancer_pool_virtual_ip_back_refs
 )
 
@@ -43,6 +44,7 @@ type LoadbalancerPool struct {
 	service_appliance_set_refs          contrail.ReferenceList
 	loadbalancer_members                contrail.ReferenceList
 	loadbalancer_healthmonitor_refs     contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
 	virtual_ip_back_refs                contrail.ReferenceList
 	valid                               big.Int
 	modified                            big.Int
@@ -596,6 +598,90 @@ func (obj *LoadbalancerPool) SetLoadbalancerHealthmonitorList(
 	}
 }
 
+func (obj *LoadbalancerPool) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(loadbalancer_pool_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *LoadbalancerPool) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *LoadbalancerPool) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(loadbalancer_pool_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, loadbalancer_pool_tag_refs, 1)
+	return nil
+}
+
+func (obj *LoadbalancerPool) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(loadbalancer_pool_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, loadbalancer_pool_tag_refs, 1)
+	return nil
+}
+
+func (obj *LoadbalancerPool) ClearTag() {
+	if (obj.valid.Bit(loadbalancer_pool_tag_refs) != 0) &&
+		(obj.modified.Bit(loadbalancer_pool_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, loadbalancer_pool_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, loadbalancer_pool_tag_refs, 1)
+}
+
+func (obj *LoadbalancerPool) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *LoadbalancerPool) readVirtualIpBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(loadbalancer_pool_virtual_ip_back_refs) == 0) {
@@ -731,6 +817,15 @@ func (obj *LoadbalancerPool) MarshalJSON() ([]byte, error) {
 		msg["loadbalancer_healthmonitor_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -822,6 +917,12 @@ func (obj *LoadbalancerPool) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.loadbalancer_healthmonitor_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, loadbalancer_pool_loadbalancer_healthmonitor_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, loadbalancer_pool_tag_refs, 1)
 			}
 			break
 		case "virtual_ip_back_refs":
@@ -1003,6 +1104,25 @@ func (obj *LoadbalancerPool) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(loadbalancer_pool_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -1063,6 +1183,18 @@ func (obj *LoadbalancerPool) UpdateReferences() error {
 			obj, "loadbalancer-healthmonitor",
 			obj.loadbalancer_healthmonitor_refs,
 			obj.baseMap["loadbalancer-healthmonitor"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(loadbalancer_pool_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

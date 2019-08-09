@@ -28,6 +28,9 @@ func SetProjectFromResource(object *Project, d *schema.ResourceData, m interface
 		SetQuotaTypeFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetQuota(member)
 	}
+	if val, ok := d.GetOk("vxlan_routing"); ok {
+		object.SetVxlanRouting(val.(bool))
+	}
 	if val, ok := d.GetOk("alarm_enable"); ok {
 		object.SetAlarmEnable(val.(bool))
 	}
@@ -105,6 +108,34 @@ func SetRefsProjectFromResource(object *Project, d *schema.ResourceData, m inter
 			object.AddAliasIpPool(refObj.(*AliasIpPool))
 		}
 	}
+	if val, ok := d.GetOk("application_policy_set_refs"); ok {
+		log.Printf("Got ref application_policy_set_refs -- will call: object.AddApplicationPolicySet(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("application-policy-set", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving application-policy-set by Uuid = %v as ref for ApplicationPolicySet on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddApplicationPolicySet(refObj.(*ApplicationPolicySet))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -113,6 +144,7 @@ func WriteProjectToResource(object Project, d *schema.ResourceData, m interface{
 
 	quotaObj := object.GetQuota()
 	d.Set("quota", TakeQuotaTypeAsMap(&quotaObj))
+	d.Set("vxlan_routing", object.GetVxlanRouting())
 	d.Set("alarm_enable", object.GetAlarmEnable())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
@@ -129,6 +161,7 @@ func TakeProjectAsMap(object *Project) map[string]interface{} {
 
 	quotaObj := object.GetQuota()
 	omap["quota"] = TakeQuotaTypeAsMap(&quotaObj)
+	omap["vxlan_routing"] = object.GetVxlanRouting()
 	omap["alarm_enable"] = object.GetAlarmEnable()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
@@ -152,6 +185,11 @@ func UpdateProjectFromResource(object *Project, d *schema.ResourceData, m interf
 			member := new(QuotaType)
 			SetQuotaTypeFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetQuota(member)
+		}
+	}
+	if d.HasChange("vxlan_routing") {
+		if val, ok := d.GetOk("vxlan_routing"); ok {
+			object.SetVxlanRouting(val.(bool))
 		}
 	}
 	if d.HasChange("alarm_enable") {
@@ -317,6 +355,10 @@ func ResourceProjectSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourceQuotaType(),
 		},
+		"vxlan_routing": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
 		"alarm_enable": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeBool,
@@ -375,6 +417,16 @@ func ResourceProjectRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceAliasIpPool(),
+		},
+		"application_policy_set_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceApplicationPolicySet(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

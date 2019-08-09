@@ -20,6 +20,8 @@ const (
 	security_group_annotations
 	security_group_display_name
 	security_group_access_control_lists
+	security_group_tag_refs
+	security_group_security_logging_object_back_refs
 	security_group_virtual_machine_interface_back_refs
 )
 
@@ -33,6 +35,8 @@ type SecurityGroup struct {
 	annotations                         KeyValuePairs
 	display_name                        string
 	access_control_lists                contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
+	security_logging_object_back_refs   contrail.ReferenceList
 	virtual_machine_interface_back_refs contrail.ReferenceList
 	valid                               big.Int
 	modified                            big.Int
@@ -166,6 +170,110 @@ func (obj *SecurityGroup) GetAccessControlLists() (
 	return obj.access_control_lists, nil
 }
 
+func (obj *SecurityGroup) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(security_group_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *SecurityGroup) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *SecurityGroup) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(security_group_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, security_group_tag_refs, 1)
+	return nil
+}
+
+func (obj *SecurityGroup) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(security_group_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, security_group_tag_refs, 1)
+	return nil
+}
+
+func (obj *SecurityGroup) ClearTag() {
+	if (obj.valid.Bit(security_group_tag_refs) != 0) &&
+		(obj.modified.Bit(security_group_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, security_group_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, security_group_tag_refs, 1)
+}
+
+func (obj *SecurityGroup) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *SecurityGroup) readSecurityLoggingObjectBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(security_group_security_logging_object_back_refs) == 0) {
+		err := obj.GetField(obj, "security_logging_object_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *SecurityGroup) GetSecurityLoggingObjectBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readSecurityLoggingObjectBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.security_logging_object_back_refs, nil
+}
+
 func (obj *SecurityGroup) readVirtualMachineInterfaceBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(security_group_virtual_machine_interface_back_refs) == 0) {
@@ -256,6 +364,15 @@ func (obj *SecurityGroup) MarshalJSON() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -319,12 +436,44 @@ func (obj *SecurityGroup) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, security_group_access_control_lists, 1)
 			}
 			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, security_group_tag_refs, 1)
+			}
+			break
 		case "virtual_machine_interface_back_refs":
 			err = json.Unmarshal(value, &obj.virtual_machine_interface_back_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, security_group_virtual_machine_interface_back_refs, 1)
 			}
 			break
+		case "security_logging_object_back_refs":
+			{
+				type ReferenceElement struct {
+					To   []string
+					Uuid string
+					Href string
+					Attr SecurityLoggingObjectRuleListType
+				}
+				var array []ReferenceElement
+				err = json.Unmarshal(value, &array)
+				if err != nil {
+					break
+				}
+				obj.valid.SetBit(&obj.valid, security_group_security_logging_object_back_refs, 1)
+				obj.security_logging_object_back_refs = make(contrail.ReferenceList, 0)
+				for _, element := range array {
+					ref := contrail.Reference{
+						element.To,
+						element.Uuid,
+						element.Href,
+						element.Attr,
+					}
+					obj.security_logging_object_back_refs = append(obj.security_logging_object_back_refs, ref)
+				}
+				break
+			}
 		}
 		if err != nil {
 			return err
@@ -403,10 +552,41 @@ func (obj *SecurityGroup) UpdateObject() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if obj.modified.Bit(security_group_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *SecurityGroup) UpdateReferences() error {
+
+	if (obj.modified.Bit(security_group_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

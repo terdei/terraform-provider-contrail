@@ -14,12 +14,17 @@ import (
 const (
 	physical_router_physical_router_management_ip int = iota
 	physical_router_physical_router_dataplane_ip
+	physical_router_physical_router_loopback_ip
 	physical_router_physical_router_vendor_name
 	physical_router_physical_router_product_name
 	physical_router_physical_router_vnc_managed
+	physical_router_physical_router_role
+	physical_router_physical_router_snmp
+	physical_router_physical_router_lldp
 	physical_router_physical_router_user_credentials
 	physical_router_physical_router_snmp_credentials
 	physical_router_physical_router_junos_service_ports
+	physical_router_telemetry_info
 	physical_router_id_perms
 	physical_router_perms2
 	physical_router_annotations
@@ -29,19 +34,29 @@ const (
 	physical_router_virtual_network_refs
 	physical_router_physical_interfaces
 	physical_router_logical_interfaces
+	physical_router_tag_refs
 	physical_router_instance_ip_back_refs
+	physical_router_logical_router_back_refs
+	physical_router_service_endpoint_back_refs
+	physical_router_network_device_config_back_refs
+	physical_router_e2_service_provider_back_refs
 )
 
 type PhysicalRouter struct {
 	contrail.ObjectBase
 	physical_router_management_ip       string
 	physical_router_dataplane_ip        string
+	physical_router_loopback_ip         string
 	physical_router_vendor_name         string
 	physical_router_product_name        string
 	physical_router_vnc_managed         bool
+	physical_router_role                string
+	physical_router_snmp                bool
+	physical_router_lldp                bool
 	physical_router_user_credentials    UserCredentials
 	physical_router_snmp_credentials    SNMPCredentials
 	physical_router_junos_service_ports JunosServicePorts
+	telemetry_info                      TelemetryStateInfo
 	id_perms                            IdPermsType
 	perms2                              PermType2
 	annotations                         KeyValuePairs
@@ -51,7 +66,12 @@ type PhysicalRouter struct {
 	virtual_network_refs                contrail.ReferenceList
 	physical_interfaces                 contrail.ReferenceList
 	logical_interfaces                  contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
 	instance_ip_back_refs               contrail.ReferenceList
+	logical_router_back_refs            contrail.ReferenceList
+	service_endpoint_back_refs          contrail.ReferenceList
+	network_device_config_back_refs     contrail.ReferenceList
+	e2_service_provider_back_refs       contrail.ReferenceList
 	valid                               big.Int
 	modified                            big.Int
 	baseMap                             map[string]contrail.ReferenceList
@@ -119,6 +139,15 @@ func (obj *PhysicalRouter) SetPhysicalRouterDataplaneIp(value string) {
 	obj.modified.SetBit(&obj.modified, physical_router_physical_router_dataplane_ip, 1)
 }
 
+func (obj *PhysicalRouter) GetPhysicalRouterLoopbackIp() string {
+	return obj.physical_router_loopback_ip
+}
+
+func (obj *PhysicalRouter) SetPhysicalRouterLoopbackIp(value string) {
+	obj.physical_router_loopback_ip = value
+	obj.modified.SetBit(&obj.modified, physical_router_physical_router_loopback_ip, 1)
+}
+
 func (obj *PhysicalRouter) GetPhysicalRouterVendorName() string {
 	return obj.physical_router_vendor_name
 }
@@ -146,6 +175,33 @@ func (obj *PhysicalRouter) SetPhysicalRouterVncManaged(value bool) {
 	obj.modified.SetBit(&obj.modified, physical_router_physical_router_vnc_managed, 1)
 }
 
+func (obj *PhysicalRouter) GetPhysicalRouterRole() string {
+	return obj.physical_router_role
+}
+
+func (obj *PhysicalRouter) SetPhysicalRouterRole(value string) {
+	obj.physical_router_role = value
+	obj.modified.SetBit(&obj.modified, physical_router_physical_router_role, 1)
+}
+
+func (obj *PhysicalRouter) GetPhysicalRouterSnmp() bool {
+	return obj.physical_router_snmp
+}
+
+func (obj *PhysicalRouter) SetPhysicalRouterSnmp(value bool) {
+	obj.physical_router_snmp = value
+	obj.modified.SetBit(&obj.modified, physical_router_physical_router_snmp, 1)
+}
+
+func (obj *PhysicalRouter) GetPhysicalRouterLldp() bool {
+	return obj.physical_router_lldp
+}
+
+func (obj *PhysicalRouter) SetPhysicalRouterLldp(value bool) {
+	obj.physical_router_lldp = value
+	obj.modified.SetBit(&obj.modified, physical_router_physical_router_lldp, 1)
+}
+
 func (obj *PhysicalRouter) GetPhysicalRouterUserCredentials() UserCredentials {
 	return obj.physical_router_user_credentials
 }
@@ -171,6 +227,15 @@ func (obj *PhysicalRouter) GetPhysicalRouterJunosServicePorts() JunosServicePort
 func (obj *PhysicalRouter) SetPhysicalRouterJunosServicePorts(value *JunosServicePorts) {
 	obj.physical_router_junos_service_ports = *value
 	obj.modified.SetBit(&obj.modified, physical_router_physical_router_junos_service_ports, 1)
+}
+
+func (obj *PhysicalRouter) GetTelemetryInfo() TelemetryStateInfo {
+	return obj.telemetry_info
+}
+
+func (obj *PhysicalRouter) SetTelemetryInfo(value *TelemetryStateInfo) {
+	obj.telemetry_info = *value
+	obj.modified.SetBit(&obj.modified, physical_router_telemetry_info, 1)
 }
 
 func (obj *PhysicalRouter) GetIdPerms() IdPermsType {
@@ -501,6 +566,90 @@ func (obj *PhysicalRouter) SetVirtualNetworkList(
 	}
 }
 
+func (obj *PhysicalRouter) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(physical_router_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *PhysicalRouter) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *PhysicalRouter) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(physical_router_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, physical_router_tag_refs, 1)
+	return nil
+}
+
+func (obj *PhysicalRouter) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(physical_router_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, physical_router_tag_refs, 1)
+	return nil
+}
+
+func (obj *PhysicalRouter) ClearTag() {
+	if (obj.valid.Bit(physical_router_tag_refs) != 0) &&
+		(obj.modified.Bit(physical_router_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, physical_router_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, physical_router_tag_refs, 1)
+}
+
+func (obj *PhysicalRouter) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *PhysicalRouter) readInstanceIpBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(physical_router_instance_ip_back_refs) == 0) {
@@ -519,6 +668,86 @@ func (obj *PhysicalRouter) GetInstanceIpBackRefs() (
 		return nil, err
 	}
 	return obj.instance_ip_back_refs, nil
+}
+
+func (obj *PhysicalRouter) readLogicalRouterBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(physical_router_logical_router_back_refs) == 0) {
+		err := obj.GetField(obj, "logical_router_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *PhysicalRouter) GetLogicalRouterBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readLogicalRouterBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.logical_router_back_refs, nil
+}
+
+func (obj *PhysicalRouter) readServiceEndpointBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(physical_router_service_endpoint_back_refs) == 0) {
+		err := obj.GetField(obj, "service_endpoint_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *PhysicalRouter) GetServiceEndpointBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readServiceEndpointBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.service_endpoint_back_refs, nil
+}
+
+func (obj *PhysicalRouter) readNetworkDeviceConfigBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(physical_router_network_device_config_back_refs) == 0) {
+		err := obj.GetField(obj, "network_device_config_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *PhysicalRouter) GetNetworkDeviceConfigBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readNetworkDeviceConfigBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.network_device_config_back_refs, nil
+}
+
+func (obj *PhysicalRouter) readE2ServiceProviderBackRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(physical_router_e2_service_provider_back_refs) == 0) {
+		err := obj.GetField(obj, "e2_service_provider_back_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *PhysicalRouter) GetE2ServiceProviderBackRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readE2ServiceProviderBackRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.e2_service_provider_back_refs, nil
 }
 
 func (obj *PhysicalRouter) MarshalJSON() ([]byte, error) {
@@ -544,6 +773,15 @@ func (obj *PhysicalRouter) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		msg["physical_router_dataplane_ip"] = &value
+	}
+
+	if obj.modified.Bit(physical_router_physical_router_loopback_ip) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_loopback_ip)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_loopback_ip"] = &value
 	}
 
 	if obj.modified.Bit(physical_router_physical_router_vendor_name) != 0 {
@@ -573,6 +811,33 @@ func (obj *PhysicalRouter) MarshalJSON() ([]byte, error) {
 		msg["physical_router_vnc_managed"] = &value
 	}
 
+	if obj.modified.Bit(physical_router_physical_router_role) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_role)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_role"] = &value
+	}
+
+	if obj.modified.Bit(physical_router_physical_router_snmp) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_snmp)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_snmp"] = &value
+	}
+
+	if obj.modified.Bit(physical_router_physical_router_lldp) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_lldp)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_lldp"] = &value
+	}
+
 	if obj.modified.Bit(physical_router_physical_router_user_credentials) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.physical_router_user_credentials)
@@ -598,6 +863,15 @@ func (obj *PhysicalRouter) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		msg["physical_router_junos_service_ports"] = &value
+	}
+
+	if obj.modified.Bit(physical_router_telemetry_info) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.telemetry_info)
+		if err != nil {
+			return nil, err
+		}
+		msg["telemetry_info"] = &value
 	}
 
 	if obj.modified.Bit(physical_router_id_perms) != 0 {
@@ -663,6 +937,15 @@ func (obj *PhysicalRouter) MarshalJSON() ([]byte, error) {
 		msg["virtual_network_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -690,6 +973,12 @@ func (obj *PhysicalRouter) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, physical_router_physical_router_dataplane_ip, 1)
 			}
 			break
+		case "physical_router_loopback_ip":
+			err = json.Unmarshal(value, &obj.physical_router_loopback_ip)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_physical_router_loopback_ip, 1)
+			}
+			break
 		case "physical_router_vendor_name":
 			err = json.Unmarshal(value, &obj.physical_router_vendor_name)
 			if err == nil {
@@ -708,6 +997,24 @@ func (obj *PhysicalRouter) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, physical_router_physical_router_vnc_managed, 1)
 			}
 			break
+		case "physical_router_role":
+			err = json.Unmarshal(value, &obj.physical_router_role)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_physical_router_role, 1)
+			}
+			break
+		case "physical_router_snmp":
+			err = json.Unmarshal(value, &obj.physical_router_snmp)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_physical_router_snmp, 1)
+			}
+			break
+		case "physical_router_lldp":
+			err = json.Unmarshal(value, &obj.physical_router_lldp)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_physical_router_lldp, 1)
+			}
+			break
 		case "physical_router_user_credentials":
 			err = json.Unmarshal(value, &obj.physical_router_user_credentials)
 			if err == nil {
@@ -724,6 +1031,12 @@ func (obj *PhysicalRouter) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.physical_router_junos_service_ports)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, physical_router_physical_router_junos_service_ports, 1)
+			}
+			break
+		case "telemetry_info":
+			err = json.Unmarshal(value, &obj.telemetry_info)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_telemetry_info, 1)
 			}
 			break
 		case "id_perms":
@@ -780,10 +1093,40 @@ func (obj *PhysicalRouter) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, physical_router_logical_interfaces, 1)
 			}
 			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_tag_refs, 1)
+			}
+			break
 		case "instance_ip_back_refs":
 			err = json.Unmarshal(value, &obj.instance_ip_back_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, physical_router_instance_ip_back_refs, 1)
+			}
+			break
+		case "logical_router_back_refs":
+			err = json.Unmarshal(value, &obj.logical_router_back_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_logical_router_back_refs, 1)
+			}
+			break
+		case "service_endpoint_back_refs":
+			err = json.Unmarshal(value, &obj.service_endpoint_back_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_service_endpoint_back_refs, 1)
+			}
+			break
+		case "network_device_config_back_refs":
+			err = json.Unmarshal(value, &obj.network_device_config_back_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_network_device_config_back_refs, 1)
+			}
+			break
+		case "e2_service_provider_back_refs":
+			err = json.Unmarshal(value, &obj.e2_service_provider_back_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_router_e2_service_provider_back_refs, 1)
 			}
 			break
 		}
@@ -819,6 +1162,15 @@ func (obj *PhysicalRouter) UpdateObject() ([]byte, error) {
 		msg["physical_router_dataplane_ip"] = &value
 	}
 
+	if obj.modified.Bit(physical_router_physical_router_loopback_ip) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_loopback_ip)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_loopback_ip"] = &value
+	}
+
 	if obj.modified.Bit(physical_router_physical_router_vendor_name) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.physical_router_vendor_name)
@@ -846,6 +1198,33 @@ func (obj *PhysicalRouter) UpdateObject() ([]byte, error) {
 		msg["physical_router_vnc_managed"] = &value
 	}
 
+	if obj.modified.Bit(physical_router_physical_router_role) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_role)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_role"] = &value
+	}
+
+	if obj.modified.Bit(physical_router_physical_router_snmp) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_snmp)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_snmp"] = &value
+	}
+
+	if obj.modified.Bit(physical_router_physical_router_lldp) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.physical_router_lldp)
+		if err != nil {
+			return nil, err
+		}
+		msg["physical_router_lldp"] = &value
+	}
+
 	if obj.modified.Bit(physical_router_physical_router_user_credentials) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.physical_router_user_credentials)
@@ -871,6 +1250,15 @@ func (obj *PhysicalRouter) UpdateObject() ([]byte, error) {
 			return nil, err
 		}
 		msg["physical_router_junos_service_ports"] = &value
+	}
+
+	if obj.modified.Bit(physical_router_telemetry_info) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.telemetry_info)
+		if err != nil {
+			return nil, err
+		}
+		msg["telemetry_info"] = &value
 	}
 
 	if obj.modified.Bit(physical_router_id_perms) != 0 {
@@ -966,6 +1354,25 @@ func (obj *PhysicalRouter) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(physical_router_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -1002,6 +1409,18 @@ func (obj *PhysicalRouter) UpdateReferences() error {
 			obj, "virtual-network",
 			obj.virtual_network_refs,
 			obj.baseMap["virtual-network"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(physical_router_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

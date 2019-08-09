@@ -49,6 +49,9 @@ func SetGlobalVrouterConfigFromResource(object *GlobalVrouterConfig, d *schema.R
 		SetFlowAgingTimeoutListFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetFlowAgingTimeoutList(member)
 	}
+	if val, ok := d.GetOk("enable_security_logging"); ok {
+		object.SetEnableSecurityLogging(val.(bool))
+	}
 	if val, ok := d.GetOk("forwarding_mode"); ok {
 		object.SetForwardingMode(val.(string))
 	}
@@ -81,6 +84,20 @@ func SetRefsGlobalVrouterConfigFromResource(object *GlobalVrouterConfig, d *sche
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsGlobalVrouterConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -97,6 +114,7 @@ func WriteGlobalVrouterConfigToResource(object GlobalVrouterConfig, d *schema.Re
 	d.Set("flow_export_rate", object.GetFlowExportRate())
 	flow_aging_timeout_listObj := object.GetFlowAgingTimeoutList()
 	d.Set("flow_aging_timeout_list", TakeFlowAgingTimeoutListAsMap(&flow_aging_timeout_listObj))
+	d.Set("enable_security_logging", object.GetEnableSecurityLogging())
 	d.Set("forwarding_mode", object.GetForwardingMode())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
@@ -121,6 +139,7 @@ func TakeGlobalVrouterConfigAsMap(object *GlobalVrouterConfig) map[string]interf
 	omap["flow_export_rate"] = object.GetFlowExportRate()
 	flow_aging_timeout_listObj := object.GetFlowAgingTimeoutList()
 	omap["flow_aging_timeout_list"] = TakeFlowAgingTimeoutListAsMap(&flow_aging_timeout_listObj)
+	omap["enable_security_logging"] = object.GetEnableSecurityLogging()
 	omap["forwarding_mode"] = object.GetForwardingMode()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
@@ -175,6 +194,11 @@ func UpdateGlobalVrouterConfigFromResource(object *GlobalVrouterConfig, d *schem
 			member := new(FlowAgingTimeoutList)
 			SetFlowAgingTimeoutListFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetFlowAgingTimeoutList(member)
+		}
+	}
+	if d.HasChange("enable_security_logging") {
+		if val, ok := d.GetOk("enable_security_logging"); ok {
+			object.SetEnableSecurityLogging(val.(bool))
 		}
 	}
 	if d.HasChange("forwarding_mode") {
@@ -363,6 +387,10 @@ func ResourceGlobalVrouterConfigSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourceFlowAgingTimeoutList(),
 		},
+		"enable_security_logging": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
 		"forwarding_mode": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeString,
@@ -389,6 +417,20 @@ func ResourceGlobalVrouterConfigSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceGlobalVrouterConfigRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceGlobalVrouterConfig() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceGlobalVrouterConfigCreate,
@@ -396,5 +438,15 @@ func ResourceGlobalVrouterConfig() *schema.Resource {
 		Update: ResourceGlobalVrouterConfigUpdate,
 		Delete: ResourceGlobalVrouterConfigDelete,
 		Schema: ResourceGlobalVrouterConfigSchema(),
+	}
+}
+
+func ResourceGlobalVrouterConfigRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceGlobalVrouterConfigRefsCreate,
+		Read:   ResourceGlobalVrouterConfigRefsRead,
+		Update: ResourceGlobalVrouterConfigRefsUpdate,
+		Delete: ResourceGlobalVrouterConfigRefsDelete,
+		Schema: ResourceGlobalVrouterConfigRefsSchema(),
 	}
 }

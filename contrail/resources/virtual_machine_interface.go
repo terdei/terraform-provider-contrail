@@ -77,6 +77,9 @@ func SetVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, d *
 		SetFatFlowProtocolsFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetVirtualMachineInterfaceFatFlowProtocols(member)
 	}
+	if val, ok := d.GetOk("vlan_tag_based_bridge_domain"); ok {
+		object.SetVlanTagBasedBridgeDomain(val.(bool))
+	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
 		SetIdPermsTypeFromMap(member, d, m, (val.([]interface{}))[0])
@@ -106,6 +109,20 @@ func SetRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface,
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsVirtualMachineInterfaceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("security_logging_object_refs"); ok {
+		log.Printf("Got ref security_logging_object_refs -- will call: object.AddSecurityLoggingObject(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("security-logging-object", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving security-logging-object by Uuid = %v as ref for SecurityLoggingObject on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddSecurityLoggingObject(refObj.(*SecurityLoggingObject))
+		}
+	}
 	if val, ok := d.GetOk("qos_config_refs"); ok {
 		log.Printf("Got ref qos_config_refs -- will call: object.AddQosConfig(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -263,6 +280,51 @@ func SetRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface,
 			object.AddPhysicalInterface(refObj.(*PhysicalInterface))
 		}
 	}
+	if val, ok := d.GetOk("bridge_domain_refs"); ok {
+		log.Printf("Got ref bridge_domain_refs -- will call: object.AddBridgeDomain(refObj, *dataObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("bridge-domain", refId.(string))
+			dataObj := new(BridgeDomainMembershipType)
+			SetBridgeDomainMembershipTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+			log.Printf("Data obj: %+v", dataObj)
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving bridge-domain by Uuid = %v as ref for BridgeDomain on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddBridgeDomain(refObj.(*BridgeDomain), *dataObj)
+		}
+	}
+	if val, ok := d.GetOk("service_endpoint_refs"); ok {
+		log.Printf("Got ref service_endpoint_refs -- will call: object.AddServiceEndpoint(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("service-endpoint", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving service-endpoint by Uuid = %v as ref for ServiceEndpoint on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddServiceEndpoint(refObj.(*ServiceEndpoint))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -290,6 +352,7 @@ func WriteVirtualMachineInterfaceToResource(object VirtualMachineInterface, d *s
 	d.Set("virtual_machine_interface_bindings", TakeKeyValuePairsAsMap(&virtual_machine_interface_bindingsObj))
 	virtual_machine_interface_fat_flow_protocolsObj := object.GetVirtualMachineInterfaceFatFlowProtocols()
 	d.Set("virtual_machine_interface_fat_flow_protocols", TakeFatFlowProtocolsAsMap(&virtual_machine_interface_fat_flow_protocolsObj))
+	d.Set("vlan_tag_based_bridge_domain", object.GetVlanTagBasedBridgeDomain())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -324,6 +387,7 @@ func TakeVirtualMachineInterfaceAsMap(object *VirtualMachineInterface) map[strin
 	omap["virtual_machine_interface_bindings"] = TakeKeyValuePairsAsMap(&virtual_machine_interface_bindingsObj)
 	virtual_machine_interface_fat_flow_protocolsObj := object.GetVirtualMachineInterfaceFatFlowProtocols()
 	omap["virtual_machine_interface_fat_flow_protocols"] = TakeFatFlowProtocolsAsMap(&virtual_machine_interface_fat_flow_protocolsObj)
+	omap["vlan_tag_based_bridge_domain"] = object.GetVlanTagBasedBridgeDomain()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -417,6 +481,11 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 			member := new(FatFlowProtocols)
 			SetFatFlowProtocolsFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetVirtualMachineInterfaceFatFlowProtocols(member)
+		}
+	}
+	if d.HasChange("vlan_tag_based_bridge_domain") {
+		if val, ok := d.GetOk("vlan_tag_based_bridge_domain"); ok {
+			object.SetVlanTagBasedBridgeDomain(val.(bool))
 		}
 	}
 	if d.HasChange("id_perms") {
@@ -629,6 +698,10 @@ func ResourceVirtualMachineInterfaceSchema() map[string]*schema.Schema {
 			Type:     schema.TypeList,
 			Elem:     ResourceFatFlowProtocols(),
 		},
+		"vlan_tag_based_bridge_domain": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
 		"id_perms": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -656,6 +729,11 @@ func ResourceVirtualMachineInterfaceRefsSchema() map[string]*schema.Schema {
 		"uuid": &schema.Schema{
 			Type:     schema.TypeString,
 			Required: true,
+		},
+		"security_logging_object_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceSecurityLoggingObject(),
 		},
 		"qos_config_refs": &schema.Schema{
 			Optional: true,
@@ -723,6 +801,33 @@ func ResourceVirtualMachineInterfaceRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourcePhysicalInterface(),
+		},
+		"bridge_domain_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+					"attr": &schema.Schema{
+						Type:     schema.TypeList,
+						Elem:     ResourceBridgeDomainMembershipType(),
+						Required: true,
+					},
+				},
+			},
+		},
+		"service_endpoint_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceServiceEndpoint(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

@@ -20,6 +20,9 @@ const (
 	global_system_config_bgp_always_compare_med
 	global_system_config_ip_fabric_subnets
 	global_system_config_bgpaas_parameters
+	global_system_config_mac_limit_control
+	global_system_config_mac_move_control
+	global_system_config_mac_aging_time
 	global_system_config_alarm_enable
 	global_system_config_user_defined_log_statistics
 	global_system_config_id_perms
@@ -37,6 +40,7 @@ const (
 	global_system_config_service_appliance_sets
 	global_system_config_api_access_lists
 	global_system_config_alarms
+	global_system_config_tag_refs
 	global_system_config_qos_config_back_refs
 )
 
@@ -50,6 +54,9 @@ type GlobalSystemConfig struct {
 	bgp_always_compare_med      bool
 	ip_fabric_subnets           SubnetListType
 	bgpaas_parameters           BGPaaServiceParametersType
+	mac_limit_control           MACLimitControlType
+	mac_move_control            MACMoveLimitControlType
+	mac_aging_time              int
 	alarm_enable                bool
 	user_defined_log_statistics UserDefinedLogStatList
 	id_perms                    IdPermsType
@@ -67,6 +74,7 @@ type GlobalSystemConfig struct {
 	service_appliance_sets      contrail.ReferenceList
 	api_access_lists            contrail.ReferenceList
 	alarms                      contrail.ReferenceList
+	tag_refs                    contrail.ReferenceList
 	qos_config_back_refs        contrail.ReferenceList
 	valid                       big.Int
 	modified                    big.Int
@@ -187,6 +195,33 @@ func (obj *GlobalSystemConfig) GetBgpaasParameters() BGPaaServiceParametersType 
 func (obj *GlobalSystemConfig) SetBgpaasParameters(value *BGPaaServiceParametersType) {
 	obj.bgpaas_parameters = *value
 	obj.modified.SetBit(&obj.modified, global_system_config_bgpaas_parameters, 1)
+}
+
+func (obj *GlobalSystemConfig) GetMacLimitControl() MACLimitControlType {
+	return obj.mac_limit_control
+}
+
+func (obj *GlobalSystemConfig) SetMacLimitControl(value *MACLimitControlType) {
+	obj.mac_limit_control = *value
+	obj.modified.SetBit(&obj.modified, global_system_config_mac_limit_control, 1)
+}
+
+func (obj *GlobalSystemConfig) GetMacMoveControl() MACMoveLimitControlType {
+	return obj.mac_move_control
+}
+
+func (obj *GlobalSystemConfig) SetMacMoveControl(value *MACMoveLimitControlType) {
+	obj.mac_move_control = *value
+	obj.modified.SetBit(&obj.modified, global_system_config_mac_move_control, 1)
+}
+
+func (obj *GlobalSystemConfig) GetMacAgingTime() int {
+	return obj.mac_aging_time
+}
+
+func (obj *GlobalSystemConfig) SetMacAgingTime(value int) {
+	obj.mac_aging_time = value
+	obj.modified.SetBit(&obj.modified, global_system_config_mac_aging_time, 1)
 }
 
 func (obj *GlobalSystemConfig) GetAlarmEnable() bool {
@@ -527,6 +562,90 @@ func (obj *GlobalSystemConfig) SetBgpRouterList(
 	}
 }
 
+func (obj *GlobalSystemConfig) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(global_system_config_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *GlobalSystemConfig) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *GlobalSystemConfig) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(global_system_config_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, global_system_config_tag_refs, 1)
+	return nil
+}
+
+func (obj *GlobalSystemConfig) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(global_system_config_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, global_system_config_tag_refs, 1)
+	return nil
+}
+
+func (obj *GlobalSystemConfig) ClearTag() {
+	if (obj.valid.Bit(global_system_config_tag_refs) != 0) &&
+		(obj.modified.Bit(global_system_config_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, global_system_config_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, global_system_config_tag_refs, 1)
+}
+
+func (obj *GlobalSystemConfig) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *GlobalSystemConfig) readQosConfigBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(global_system_config_qos_config_back_refs) == 0) {
@@ -626,6 +745,33 @@ func (obj *GlobalSystemConfig) MarshalJSON() ([]byte, error) {
 		msg["bgpaas_parameters"] = &value
 	}
 
+	if obj.modified.Bit(global_system_config_mac_limit_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_limit_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_limit_control"] = &value
+	}
+
+	if obj.modified.Bit(global_system_config_mac_move_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_move_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_move_control"] = &value
+	}
+
+	if obj.modified.Bit(global_system_config_mac_aging_time) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_aging_time)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_aging_time"] = &value
+	}
+
 	if obj.modified.Bit(global_system_config_alarm_enable) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.alarm_enable)
@@ -689,6 +835,15 @@ func (obj *GlobalSystemConfig) MarshalJSON() ([]byte, error) {
 		msg["bgp_router_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -750,6 +905,24 @@ func (obj *GlobalSystemConfig) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.bgpaas_parameters)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, global_system_config_bgpaas_parameters, 1)
+			}
+			break
+		case "mac_limit_control":
+			err = json.Unmarshal(value, &obj.mac_limit_control)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, global_system_config_mac_limit_control, 1)
+			}
+			break
+		case "mac_move_control":
+			err = json.Unmarshal(value, &obj.mac_move_control)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, global_system_config_mac_move_control, 1)
+			}
+			break
+		case "mac_aging_time":
+			err = json.Unmarshal(value, &obj.mac_aging_time)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, global_system_config_mac_aging_time, 1)
 			}
 			break
 		case "alarm_enable":
@@ -854,6 +1027,12 @@ func (obj *GlobalSystemConfig) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, global_system_config_alarms, 1)
 			}
 			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, global_system_config_tag_refs, 1)
+			}
+			break
 		case "qos_config_back_refs":
 			err = json.Unmarshal(value, &obj.qos_config_back_refs)
 			if err == nil {
@@ -947,6 +1126,33 @@ func (obj *GlobalSystemConfig) UpdateObject() ([]byte, error) {
 		msg["bgpaas_parameters"] = &value
 	}
 
+	if obj.modified.Bit(global_system_config_mac_limit_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_limit_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_limit_control"] = &value
+	}
+
+	if obj.modified.Bit(global_system_config_mac_move_control) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_move_control)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_move_control"] = &value
+	}
+
+	if obj.modified.Bit(global_system_config_mac_aging_time) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.mac_aging_time)
+		if err != nil {
+			return nil, err
+		}
+		msg["mac_aging_time"] = &value
+	}
+
 	if obj.modified.Bit(global_system_config_alarm_enable) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.alarm_enable)
@@ -1020,6 +1226,25 @@ func (obj *GlobalSystemConfig) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(global_system_config_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -1032,6 +1257,18 @@ func (obj *GlobalSystemConfig) UpdateReferences() error {
 			obj, "bgp-router",
 			obj.bgp_router_refs,
 			obj.baseMap["bgp-router"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(global_system_config_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

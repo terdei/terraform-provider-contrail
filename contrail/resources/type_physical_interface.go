@@ -12,12 +12,14 @@ import (
 )
 
 const (
-	physical_interface_id_perms int = iota
+	physical_interface_ethernet_segment_identifier int = iota
+	physical_interface_id_perms
 	physical_interface_perms2
 	physical_interface_annotations
 	physical_interface_display_name
 	physical_interface_logical_interfaces
 	physical_interface_physical_interface_refs
+	physical_interface_tag_refs
 	physical_interface_service_appliance_back_refs
 	physical_interface_virtual_machine_interface_back_refs
 	physical_interface_physical_interface_back_refs
@@ -25,12 +27,14 @@ const (
 
 type PhysicalInterface struct {
 	contrail.ObjectBase
+	ethernet_segment_identifier         string
 	id_perms                            IdPermsType
 	perms2                              PermType2
 	annotations                         KeyValuePairs
 	display_name                        string
 	logical_interfaces                  contrail.ReferenceList
 	physical_interface_refs             contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
 	service_appliance_back_refs         contrail.ReferenceList
 	virtual_machine_interface_back_refs contrail.ReferenceList
 	physical_interface_back_refs        contrail.ReferenceList
@@ -81,6 +85,15 @@ func (obj *PhysicalInterface) hasReferenceBase(name string) bool {
 func (obj *PhysicalInterface) UpdateDone() {
 	obj.modified.SetInt64(0)
 	obj.baseMap = nil
+}
+
+func (obj *PhysicalInterface) GetEthernetSegmentIdentifier() string {
+	return obj.ethernet_segment_identifier
+}
+
+func (obj *PhysicalInterface) SetEthernetSegmentIdentifier(value string) {
+	obj.ethernet_segment_identifier = value
+	obj.modified.SetBit(&obj.modified, physical_interface_ethernet_segment_identifier, 1)
 }
 
 func (obj *PhysicalInterface) GetIdPerms() IdPermsType {
@@ -223,6 +236,90 @@ func (obj *PhysicalInterface) SetPhysicalInterfaceList(
 	}
 }
 
+func (obj *PhysicalInterface) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(physical_interface_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *PhysicalInterface) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *PhysicalInterface) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(physical_interface_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, physical_interface_tag_refs, 1)
+	return nil
+}
+
+func (obj *PhysicalInterface) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(physical_interface_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, physical_interface_tag_refs, 1)
+	return nil
+}
+
+func (obj *PhysicalInterface) ClearTag() {
+	if (obj.valid.Bit(physical_interface_tag_refs) != 0) &&
+		(obj.modified.Bit(physical_interface_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, physical_interface_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, physical_interface_tag_refs, 1)
+}
+
+func (obj *PhysicalInterface) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *PhysicalInterface) readServiceApplianceBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(physical_interface_service_appliance_back_refs) == 0) {
@@ -290,6 +387,15 @@ func (obj *PhysicalInterface) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
+	if obj.modified.Bit(physical_interface_ethernet_segment_identifier) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.ethernet_segment_identifier)
+		if err != nil {
+			return nil, err
+		}
+		msg["ethernet_segment_identifier"] = &value
+	}
+
 	if obj.modified.Bit(physical_interface_id_perms) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.id_perms)
@@ -335,6 +441,15 @@ func (obj *PhysicalInterface) MarshalJSON() ([]byte, error) {
 		msg["physical_interface_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -350,6 +465,12 @@ func (obj *PhysicalInterface) UnmarshalJSON(body []byte) error {
 	}
 	for key, value := range m {
 		switch key {
+		case "ethernet_segment_identifier":
+			err = json.Unmarshal(value, &obj.ethernet_segment_identifier)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_interface_ethernet_segment_identifier, 1)
+			}
+			break
 		case "id_perms":
 			err = json.Unmarshal(value, &obj.id_perms)
 			if err == nil {
@@ -384,6 +505,12 @@ func (obj *PhysicalInterface) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.physical_interface_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, physical_interface_physical_interface_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, physical_interface_tag_refs, 1)
 			}
 			break
 		case "virtual_machine_interface_back_refs":
@@ -437,6 +564,15 @@ func (obj *PhysicalInterface) UpdateObject() ([]byte, error) {
 	err := obj.MarshalId(msg)
 	if err != nil {
 		return nil, err
+	}
+
+	if obj.modified.Bit(physical_interface_ethernet_segment_identifier) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.ethernet_segment_identifier)
+		if err != nil {
+			return nil, err
+		}
+		msg["ethernet_segment_identifier"] = &value
 	}
 
 	if obj.modified.Bit(physical_interface_id_perms) != 0 {
@@ -494,6 +630,25 @@ func (obj *PhysicalInterface) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(physical_interface_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -506,6 +661,18 @@ func (obj *PhysicalInterface) UpdateReferences() error {
 			obj, "physical-interface",
 			obj.physical_interface_refs,
 			obj.baseMap["physical-interface"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(physical_interface_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

@@ -55,6 +55,20 @@ func SetRefsAnalyticsNodeFromResource(object *AnalyticsNode, d *schema.ResourceD
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsAnalyticsNodeFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -277,6 +291,20 @@ func ResourceAnalyticsNodeSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceAnalyticsNodeRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceAnalyticsNode() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceAnalyticsNodeCreate,
@@ -284,5 +312,15 @@ func ResourceAnalyticsNode() *schema.Resource {
 		Update: ResourceAnalyticsNodeUpdate,
 		Delete: ResourceAnalyticsNodeDelete,
 		Schema: ResourceAnalyticsNodeSchema(),
+	}
+}
+
+func ResourceAnalyticsNodeRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceAnalyticsNodeRefsCreate,
+		Read:   ResourceAnalyticsNodeRefsRead,
+		Update: ResourceAnalyticsNodeRefsUpdate,
+		Delete: ResourceAnalyticsNodeRefsDelete,
+		Schema: ResourceAnalyticsNodeRefsSchema(),
 	}
 }

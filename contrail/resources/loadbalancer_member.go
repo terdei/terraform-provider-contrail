@@ -57,6 +57,20 @@ func SetRefsLoadbalancerMemberFromResource(object *LoadbalancerMember, d *schema
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsLoadbalancerMemberFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -284,6 +298,20 @@ func ResourceLoadbalancerMemberSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceLoadbalancerMemberRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceLoadbalancerMember() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceLoadbalancerMemberCreate,
@@ -291,5 +319,15 @@ func ResourceLoadbalancerMember() *schema.Resource {
 		Update: ResourceLoadbalancerMemberUpdate,
 		Delete: ResourceLoadbalancerMemberDelete,
 		Schema: ResourceLoadbalancerMemberSchema(),
+	}
+}
+
+func ResourceLoadbalancerMemberRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceLoadbalancerMemberRefsCreate,
+		Read:   ResourceLoadbalancerMemberRefsRead,
+		Update: ResourceLoadbalancerMemberRefsUpdate,
+		Delete: ResourceLoadbalancerMemberRefsDelete,
+		Schema: ResourceLoadbalancerMemberRefsSchema(),
 	}
 }

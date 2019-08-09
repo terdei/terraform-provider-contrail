@@ -23,6 +23,8 @@ const (
 	bgp_as_a_service_annotations
 	bgp_as_a_service_display_name
 	bgp_as_a_service_virtual_machine_interface_refs
+	bgp_as_a_service_service_health_check_refs
+	bgp_as_a_service_tag_refs
 )
 
 type BgpAsAService struct {
@@ -38,6 +40,8 @@ type BgpAsAService struct {
 	annotations                         KeyValuePairs
 	display_name                        string
 	virtual_machine_interface_refs      contrail.ReferenceList
+	service_health_check_refs           contrail.ReferenceList
+	tag_refs                            contrail.ReferenceList
 	valid                               big.Int
 	modified                            big.Int
 	baseMap                             map[string]contrail.ReferenceList
@@ -261,6 +265,174 @@ func (obj *BgpAsAService) SetVirtualMachineInterfaceList(
 	}
 }
 
+func (obj *BgpAsAService) readServiceHealthCheckRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(bgp_as_a_service_service_health_check_refs) == 0) {
+		err := obj.GetField(obj, "service_health_check_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *BgpAsAService) GetServiceHealthCheckRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readServiceHealthCheckRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.service_health_check_refs, nil
+}
+
+func (obj *BgpAsAService) AddServiceHealthCheck(
+	rhs *ServiceHealthCheck) error {
+	err := obj.readServiceHealthCheckRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(bgp_as_a_service_service_health_check_refs) == 0 {
+		obj.storeReferenceBase("service-health-check", obj.service_health_check_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.service_health_check_refs = append(obj.service_health_check_refs, ref)
+	obj.modified.SetBit(&obj.modified, bgp_as_a_service_service_health_check_refs, 1)
+	return nil
+}
+
+func (obj *BgpAsAService) DeleteServiceHealthCheck(uuid string) error {
+	err := obj.readServiceHealthCheckRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(bgp_as_a_service_service_health_check_refs) == 0 {
+		obj.storeReferenceBase("service-health-check", obj.service_health_check_refs)
+	}
+
+	for i, ref := range obj.service_health_check_refs {
+		if ref.Uuid == uuid {
+			obj.service_health_check_refs = append(
+				obj.service_health_check_refs[:i],
+				obj.service_health_check_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, bgp_as_a_service_service_health_check_refs, 1)
+	return nil
+}
+
+func (obj *BgpAsAService) ClearServiceHealthCheck() {
+	if (obj.valid.Bit(bgp_as_a_service_service_health_check_refs) != 0) &&
+		(obj.modified.Bit(bgp_as_a_service_service_health_check_refs) == 0) {
+		obj.storeReferenceBase("service-health-check", obj.service_health_check_refs)
+	}
+	obj.service_health_check_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, bgp_as_a_service_service_health_check_refs, 1)
+	obj.modified.SetBit(&obj.modified, bgp_as_a_service_service_health_check_refs, 1)
+}
+
+func (obj *BgpAsAService) SetServiceHealthCheckList(
+	refList []contrail.ReferencePair) {
+	obj.ClearServiceHealthCheck()
+	obj.service_health_check_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.service_health_check_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *BgpAsAService) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(bgp_as_a_service_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *BgpAsAService) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *BgpAsAService) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(bgp_as_a_service_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, bgp_as_a_service_tag_refs, 1)
+	return nil
+}
+
+func (obj *BgpAsAService) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(bgp_as_a_service_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, bgp_as_a_service_tag_refs, 1)
+	return nil
+}
+
+func (obj *BgpAsAService) ClearTag() {
+	if (obj.valid.Bit(bgp_as_a_service_tag_refs) != 0) &&
+		(obj.modified.Bit(bgp_as_a_service_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, bgp_as_a_service_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, bgp_as_a_service_tag_refs, 1)
+}
+
+func (obj *BgpAsAService) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *BgpAsAService) MarshalJSON() ([]byte, error) {
 	msg := map[string]*json.RawMessage{}
 	err := obj.MarshalCommon(msg)
@@ -367,6 +539,24 @@ func (obj *BgpAsAService) MarshalJSON() ([]byte, error) {
 		msg["virtual_machine_interface_refs"] = &value
 	}
 
+	if len(obj.service_health_check_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.service_health_check_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["service_health_check_refs"] = &value
+	}
+
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -446,6 +636,18 @@ func (obj *BgpAsAService) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.virtual_machine_interface_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, bgp_as_a_service_virtual_machine_interface_refs, 1)
+			}
+			break
+		case "service_health_check_refs":
+			err = json.Unmarshal(value, &obj.service_health_check_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, bgp_as_a_service_service_health_check_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, bgp_as_a_service_tag_refs, 1)
 			}
 			break
 		}
@@ -572,6 +774,44 @@ func (obj *BgpAsAService) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(bgp_as_a_service_service_health_check_refs) != 0 {
+		if len(obj.service_health_check_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["service_health_check_refs"] = &value
+		} else if !obj.hasReferenceBase("service-health-check") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.service_health_check_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["service_health_check_refs"] = &value
+		}
+	}
+
+	if obj.modified.Bit(bgp_as_a_service_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -584,6 +824,30 @@ func (obj *BgpAsAService) UpdateReferences() error {
 			obj, "virtual-machine-interface",
 			obj.virtual_machine_interface_refs,
 			obj.baseMap["virtual-machine-interface"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(bgp_as_a_service_service_health_check_refs) != 0) &&
+		len(obj.service_health_check_refs) > 0 &&
+		obj.hasReferenceBase("service-health-check") {
+		err := obj.UpdateReference(
+			obj, "service-health-check",
+			obj.service_health_check_refs,
+			obj.baseMap["service-health-check"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(bgp_as_a_service_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

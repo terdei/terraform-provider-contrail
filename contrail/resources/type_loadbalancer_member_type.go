@@ -11,4 +11,5 @@ type LoadbalancerMemberType struct {
 	ProtocolPort      int    `json:"protocol_port,omitempty"`
 	Weight            int    `json:"weight,omitempty"`
 	Address           string `json:"address,omitempty"`
+	SubnetId          string `json:"subnet_id,omitempty"`
 }

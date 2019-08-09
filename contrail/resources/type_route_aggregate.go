@@ -17,6 +17,7 @@ const (
 	route_aggregate_annotations
 	route_aggregate_display_name
 	route_aggregate_service_instance_refs
+	route_aggregate_tag_refs
 )
 
 type RouteAggregate struct {
@@ -26,6 +27,7 @@ type RouteAggregate struct {
 	annotations           KeyValuePairs
 	display_name          string
 	service_instance_refs contrail.ReferenceList
+	tag_refs              contrail.ReferenceList
 	valid                 big.Int
 	modified              big.Int
 	baseMap               map[string]contrail.ReferenceList
@@ -195,6 +197,90 @@ func (obj *RouteAggregate) SetServiceInstanceList(
 	}
 }
 
+func (obj *RouteAggregate) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(route_aggregate_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *RouteAggregate) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *RouteAggregate) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(route_aggregate_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, route_aggregate_tag_refs, 1)
+	return nil
+}
+
+func (obj *RouteAggregate) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(route_aggregate_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, route_aggregate_tag_refs, 1)
+	return nil
+}
+
+func (obj *RouteAggregate) ClearTag() {
+	if (obj.valid.Bit(route_aggregate_tag_refs) != 0) &&
+		(obj.modified.Bit(route_aggregate_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, route_aggregate_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, route_aggregate_tag_refs, 1)
+}
+
+func (obj *RouteAggregate) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *RouteAggregate) MarshalJSON() ([]byte, error) {
 	msg := map[string]*json.RawMessage{}
 	err := obj.MarshalCommon(msg)
@@ -247,6 +333,15 @@ func (obj *RouteAggregate) MarshalJSON() ([]byte, error) {
 		msg["service_instance_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -284,6 +379,12 @@ func (obj *RouteAggregate) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.display_name)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, route_aggregate_display_name, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, route_aggregate_tag_refs, 1)
 			}
 			break
 		case "service_instance_refs":
@@ -382,6 +483,25 @@ func (obj *RouteAggregate) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(route_aggregate_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -394,6 +514,18 @@ func (obj *RouteAggregate) UpdateReferences() error {
 			obj, "service-instance",
 			obj.service_instance_refs,
 			obj.baseMap["service-instance"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(route_aggregate_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

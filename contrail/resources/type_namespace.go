@@ -17,6 +17,7 @@ const (
 	namespace_perms2
 	namespace_annotations
 	namespace_display_name
+	namespace_tag_refs
 	namespace_project_back_refs
 )
 
@@ -27,6 +28,7 @@ type Namespace struct {
 	perms2            PermType2
 	annotations       KeyValuePairs
 	display_name      string
+	tag_refs          contrail.ReferenceList
 	project_back_refs contrail.ReferenceList
 	valid             big.Int
 	modified          big.Int
@@ -122,6 +124,90 @@ func (obj *Namespace) SetDisplayName(value string) {
 	obj.modified.SetBit(&obj.modified, namespace_display_name, 1)
 }
 
+func (obj *Namespace) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(namespace_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *Namespace) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *Namespace) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(namespace_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, namespace_tag_refs, 1)
+	return nil
+}
+
+func (obj *Namespace) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(namespace_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, namespace_tag_refs, 1)
+	return nil
+}
+
+func (obj *Namespace) ClearTag() {
+	if (obj.valid.Bit(namespace_tag_refs) != 0) &&
+		(obj.modified.Bit(namespace_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, namespace_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, namespace_tag_refs, 1)
+}
+
+func (obj *Namespace) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *Namespace) readProjectBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(namespace_project_back_refs) == 0) {
@@ -194,6 +280,15 @@ func (obj *Namespace) MarshalJSON() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -237,6 +332,12 @@ func (obj *Namespace) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.display_name)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, namespace_display_name, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, namespace_tag_refs, 1)
 			}
 			break
 		case "project_back_refs":
@@ -325,10 +426,41 @@ func (obj *Namespace) UpdateObject() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if obj.modified.Bit(namespace_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *Namespace) UpdateReferences() error {
+
+	if (obj.modified.Bit(namespace_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

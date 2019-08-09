@@ -29,6 +29,9 @@ func SetPhysicalRouterFromResource(object *PhysicalRouter, d *schema.ResourceDat
 	if val, ok := d.GetOk("physical_router_dataplane_ip"); ok {
 		object.SetPhysicalRouterDataplaneIp(val.(string))
 	}
+	if val, ok := d.GetOk("physical_router_loopback_ip"); ok {
+		object.SetPhysicalRouterLoopbackIp(val.(string))
+	}
 	if val, ok := d.GetOk("physical_router_vendor_name"); ok {
 		object.SetPhysicalRouterVendorName(val.(string))
 	}
@@ -37,6 +40,15 @@ func SetPhysicalRouterFromResource(object *PhysicalRouter, d *schema.ResourceDat
 	}
 	if val, ok := d.GetOk("physical_router_vnc_managed"); ok {
 		object.SetPhysicalRouterVncManaged(val.(bool))
+	}
+	if val, ok := d.GetOk("physical_router_role"); ok {
+		object.SetPhysicalRouterRole(val.(string))
+	}
+	if val, ok := d.GetOk("physical_router_snmp"); ok {
+		object.SetPhysicalRouterSnmp(val.(bool))
+	}
+	if val, ok := d.GetOk("physical_router_lldp"); ok {
+		object.SetPhysicalRouterLldp(val.(bool))
 	}
 	if val, ok := d.GetOk("physical_router_user_credentials"); ok {
 		member := new(UserCredentials)
@@ -52,6 +64,11 @@ func SetPhysicalRouterFromResource(object *PhysicalRouter, d *schema.ResourceDat
 		member := new(JunosServicePorts)
 		SetJunosServicePortsFromMap(member, d, m, (val.([]interface{}))[0])
 		object.SetPhysicalRouterJunosServicePorts(member)
+	}
+	if val, ok := d.GetOk("telemetry_info"); ok {
+		member := new(TelemetryStateInfo)
+		SetTelemetryStateInfoFromMap(member, d, m, (val.([]interface{}))[0])
+		object.SetTelemetryInfo(member)
 	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
@@ -124,6 +141,20 @@ func SetRefsPhysicalRouterFromResource(object *PhysicalRouter, d *schema.Resourc
 			object.AddVirtualNetwork(refObj.(*VirtualNetwork))
 		}
 	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -132,15 +163,21 @@ func WritePhysicalRouterToResource(object PhysicalRouter, d *schema.ResourceData
 
 	d.Set("physical_router_management_ip", object.GetPhysicalRouterManagementIp())
 	d.Set("physical_router_dataplane_ip", object.GetPhysicalRouterDataplaneIp())
+	d.Set("physical_router_loopback_ip", object.GetPhysicalRouterLoopbackIp())
 	d.Set("physical_router_vendor_name", object.GetPhysicalRouterVendorName())
 	d.Set("physical_router_product_name", object.GetPhysicalRouterProductName())
 	d.Set("physical_router_vnc_managed", object.GetPhysicalRouterVncManaged())
+	d.Set("physical_router_role", object.GetPhysicalRouterRole())
+	d.Set("physical_router_snmp", object.GetPhysicalRouterSnmp())
+	d.Set("physical_router_lldp", object.GetPhysicalRouterLldp())
 	physical_router_user_credentialsObj := object.GetPhysicalRouterUserCredentials()
 	d.Set("physical_router_user_credentials", TakeUserCredentialsAsMap(&physical_router_user_credentialsObj))
 	physical_router_snmp_credentialsObj := object.GetPhysicalRouterSnmpCredentials()
 	d.Set("physical_router_snmp_credentials", TakeSNMPCredentialsAsMap(&physical_router_snmp_credentialsObj))
 	physical_router_junos_service_portsObj := object.GetPhysicalRouterJunosServicePorts()
 	d.Set("physical_router_junos_service_ports", TakeJunosServicePortsAsMap(&physical_router_junos_service_portsObj))
+	telemetry_infoObj := object.GetTelemetryInfo()
+	d.Set("telemetry_info", TakeTelemetryStateInfoAsMap(&telemetry_infoObj))
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -156,15 +193,21 @@ func TakePhysicalRouterAsMap(object *PhysicalRouter) map[string]interface{} {
 
 	omap["physical_router_management_ip"] = object.GetPhysicalRouterManagementIp()
 	omap["physical_router_dataplane_ip"] = object.GetPhysicalRouterDataplaneIp()
+	omap["physical_router_loopback_ip"] = object.GetPhysicalRouterLoopbackIp()
 	omap["physical_router_vendor_name"] = object.GetPhysicalRouterVendorName()
 	omap["physical_router_product_name"] = object.GetPhysicalRouterProductName()
 	omap["physical_router_vnc_managed"] = object.GetPhysicalRouterVncManaged()
+	omap["physical_router_role"] = object.GetPhysicalRouterRole()
+	omap["physical_router_snmp"] = object.GetPhysicalRouterSnmp()
+	omap["physical_router_lldp"] = object.GetPhysicalRouterLldp()
 	physical_router_user_credentialsObj := object.GetPhysicalRouterUserCredentials()
 	omap["physical_router_user_credentials"] = TakeUserCredentialsAsMap(&physical_router_user_credentialsObj)
 	physical_router_snmp_credentialsObj := object.GetPhysicalRouterSnmpCredentials()
 	omap["physical_router_snmp_credentials"] = TakeSNMPCredentialsAsMap(&physical_router_snmp_credentialsObj)
 	physical_router_junos_service_portsObj := object.GetPhysicalRouterJunosServicePorts()
 	omap["physical_router_junos_service_ports"] = TakeJunosServicePortsAsMap(&physical_router_junos_service_portsObj)
+	telemetry_infoObj := object.GetTelemetryInfo()
+	omap["telemetry_info"] = TakeTelemetryStateInfoAsMap(&telemetry_infoObj)
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -192,6 +235,11 @@ func UpdatePhysicalRouterFromResource(object *PhysicalRouter, d *schema.Resource
 			object.SetPhysicalRouterDataplaneIp(val.(string))
 		}
 	}
+	if d.HasChange("physical_router_loopback_ip") {
+		if val, ok := d.GetOk("physical_router_loopback_ip"); ok {
+			object.SetPhysicalRouterLoopbackIp(val.(string))
+		}
+	}
 	if d.HasChange("physical_router_vendor_name") {
 		if val, ok := d.GetOk("physical_router_vendor_name"); ok {
 			object.SetPhysicalRouterVendorName(val.(string))
@@ -205,6 +253,21 @@ func UpdatePhysicalRouterFromResource(object *PhysicalRouter, d *schema.Resource
 	if d.HasChange("physical_router_vnc_managed") {
 		if val, ok := d.GetOk("physical_router_vnc_managed"); ok {
 			object.SetPhysicalRouterVncManaged(val.(bool))
+		}
+	}
+	if d.HasChange("physical_router_role") {
+		if val, ok := d.GetOk("physical_router_role"); ok {
+			object.SetPhysicalRouterRole(val.(string))
+		}
+	}
+	if d.HasChange("physical_router_snmp") {
+		if val, ok := d.GetOk("physical_router_snmp"); ok {
+			object.SetPhysicalRouterSnmp(val.(bool))
+		}
+	}
+	if d.HasChange("physical_router_lldp") {
+		if val, ok := d.GetOk("physical_router_lldp"); ok {
+			object.SetPhysicalRouterLldp(val.(bool))
 		}
 	}
 	if d.HasChange("physical_router_user_credentials") {
@@ -226,6 +289,13 @@ func UpdatePhysicalRouterFromResource(object *PhysicalRouter, d *schema.Resource
 			member := new(JunosServicePorts)
 			SetJunosServicePortsFromMap(member, d, m, (val.([]interface{}))[0])
 			object.SetPhysicalRouterJunosServicePorts(member)
+		}
+	}
+	if d.HasChange("telemetry_info") {
+		if val, ok := d.GetOk("telemetry_info"); ok {
+			member := new(TelemetryStateInfo)
+			SetTelemetryStateInfoFromMap(member, d, m, (val.([]interface{}))[0])
+			object.SetTelemetryInfo(member)
 		}
 	}
 	if d.HasChange("id_perms") {
@@ -389,6 +459,10 @@ func ResourcePhysicalRouterSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
+		"physical_router_loopback_ip": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeString,
+		},
 		"physical_router_vendor_name": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeString,
@@ -398,6 +472,18 @@ func ResourcePhysicalRouterSchema() map[string]*schema.Schema {
 			Type:     schema.TypeString,
 		},
 		"physical_router_vnc_managed": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
+		"physical_router_role": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeString,
+		},
+		"physical_router_snmp": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeBool,
+		},
+		"physical_router_lldp": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeBool,
 		},
@@ -415,6 +501,11 @@ func ResourcePhysicalRouterSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceJunosServicePorts(),
+		},
+		"telemetry_info": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTelemetryStateInfo(),
 		},
 		"id_perms": &schema.Schema{
 			Optional: true,
@@ -458,6 +549,11 @@ func ResourcePhysicalRouterRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceVirtualNetwork(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

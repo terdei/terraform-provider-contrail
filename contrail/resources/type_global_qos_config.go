@@ -12,27 +12,31 @@ import (
 )
 
 const (
-	global_qos_config_id_perms int = iota
+	global_qos_config_control_traffic_dscp int = iota
+	global_qos_config_id_perms
 	global_qos_config_perms2
 	global_qos_config_annotations
 	global_qos_config_display_name
 	global_qos_config_qos_configs
 	global_qos_config_forwarding_classs
 	global_qos_config_qos_queues
+	global_qos_config_tag_refs
 )
 
 type GlobalQosConfig struct {
 	contrail.ObjectBase
-	id_perms          IdPermsType
-	perms2            PermType2
-	annotations       KeyValuePairs
-	display_name      string
-	qos_configs       contrail.ReferenceList
-	forwarding_classs contrail.ReferenceList
-	qos_queues        contrail.ReferenceList
-	valid             big.Int
-	modified          big.Int
-	baseMap           map[string]contrail.ReferenceList
+	control_traffic_dscp ControlTrafficDscpType
+	id_perms             IdPermsType
+	perms2               PermType2
+	annotations          KeyValuePairs
+	display_name         string
+	qos_configs          contrail.ReferenceList
+	forwarding_classs    contrail.ReferenceList
+	qos_queues           contrail.ReferenceList
+	tag_refs             contrail.ReferenceList
+	valid                big.Int
+	modified             big.Int
+	baseMap              map[string]contrail.ReferenceList
 }
 
 func (obj *GlobalQosConfig) GetType() string {
@@ -77,6 +81,15 @@ func (obj *GlobalQosConfig) hasReferenceBase(name string) bool {
 func (obj *GlobalQosConfig) UpdateDone() {
 	obj.modified.SetInt64(0)
 	obj.baseMap = nil
+}
+
+func (obj *GlobalQosConfig) GetControlTrafficDscp() ControlTrafficDscpType {
+	return obj.control_traffic_dscp
+}
+
+func (obj *GlobalQosConfig) SetControlTrafficDscp(value *ControlTrafficDscpType) {
+	obj.control_traffic_dscp = *value
+	obj.modified.SetBit(&obj.modified, global_qos_config_control_traffic_dscp, 1)
 }
 
 func (obj *GlobalQosConfig) GetIdPerms() IdPermsType {
@@ -175,11 +188,104 @@ func (obj *GlobalQosConfig) GetQosQueues() (
 	return obj.qos_queues, nil
 }
 
+func (obj *GlobalQosConfig) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(global_qos_config_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *GlobalQosConfig) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *GlobalQosConfig) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(global_qos_config_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, global_qos_config_tag_refs, 1)
+	return nil
+}
+
+func (obj *GlobalQosConfig) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(global_qos_config_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, global_qos_config_tag_refs, 1)
+	return nil
+}
+
+func (obj *GlobalQosConfig) ClearTag() {
+	if (obj.valid.Bit(global_qos_config_tag_refs) != 0) &&
+		(obj.modified.Bit(global_qos_config_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, global_qos_config_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, global_qos_config_tag_refs, 1)
+}
+
+func (obj *GlobalQosConfig) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *GlobalQosConfig) MarshalJSON() ([]byte, error) {
 	msg := map[string]*json.RawMessage{}
 	err := obj.MarshalCommon(msg)
 	if err != nil {
 		return nil, err
+	}
+
+	if obj.modified.Bit(global_qos_config_control_traffic_dscp) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.control_traffic_dscp)
+		if err != nil {
+			return nil, err
+		}
+		msg["control_traffic_dscp"] = &value
 	}
 
 	if obj.modified.Bit(global_qos_config_id_perms) != 0 {
@@ -218,6 +324,15 @@ func (obj *GlobalQosConfig) MarshalJSON() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -233,6 +348,12 @@ func (obj *GlobalQosConfig) UnmarshalJSON(body []byte) error {
 	}
 	for key, value := range m {
 		switch key {
+		case "control_traffic_dscp":
+			err = json.Unmarshal(value, &obj.control_traffic_dscp)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, global_qos_config_control_traffic_dscp, 1)
+			}
+			break
 		case "id_perms":
 			err = json.Unmarshal(value, &obj.id_perms)
 			if err == nil {
@@ -275,6 +396,12 @@ func (obj *GlobalQosConfig) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, global_qos_config_qos_queues, 1)
 			}
 			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, global_qos_config_tag_refs, 1)
+			}
+			break
 		}
 		if err != nil {
 			return err
@@ -288,6 +415,15 @@ func (obj *GlobalQosConfig) UpdateObject() ([]byte, error) {
 	err := obj.MarshalId(msg)
 	if err != nil {
 		return nil, err
+	}
+
+	if obj.modified.Bit(global_qos_config_control_traffic_dscp) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.control_traffic_dscp)
+		if err != nil {
+			return nil, err
+		}
+		msg["control_traffic_dscp"] = &value
 	}
 
 	if obj.modified.Bit(global_qos_config_id_perms) != 0 {
@@ -326,10 +462,41 @@ func (obj *GlobalQosConfig) UpdateObject() ([]byte, error) {
 		msg["display_name"] = &value
 	}
 
+	if obj.modified.Bit(global_qos_config_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *GlobalQosConfig) UpdateReferences() error {
+
+	if (obj.modified.Bit(global_qos_config_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

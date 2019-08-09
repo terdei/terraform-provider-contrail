@@ -65,6 +65,20 @@ func SetRefsAlarmFromResource(object *Alarm, d *schema.ResourceData, m interface
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsAlarmFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -319,6 +333,20 @@ func ResourceAlarmSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceAlarmRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceAlarm() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceAlarmCreate,
@@ -326,5 +354,15 @@ func ResourceAlarm() *schema.Resource {
 		Update: ResourceAlarmUpdate,
 		Delete: ResourceAlarmDelete,
 		Schema: ResourceAlarmSchema(),
+	}
+}
+
+func ResourceAlarmRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceAlarmRefsCreate,
+		Read:   ResourceAlarmRefsRead,
+		Update: ResourceAlarmRefsUpdate,
+		Delete: ResourceAlarmRefsDelete,
+		Schema: ResourceAlarmRefsSchema(),
 	}
 }

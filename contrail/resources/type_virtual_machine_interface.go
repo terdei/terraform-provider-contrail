@@ -24,10 +24,12 @@ const (
 	virtual_machine_interface_virtual_machine_interface_properties
 	virtual_machine_interface_virtual_machine_interface_bindings
 	virtual_machine_interface_virtual_machine_interface_fat_flow_protocols
+	virtual_machine_interface_vlan_tag_based_bridge_domain
 	virtual_machine_interface_id_perms
 	virtual_machine_interface_perms2
 	virtual_machine_interface_annotations
 	virtual_machine_interface_display_name
+	virtual_machine_interface_security_logging_object_refs
 	virtual_machine_interface_qos_config_refs
 	virtual_machine_interface_security_group_refs
 	virtual_machine_interface_virtual_machine_interface_refs
@@ -39,6 +41,9 @@ const (
 	virtual_machine_interface_service_health_check_refs
 	virtual_machine_interface_interface_route_table_refs
 	virtual_machine_interface_physical_interface_refs
+	virtual_machine_interface_bridge_domain_refs
+	virtual_machine_interface_service_endpoint_refs
+	virtual_machine_interface_tag_refs
 	virtual_machine_interface_virtual_machine_interface_back_refs
 	virtual_machine_interface_instance_ip_back_refs
 	virtual_machine_interface_subnet_back_refs
@@ -67,10 +72,12 @@ type VirtualMachineInterface struct {
 	virtual_machine_interface_properties            VirtualMachineInterfacePropertiesType
 	virtual_machine_interface_bindings              KeyValuePairs
 	virtual_machine_interface_fat_flow_protocols    FatFlowProtocols
+	vlan_tag_based_bridge_domain                    bool
 	id_perms                                        IdPermsType
 	perms2                                          PermType2
 	annotations                                     KeyValuePairs
 	display_name                                    string
+	security_logging_object_refs                    contrail.ReferenceList
 	qos_config_refs                                 contrail.ReferenceList
 	security_group_refs                             contrail.ReferenceList
 	virtual_machine_interface_refs                  contrail.ReferenceList
@@ -82,6 +89,9 @@ type VirtualMachineInterface struct {
 	service_health_check_refs                       contrail.ReferenceList
 	interface_route_table_refs                      contrail.ReferenceList
 	physical_interface_refs                         contrail.ReferenceList
+	bridge_domain_refs                              contrail.ReferenceList
+	service_endpoint_refs                           contrail.ReferenceList
+	tag_refs                                        contrail.ReferenceList
 	virtual_machine_interface_back_refs             contrail.ReferenceList
 	instance_ip_back_refs                           contrail.ReferenceList
 	subnet_back_refs                                contrail.ReferenceList
@@ -251,6 +261,15 @@ func (obj *VirtualMachineInterface) SetVirtualMachineInterfaceFatFlowProtocols(v
 	obj.modified.SetBit(&obj.modified, virtual_machine_interface_virtual_machine_interface_fat_flow_protocols, 1)
 }
 
+func (obj *VirtualMachineInterface) GetVlanTagBasedBridgeDomain() bool {
+	return obj.vlan_tag_based_bridge_domain
+}
+
+func (obj *VirtualMachineInterface) SetVlanTagBasedBridgeDomain(value bool) {
+	obj.vlan_tag_based_bridge_domain = value
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_vlan_tag_based_bridge_domain, 1)
+}
+
 func (obj *VirtualMachineInterface) GetIdPerms() IdPermsType {
 	return obj.id_perms
 }
@@ -285,6 +304,90 @@ func (obj *VirtualMachineInterface) GetDisplayName() string {
 func (obj *VirtualMachineInterface) SetDisplayName(value string) {
 	obj.display_name = value
 	obj.modified.SetBit(&obj.modified, virtual_machine_interface_display_name, 1)
+}
+
+func (obj *VirtualMachineInterface) readSecurityLoggingObjectRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_machine_interface_security_logging_object_refs) == 0) {
+		err := obj.GetField(obj, "security_logging_object_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualMachineInterface) GetSecurityLoggingObjectRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readSecurityLoggingObjectRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.security_logging_object_refs, nil
+}
+
+func (obj *VirtualMachineInterface) AddSecurityLoggingObject(
+	rhs *SecurityLoggingObject) error {
+	err := obj.readSecurityLoggingObjectRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_security_logging_object_refs) == 0 {
+		obj.storeReferenceBase("security-logging-object", obj.security_logging_object_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.security_logging_object_refs = append(obj.security_logging_object_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_security_logging_object_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) DeleteSecurityLoggingObject(uuid string) error {
+	err := obj.readSecurityLoggingObjectRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_security_logging_object_refs) == 0 {
+		obj.storeReferenceBase("security-logging-object", obj.security_logging_object_refs)
+	}
+
+	for i, ref := range obj.security_logging_object_refs {
+		if ref.Uuid == uuid {
+			obj.security_logging_object_refs = append(
+				obj.security_logging_object_refs[:i],
+				obj.security_logging_object_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_security_logging_object_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) ClearSecurityLoggingObject() {
+	if (obj.valid.Bit(virtual_machine_interface_security_logging_object_refs) != 0) &&
+		(obj.modified.Bit(virtual_machine_interface_security_logging_object_refs) == 0) {
+		obj.storeReferenceBase("security-logging-object", obj.security_logging_object_refs)
+	}
+	obj.security_logging_object_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_machine_interface_security_logging_object_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_security_logging_object_refs, 1)
+}
+
+func (obj *VirtualMachineInterface) SetSecurityLoggingObjectList(
+	refList []contrail.ReferencePair) {
+	obj.ClearSecurityLoggingObject()
+	obj.security_logging_object_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.security_logging_object_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
 }
 
 func (obj *VirtualMachineInterface) readQosConfigRefs() error {
@@ -1211,6 +1314,258 @@ func (obj *VirtualMachineInterface) SetPhysicalInterfaceList(
 	}
 }
 
+func (obj *VirtualMachineInterface) readBridgeDomainRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_machine_interface_bridge_domain_refs) == 0) {
+		err := obj.GetField(obj, "bridge_domain_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualMachineInterface) GetBridgeDomainRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readBridgeDomainRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.bridge_domain_refs, nil
+}
+
+func (obj *VirtualMachineInterface) AddBridgeDomain(
+	rhs *BridgeDomain, data BridgeDomainMembershipType) error {
+	err := obj.readBridgeDomainRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_bridge_domain_refs) == 0 {
+		obj.storeReferenceBase("bridge-domain", obj.bridge_domain_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), data}
+	obj.bridge_domain_refs = append(obj.bridge_domain_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_bridge_domain_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) DeleteBridgeDomain(uuid string) error {
+	err := obj.readBridgeDomainRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_bridge_domain_refs) == 0 {
+		obj.storeReferenceBase("bridge-domain", obj.bridge_domain_refs)
+	}
+
+	for i, ref := range obj.bridge_domain_refs {
+		if ref.Uuid == uuid {
+			obj.bridge_domain_refs = append(
+				obj.bridge_domain_refs[:i],
+				obj.bridge_domain_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_bridge_domain_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) ClearBridgeDomain() {
+	if (obj.valid.Bit(virtual_machine_interface_bridge_domain_refs) != 0) &&
+		(obj.modified.Bit(virtual_machine_interface_bridge_domain_refs) == 0) {
+		obj.storeReferenceBase("bridge-domain", obj.bridge_domain_refs)
+	}
+	obj.bridge_domain_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_machine_interface_bridge_domain_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_bridge_domain_refs, 1)
+}
+
+func (obj *VirtualMachineInterface) SetBridgeDomainList(
+	refList []contrail.ReferencePair) {
+	obj.ClearBridgeDomain()
+	obj.bridge_domain_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.bridge_domain_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *VirtualMachineInterface) readServiceEndpointRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_machine_interface_service_endpoint_refs) == 0) {
+		err := obj.GetField(obj, "service_endpoint_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualMachineInterface) GetServiceEndpointRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readServiceEndpointRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.service_endpoint_refs, nil
+}
+
+func (obj *VirtualMachineInterface) AddServiceEndpoint(
+	rhs *ServiceEndpoint) error {
+	err := obj.readServiceEndpointRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_service_endpoint_refs) == 0 {
+		obj.storeReferenceBase("service-endpoint", obj.service_endpoint_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.service_endpoint_refs = append(obj.service_endpoint_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_service_endpoint_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) DeleteServiceEndpoint(uuid string) error {
+	err := obj.readServiceEndpointRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_service_endpoint_refs) == 0 {
+		obj.storeReferenceBase("service-endpoint", obj.service_endpoint_refs)
+	}
+
+	for i, ref := range obj.service_endpoint_refs {
+		if ref.Uuid == uuid {
+			obj.service_endpoint_refs = append(
+				obj.service_endpoint_refs[:i],
+				obj.service_endpoint_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_service_endpoint_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) ClearServiceEndpoint() {
+	if (obj.valid.Bit(virtual_machine_interface_service_endpoint_refs) != 0) &&
+		(obj.modified.Bit(virtual_machine_interface_service_endpoint_refs) == 0) {
+		obj.storeReferenceBase("service-endpoint", obj.service_endpoint_refs)
+	}
+	obj.service_endpoint_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_machine_interface_service_endpoint_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_service_endpoint_refs, 1)
+}
+
+func (obj *VirtualMachineInterface) SetServiceEndpointList(
+	refList []contrail.ReferencePair) {
+	obj.ClearServiceEndpoint()
+	obj.service_endpoint_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.service_endpoint_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
+func (obj *VirtualMachineInterface) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(virtual_machine_interface_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *VirtualMachineInterface) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *VirtualMachineInterface) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_tag_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_tag_refs, 1)
+	return nil
+}
+
+func (obj *VirtualMachineInterface) ClearTag() {
+	if (obj.valid.Bit(virtual_machine_interface_tag_refs) != 0) &&
+		(obj.modified.Bit(virtual_machine_interface_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, virtual_machine_interface_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, virtual_machine_interface_tag_refs, 1)
+}
+
+func (obj *VirtualMachineInterface) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *VirtualMachineInterface) readVirtualMachineInterfaceBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(virtual_machine_interface_virtual_machine_interface_back_refs) == 0) {
@@ -1566,6 +1921,15 @@ func (obj *VirtualMachineInterface) MarshalJSON() ([]byte, error) {
 		msg["virtual_machine_interface_fat_flow_protocols"] = &value
 	}
 
+	if obj.modified.Bit(virtual_machine_interface_vlan_tag_based_bridge_domain) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.vlan_tag_based_bridge_domain)
+		if err != nil {
+			return nil, err
+		}
+		msg["vlan_tag_based_bridge_domain"] = &value
+	}
+
 	if obj.modified.Bit(virtual_machine_interface_id_perms) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.id_perms)
@@ -1600,6 +1964,15 @@ func (obj *VirtualMachineInterface) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 		msg["display_name"] = &value
+	}
+
+	if len(obj.security_logging_object_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.security_logging_object_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["security_logging_object_refs"] = &value
 	}
 
 	if len(obj.qos_config_refs) > 0 {
@@ -1701,6 +2074,33 @@ func (obj *VirtualMachineInterface) MarshalJSON() ([]byte, error) {
 		msg["physical_interface_refs"] = &value
 	}
 
+	if len(obj.bridge_domain_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.bridge_domain_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["bridge_domain_refs"] = &value
+	}
+
+	if len(obj.service_endpoint_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.service_endpoint_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["service_endpoint_refs"] = &value
+	}
+
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -1788,6 +2188,12 @@ func (obj *VirtualMachineInterface) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, virtual_machine_interface_virtual_machine_interface_fat_flow_protocols, 1)
 			}
 			break
+		case "vlan_tag_based_bridge_domain":
+			err = json.Unmarshal(value, &obj.vlan_tag_based_bridge_domain)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_machine_interface_vlan_tag_based_bridge_domain, 1)
+			}
+			break
 		case "id_perms":
 			err = json.Unmarshal(value, &obj.id_perms)
 			if err == nil {
@@ -1810,6 +2216,12 @@ func (obj *VirtualMachineInterface) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.display_name)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, virtual_machine_interface_display_name, 1)
+			}
+			break
+		case "security_logging_object_refs":
+			err = json.Unmarshal(value, &obj.security_logging_object_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_machine_interface_security_logging_object_refs, 1)
 			}
 			break
 		case "qos_config_refs":
@@ -1870,6 +2282,18 @@ func (obj *VirtualMachineInterface) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.physical_interface_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, virtual_machine_interface_physical_interface_refs, 1)
+			}
+			break
+		case "service_endpoint_refs":
+			err = json.Unmarshal(value, &obj.service_endpoint_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_machine_interface_service_endpoint_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, virtual_machine_interface_tag_refs, 1)
 			}
 			break
 		case "virtual_machine_interface_back_refs":
@@ -1967,6 +2391,32 @@ func (obj *VirtualMachineInterface) UnmarshalJSON(body []byte) error {
 						element.Attr,
 					}
 					obj.routing_instance_refs = append(obj.routing_instance_refs, ref)
+				}
+				break
+			}
+		case "bridge_domain_refs":
+			{
+				type ReferenceElement struct {
+					To   []string
+					Uuid string
+					Href string
+					Attr BridgeDomainMembershipType
+				}
+				var array []ReferenceElement
+				err = json.Unmarshal(value, &array)
+				if err != nil {
+					break
+				}
+				obj.valid.SetBit(&obj.valid, virtual_machine_interface_bridge_domain_refs, 1)
+				obj.bridge_domain_refs = make(contrail.ReferenceList, 0)
+				for _, element := range array {
+					ref := contrail.Reference{
+						element.To,
+						element.Uuid,
+						element.Href,
+						element.Attr,
+					}
+					obj.bridge_domain_refs = append(obj.bridge_domain_refs, ref)
 				}
 				break
 			}
@@ -2093,6 +2543,15 @@ func (obj *VirtualMachineInterface) UpdateObject() ([]byte, error) {
 		msg["virtual_machine_interface_fat_flow_protocols"] = &value
 	}
 
+	if obj.modified.Bit(virtual_machine_interface_vlan_tag_based_bridge_domain) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.vlan_tag_based_bridge_domain)
+		if err != nil {
+			return nil, err
+		}
+		msg["vlan_tag_based_bridge_domain"] = &value
+	}
+
 	if obj.modified.Bit(virtual_machine_interface_id_perms) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.id_perms)
@@ -2127,6 +2586,25 @@ func (obj *VirtualMachineInterface) UpdateObject() ([]byte, error) {
 			return nil, err
 		}
 		msg["display_name"] = &value
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_security_logging_object_refs) != 0 {
+		if len(obj.security_logging_object_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["security_logging_object_refs"] = &value
+		} else if !obj.hasReferenceBase("security-logging-object") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.security_logging_object_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["security_logging_object_refs"] = &value
+		}
 	}
 
 	if obj.modified.Bit(virtual_machine_interface_qos_config_refs) != 0 {
@@ -2338,10 +2816,79 @@ func (obj *VirtualMachineInterface) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(virtual_machine_interface_bridge_domain_refs) != 0 {
+		if len(obj.bridge_domain_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["bridge_domain_refs"] = &value
+		} else if !obj.hasReferenceBase("bridge-domain") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.bridge_domain_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["bridge_domain_refs"] = &value
+		}
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_service_endpoint_refs) != 0 {
+		if len(obj.service_endpoint_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["service_endpoint_refs"] = &value
+		} else if !obj.hasReferenceBase("service-endpoint") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.service_endpoint_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["service_endpoint_refs"] = &value
+		}
+	}
+
+	if obj.modified.Bit(virtual_machine_interface_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
 func (obj *VirtualMachineInterface) UpdateReferences() error {
+
+	if (obj.modified.Bit(virtual_machine_interface_security_logging_object_refs) != 0) &&
+		len(obj.security_logging_object_refs) > 0 &&
+		obj.hasReferenceBase("security-logging-object") {
+		err := obj.UpdateReference(
+			obj, "security-logging-object",
+			obj.security_logging_object_refs,
+			obj.baseMap["security-logging-object"])
+		if err != nil {
+			return err
+		}
+	}
 
 	if (obj.modified.Bit(virtual_machine_interface_qos_config_refs) != 0) &&
 		len(obj.qos_config_refs) > 0 &&
@@ -2470,6 +3017,42 @@ func (obj *VirtualMachineInterface) UpdateReferences() error {
 			obj, "physical-interface",
 			obj.physical_interface_refs,
 			obj.baseMap["physical-interface"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(virtual_machine_interface_bridge_domain_refs) != 0) &&
+		len(obj.bridge_domain_refs) > 0 &&
+		obj.hasReferenceBase("bridge-domain") {
+		err := obj.UpdateReference(
+			obj, "bridge-domain",
+			obj.bridge_domain_refs,
+			obj.baseMap["bridge-domain"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(virtual_machine_interface_service_endpoint_refs) != 0) &&
+		len(obj.service_endpoint_refs) > 0 &&
+		obj.hasReferenceBase("service-endpoint") {
+		err := obj.UpdateReference(
+			obj, "service-endpoint",
+			obj.service_endpoint_refs,
+			obj.baseMap["service-endpoint"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(virtual_machine_interface_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

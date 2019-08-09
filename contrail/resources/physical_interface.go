@@ -23,6 +23,9 @@ func SetPhysicalInterfaceFromResource(object *PhysicalInterface, d *schema.Resou
 		key = key + "."
 	}
 	log.Printf("[SetPhysicalInterfaceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("ethernet_segment_identifier"); ok {
+		object.SetEthernetSegmentIdentifier(val.(string))
+	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
 		SetIdPermsTypeFromMap(member, d, m, (val.([]interface{}))[0])
@@ -66,12 +69,27 @@ func SetRefsPhysicalInterfaceFromResource(object *PhysicalInterface, d *schema.R
 			object.AddPhysicalInterface(refObj.(*PhysicalInterface))
 		}
 	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
 
 func WritePhysicalInterfaceToResource(object PhysicalInterface, d *schema.ResourceData, m interface{}) {
 
+	d.Set("ethernet_segment_identifier", object.GetEthernetSegmentIdentifier())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -85,6 +103,7 @@ func WritePhysicalInterfaceToResource(object PhysicalInterface, d *schema.Resour
 func TakePhysicalInterfaceAsMap(object *PhysicalInterface) map[string]interface{} {
 	omap := make(map[string]interface{})
 
+	omap["ethernet_segment_identifier"] = object.GetEthernetSegmentIdentifier()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -102,6 +121,11 @@ func UpdatePhysicalInterfaceFromResource(object *PhysicalInterface, d *schema.Re
 		key = key + "."
 	}
 
+	if d.HasChange("ethernet_segment_identifier") {
+		if val, ok := d.GetOk("ethernet_segment_identifier"); ok {
+			object.SetEthernetSegmentIdentifier(val.(string))
+		}
+	}
 	if d.HasChange("id_perms") {
 		if val, ok := d.GetOk("id_perms"); ok {
 			member := new(IdPermsType)
@@ -255,6 +279,10 @@ func ResourcePhysicalInterfaceSchema() map[string]*schema.Schema {
 			Optional: true,
 		},
 		// Properties
+		"ethernet_segment_identifier": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeString,
+		},
 		"id_perms": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -287,6 +315,11 @@ func ResourcePhysicalInterfaceRefsSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourcePhysicalInterface(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }

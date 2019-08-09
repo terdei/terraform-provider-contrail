@@ -29,7 +29,7 @@ func SetAccessControlListFromResource(object *AccessControlList, d *schema.Resou
 		object.SetAccessControlListEntries(member)
 	}
 	if val, ok := d.GetOk("access_control_list_hash"); ok {
-		object.SetAccessControlListHash(val.(int))
+		object.SetAccessControlListHash(val.(uint64))
 	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
@@ -60,6 +60,20 @@ func SetRefsAccessControlListFromResource(object *AccessControlList, d *schema.R
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsAccessControlListFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -111,7 +125,7 @@ func UpdateAccessControlListFromResource(object *AccessControlList, d *schema.Re
 	}
 	if d.HasChange("access_control_list_hash") {
 		if val, ok := d.GetOk("access_control_list_hash"); ok {
-			object.SetAccessControlListHash(val.(int))
+			object.SetAccessControlListHash(val.(uint64))
 		}
 	}
 	if d.HasChange("id_perms") {
@@ -298,6 +312,20 @@ func ResourceAccessControlListSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceAccessControlListRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceAccessControlList() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceAccessControlListCreate,
@@ -305,5 +333,15 @@ func ResourceAccessControlList() *schema.Resource {
 		Update: ResourceAccessControlListUpdate,
 		Delete: ResourceAccessControlListDelete,
 		Schema: ResourceAccessControlListSchema(),
+	}
+}
+
+func ResourceAccessControlListRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceAccessControlListRefsCreate,
+		Read:   ResourceAccessControlListRefsRead,
+		Update: ResourceAccessControlListRefsUpdate,
+		Delete: ResourceAccessControlListRefsDelete,
+		Schema: ResourceAccessControlListRefsSchema(),
 	}
 }

@@ -52,6 +52,20 @@ func SetRefsDiscoveryServiceAssignmentFromResource(object *DiscoveryServiceAssig
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsDiscoveryServiceAssignmentFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -263,6 +277,20 @@ func ResourceDiscoveryServiceAssignmentSchema() map[string]*schema.Schema {
 	}
 }
 
+func ResourceDiscoveryServiceAssignmentRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
+		},
+	}
+}
+
 func ResourceDiscoveryServiceAssignment() *schema.Resource {
 	return &schema.Resource{
 		Create: ResourceDiscoveryServiceAssignmentCreate,
@@ -270,5 +298,15 @@ func ResourceDiscoveryServiceAssignment() *schema.Resource {
 		Update: ResourceDiscoveryServiceAssignmentUpdate,
 		Delete: ResourceDiscoveryServiceAssignmentDelete,
 		Schema: ResourceDiscoveryServiceAssignmentSchema(),
+	}
+}
+
+func ResourceDiscoveryServiceAssignmentRefs() *schema.Resource {
+	return &schema.Resource{
+		Create: ResourceDiscoveryServiceAssignmentRefsCreate,
+		Read:   ResourceDiscoveryServiceAssignmentRefsRead,
+		Update: ResourceDiscoveryServiceAssignmentRefsUpdate,
+		Delete: ResourceDiscoveryServiceAssignmentRefsDelete,
+		Schema: ResourceDiscoveryServiceAssignmentRefsSchema(),
 	}
 }

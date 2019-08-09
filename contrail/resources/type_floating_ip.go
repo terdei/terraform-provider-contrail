@@ -18,12 +18,14 @@ const (
 	floating_ip_floating_ip_address_family
 	floating_ip_floating_ip_port_mappings_enable
 	floating_ip_floating_ip_port_mappings
+	floating_ip_floating_ip_traffic_direction
 	floating_ip_id_perms
 	floating_ip_perms2
 	floating_ip_annotations
 	floating_ip_display_name
 	floating_ip_project_refs
 	floating_ip_virtual_machine_interface_refs
+	floating_ip_tag_refs
 	floating_ip_customer_attachment_back_refs
 )
 
@@ -35,12 +37,14 @@ type FloatingIp struct {
 	floating_ip_address_family       string
 	floating_ip_port_mappings_enable bool
 	floating_ip_port_mappings        PortMappings
+	floating_ip_traffic_direction    string
 	id_perms                         IdPermsType
 	perms2                           PermType2
 	annotations                      KeyValuePairs
 	display_name                     string
 	project_refs                     contrail.ReferenceList
 	virtual_machine_interface_refs   contrail.ReferenceList
+	tag_refs                         contrail.ReferenceList
 	customer_attachment_back_refs    contrail.ReferenceList
 	valid                            big.Int
 	modified                         big.Int
@@ -143,6 +147,15 @@ func (obj *FloatingIp) GetFloatingIpPortMappings() PortMappings {
 func (obj *FloatingIp) SetFloatingIpPortMappings(value *PortMappings) {
 	obj.floating_ip_port_mappings = *value
 	obj.modified.SetBit(&obj.modified, floating_ip_floating_ip_port_mappings, 1)
+}
+
+func (obj *FloatingIp) GetFloatingIpTrafficDirection() string {
+	return obj.floating_ip_traffic_direction
+}
+
+func (obj *FloatingIp) SetFloatingIpTrafficDirection(value string) {
+	obj.floating_ip_traffic_direction = value
+	obj.modified.SetBit(&obj.modified, floating_ip_floating_ip_traffic_direction, 1)
 }
 
 func (obj *FloatingIp) GetIdPerms() IdPermsType {
@@ -349,6 +362,90 @@ func (obj *FloatingIp) SetVirtualMachineInterfaceList(
 	}
 }
 
+func (obj *FloatingIp) readTagRefs() error {
+	if !obj.IsTransient() &&
+		(obj.valid.Bit(floating_ip_tag_refs) == 0) {
+		err := obj.GetField(obj, "tag_refs")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (obj *FloatingIp) GetTagRefs() (
+	contrail.ReferenceList, error) {
+	err := obj.readTagRefs()
+	if err != nil {
+		return nil, err
+	}
+	return obj.tag_refs, nil
+}
+
+func (obj *FloatingIp) AddTag(
+	rhs *Tag) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(floating_ip_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	ref := contrail.Reference{
+		rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), nil}
+	obj.tag_refs = append(obj.tag_refs, ref)
+	obj.modified.SetBit(&obj.modified, floating_ip_tag_refs, 1)
+	return nil
+}
+
+func (obj *FloatingIp) DeleteTag(uuid string) error {
+	err := obj.readTagRefs()
+	if err != nil {
+		return err
+	}
+
+	if obj.modified.Bit(floating_ip_tag_refs) == 0 {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+
+	for i, ref := range obj.tag_refs {
+		if ref.Uuid == uuid {
+			obj.tag_refs = append(
+				obj.tag_refs[:i],
+				obj.tag_refs[i+1:]...)
+			break
+		}
+	}
+	obj.modified.SetBit(&obj.modified, floating_ip_tag_refs, 1)
+	return nil
+}
+
+func (obj *FloatingIp) ClearTag() {
+	if (obj.valid.Bit(floating_ip_tag_refs) != 0) &&
+		(obj.modified.Bit(floating_ip_tag_refs) == 0) {
+		obj.storeReferenceBase("tag", obj.tag_refs)
+	}
+	obj.tag_refs = make([]contrail.Reference, 0)
+	obj.valid.SetBit(&obj.valid, floating_ip_tag_refs, 1)
+	obj.modified.SetBit(&obj.modified, floating_ip_tag_refs, 1)
+}
+
+func (obj *FloatingIp) SetTagList(
+	refList []contrail.ReferencePair) {
+	obj.ClearTag()
+	obj.tag_refs = make([]contrail.Reference, len(refList))
+	for i, pair := range refList {
+		obj.tag_refs[i] = contrail.Reference{
+			pair.Object.GetFQName(),
+			pair.Object.GetUuid(),
+			pair.Object.GetHref(),
+			pair.Attribute,
+		}
+	}
+}
+
 func (obj *FloatingIp) readCustomerAttachmentBackRefs() error {
 	if !obj.IsTransient() &&
 		(obj.valid.Bit(floating_ip_customer_attachment_back_refs) == 0) {
@@ -430,6 +527,15 @@ func (obj *FloatingIp) MarshalJSON() ([]byte, error) {
 		msg["floating_ip_port_mappings"] = &value
 	}
 
+	if obj.modified.Bit(floating_ip_floating_ip_traffic_direction) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.floating_ip_traffic_direction)
+		if err != nil {
+			return nil, err
+		}
+		msg["floating_ip_traffic_direction"] = &value
+	}
+
 	if obj.modified.Bit(floating_ip_id_perms) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.id_perms)
@@ -484,6 +590,15 @@ func (obj *FloatingIp) MarshalJSON() ([]byte, error) {
 		msg["virtual_machine_interface_refs"] = &value
 	}
 
+	if len(obj.tag_refs) > 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.tag_refs)
+		if err != nil {
+			return nil, err
+		}
+		msg["tag_refs"] = &value
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -535,6 +650,12 @@ func (obj *FloatingIp) UnmarshalJSON(body []byte) error {
 				obj.valid.SetBit(&obj.valid, floating_ip_floating_ip_port_mappings, 1)
 			}
 			break
+		case "floating_ip_traffic_direction":
+			err = json.Unmarshal(value, &obj.floating_ip_traffic_direction)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, floating_ip_floating_ip_traffic_direction, 1)
+			}
+			break
 		case "id_perms":
 			err = json.Unmarshal(value, &obj.id_perms)
 			if err == nil {
@@ -569,6 +690,12 @@ func (obj *FloatingIp) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.virtual_machine_interface_refs)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, floating_ip_virtual_machine_interface_refs, 1)
+			}
+			break
+		case "tag_refs":
+			err = json.Unmarshal(value, &obj.tag_refs)
+			if err == nil {
+				obj.valid.SetBit(&obj.valid, floating_ip_tag_refs, 1)
 			}
 			break
 		case "customer_attachment_back_refs":
@@ -646,6 +773,15 @@ func (obj *FloatingIp) UpdateObject() ([]byte, error) {
 		msg["floating_ip_port_mappings"] = &value
 	}
 
+	if obj.modified.Bit(floating_ip_floating_ip_traffic_direction) != 0 {
+		var value json.RawMessage
+		value, err := json.Marshal(&obj.floating_ip_traffic_direction)
+		if err != nil {
+			return nil, err
+		}
+		msg["floating_ip_traffic_direction"] = &value
+	}
+
 	if obj.modified.Bit(floating_ip_id_perms) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.id_perms)
@@ -720,6 +856,25 @@ func (obj *FloatingIp) UpdateObject() ([]byte, error) {
 		}
 	}
 
+	if obj.modified.Bit(floating_ip_tag_refs) != 0 {
+		if len(obj.tag_refs) == 0 {
+			var value json.RawMessage
+			value, err := json.Marshal(
+				make([]contrail.Reference, 0))
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		} else if !obj.hasReferenceBase("tag") {
+			var value json.RawMessage
+			value, err := json.Marshal(&obj.tag_refs)
+			if err != nil {
+				return nil, err
+			}
+			msg["tag_refs"] = &value
+		}
+	}
+
 	return json.Marshal(msg)
 }
 
@@ -744,6 +899,18 @@ func (obj *FloatingIp) UpdateReferences() error {
 			obj, "virtual-machine-interface",
 			obj.virtual_machine_interface_refs,
 			obj.baseMap["virtual-machine-interface"])
+		if err != nil {
+			return err
+		}
+	}
+
+	if (obj.modified.Bit(floating_ip_tag_refs) != 0) &&
+		len(obj.tag_refs) > 0 &&
+		obj.hasReferenceBase("tag") {
+		err := obj.UpdateReference(
+			obj, "tag",
+			obj.tag_refs,
+			obj.baseMap["tag"])
 		if err != nil {
 			return err
 		}

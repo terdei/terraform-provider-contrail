@@ -26,6 +26,9 @@ func SetVirtualRouterFromResource(object *VirtualRouter, d *schema.ResourceData,
 	if val, ok := d.GetOk("virtual_router_type"); ok {
 		object.SetVirtualRouterType(val.(string))
 	}
+	if val, ok := d.GetOk("virtual_router_vhost_user_mode"); ok {
+		object.SetVirtualRouterVhostUserMode(val.(string))
+	}
 	if val, ok := d.GetOk("virtual_router_dpdk_enabled"); ok {
 		object.SetVirtualRouterDpdkEnabled(val.(bool))
 	}
@@ -61,6 +64,23 @@ func SetRefsVirtualRouterFromResource(object *VirtualRouter, d *schema.ResourceD
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsVirtualRouterFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("network_ipam_refs"); ok {
+		log.Printf("Got ref network_ipam_refs -- will call: object.AddNetworkIpam(refObj, *dataObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("network-ipam", refId.(string))
+			dataObj := new(VirtualRouterNetworkIpamType)
+			SetVirtualRouterNetworkIpamTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+			log.Printf("Data obj: %+v", dataObj)
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving network-ipam by Uuid = %v as ref for NetworkIpam on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddNetworkIpam(refObj.(*NetworkIpam), *dataObj)
+		}
+	}
 	if val, ok := d.GetOk("virtual_machine_refs"); ok {
 		log.Printf("Got ref virtual_machine_refs -- will call: object.AddVirtualMachine(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -75,6 +95,20 @@ func SetRefsVirtualRouterFromResource(object *VirtualRouter, d *schema.ResourceD
 			object.AddVirtualMachine(refObj.(*VirtualMachine))
 		}
 	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("tag", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving tag by Uuid = %v as ref for Tag on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddTag(refObj.(*Tag))
+		}
+	}
 
 	return nil
 }
@@ -82,6 +116,7 @@ func SetRefsVirtualRouterFromResource(object *VirtualRouter, d *schema.ResourceD
 func WriteVirtualRouterToResource(object VirtualRouter, d *schema.ResourceData, m interface{}) {
 
 	d.Set("virtual_router_type", object.GetVirtualRouterType())
+	d.Set("virtual_router_vhost_user_mode", object.GetVirtualRouterVhostUserMode())
 	d.Set("virtual_router_dpdk_enabled", object.GetVirtualRouterDpdkEnabled())
 	d.Set("virtual_router_ip_address", object.GetVirtualRouterIpAddress())
 	id_permsObj := object.GetIdPerms()
@@ -98,6 +133,7 @@ func TakeVirtualRouterAsMap(object *VirtualRouter) map[string]interface{} {
 	omap := make(map[string]interface{})
 
 	omap["virtual_router_type"] = object.GetVirtualRouterType()
+	omap["virtual_router_vhost_user_mode"] = object.GetVirtualRouterVhostUserMode()
 	omap["virtual_router_dpdk_enabled"] = object.GetVirtualRouterDpdkEnabled()
 	omap["virtual_router_ip_address"] = object.GetVirtualRouterIpAddress()
 	id_permsObj := object.GetIdPerms()
@@ -120,6 +156,11 @@ func UpdateVirtualRouterFromResource(object *VirtualRouter, d *schema.ResourceDa
 	if d.HasChange("virtual_router_type") {
 		if val, ok := d.GetOk("virtual_router_type"); ok {
 			object.SetVirtualRouterType(val.(string))
+		}
+	}
+	if d.HasChange("virtual_router_vhost_user_mode") {
+		if val, ok := d.GetOk("virtual_router_vhost_user_mode"); ok {
+			object.SetVirtualRouterVhostUserMode(val.(string))
 		}
 	}
 	if d.HasChange("virtual_router_dpdk_enabled") {
@@ -289,6 +330,10 @@ func ResourceVirtualRouterSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
+		"virtual_router_vhost_user_mode": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeString,
+		},
 		"virtual_router_dpdk_enabled": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeBool,
@@ -325,10 +370,32 @@ func ResourceVirtualRouterRefsSchema() map[string]*schema.Schema {
 			Type:     schema.TypeString,
 			Required: true,
 		},
+		"network_ipam_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+					"attr": &schema.Schema{
+						Type:     schema.TypeList,
+						Elem:     ResourceVirtualRouterNetworkIpamType(),
+						Required: true,
+					},
+				},
+			},
+		},
 		"virtual_machine_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
 			Elem:     ResourceVirtualMachine(),
+		},
+		"tag_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem:     ResourceTag(),
 		},
 	}
 }
