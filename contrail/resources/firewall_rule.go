@@ -299,7 +299,7 @@ func UpdateFirewallRuleFromResource(object *FirewallRule, d *schema.ResourceData
 func ResourceFirewallRuleCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceFirewallRuleCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -485,17 +485,38 @@ func ResourceFirewallRuleRefsSchema() map[string]*schema.Schema {
 		"service_group_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceServiceGroup(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"address_group_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceAddressGroup(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"virtual_network_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceVirtualNetwork(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"security_logging_object_refs": &schema.Schema{
 			Optional: true,
@@ -517,7 +538,14 @@ func ResourceFirewallRuleRefsSchema() map[string]*schema.Schema {
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

@@ -258,7 +258,7 @@ func UpdateLogicalRouterFromResource(object *LogicalRouter, d *schema.ResourceDa
 func ResourceLogicalRouterCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceLogicalRouterCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -419,42 +419,98 @@ func ResourceLogicalRouterRefsSchema() map[string]*schema.Schema {
 		"virtual_machine_interface_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceVirtualMachineInterface(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"route_target_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceRouteTarget(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"route_table_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceRouteTable(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"virtual_network_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceVirtualNetwork(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"service_instance_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceServiceInstance(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"physical_router_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourcePhysicalRouter(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"bgpvpn_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceBgpvpn(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

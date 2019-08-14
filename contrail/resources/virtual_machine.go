@@ -148,7 +148,7 @@ func UpdateVirtualMachineFromResource(object *VirtualMachine, d *schema.Resource
 func ResourceVirtualMachineCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceVirtualMachineCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -300,12 +300,26 @@ func ResourceVirtualMachineRefsSchema() map[string]*schema.Schema {
 		"service_instance_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceServiceInstance(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

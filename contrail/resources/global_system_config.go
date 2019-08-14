@@ -320,7 +320,7 @@ func UpdateGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.
 func ResourceGlobalSystemConfigCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceGlobalSystemConfigCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -531,12 +531,26 @@ func ResourceGlobalSystemConfigRefsSchema() map[string]*schema.Schema {
 		"bgp_router_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceBgpRouter(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

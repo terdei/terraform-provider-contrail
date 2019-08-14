@@ -506,7 +506,7 @@ func UpdateVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resource
 func ResourceVirtualNetworkCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceVirtualNetworkCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -754,12 +754,26 @@ func ResourceVirtualNetworkRefsSchema() map[string]*schema.Schema {
 		"security_logging_object_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceSecurityLoggingObject(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"qos_config_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceQosConfig(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"network_ipam_refs": &schema.Schema{
 			Optional: true,
@@ -798,22 +812,50 @@ func ResourceVirtualNetworkRefsSchema() map[string]*schema.Schema {
 		"virtual_network_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceVirtualNetwork(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"route_table_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceRouteTable(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"bgpvpn_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceBgpvpn(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

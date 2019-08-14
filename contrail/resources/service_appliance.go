@@ -193,7 +193,7 @@ func UpdateServiceApplianceFromResource(object *ServiceAppliance, d *schema.Reso
 func ResourceServiceApplianceCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceServiceApplianceCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -376,7 +376,14 @@ func ResourceServiceApplianceRefsSchema() map[string]*schema.Schema {
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

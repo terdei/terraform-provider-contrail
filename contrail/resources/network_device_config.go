@@ -148,7 +148,7 @@ func UpdateNetworkDeviceConfigFromResource(object *NetworkDeviceConfig, d *schem
 func ResourceNetworkDeviceConfigCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceNetworkDeviceConfigCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -300,12 +300,26 @@ func ResourceNetworkDeviceConfigRefsSchema() map[string]*schema.Schema {
 		"physical_router_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourcePhysicalRouter(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

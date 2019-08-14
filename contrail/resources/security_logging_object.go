@@ -194,7 +194,7 @@ func UpdateSecurityLoggingObjectFromResource(object *SecurityLoggingObject, d *s
 func ResourceSecurityLoggingObjectCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceSecurityLoggingObjectCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -389,7 +389,14 @@ func ResourceSecurityLoggingObjectRefsSchema() map[string]*schema.Schema {
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

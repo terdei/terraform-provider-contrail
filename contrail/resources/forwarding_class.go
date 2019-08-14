@@ -188,7 +188,7 @@ func UpdateForwardingClassFromResource(object *ForwardingClass, d *schema.Resour
 func ResourceForwardingClassCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceForwardingClassCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -356,12 +356,26 @@ func ResourceForwardingClassRefsSchema() map[string]*schema.Schema {
 		"qos_queue_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceQosQueue(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

@@ -150,7 +150,7 @@ func UpdateNamespaceFromResource(object *Namespace, d *schema.ResourceData, m in
 func ResourceNamespaceCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceNamespaceCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -307,7 +307,14 @@ func ResourceNamespaceRefsSchema() map[string]*schema.Schema {
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

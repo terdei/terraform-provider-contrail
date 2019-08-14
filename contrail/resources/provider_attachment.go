@@ -148,7 +148,7 @@ func UpdateProviderAttachmentFromResource(object *ProviderAttachment, d *schema.
 func ResourceProviderAttachmentCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceProviderAttachmentCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -300,12 +300,26 @@ func ResourceProviderAttachmentRefsSchema() map[string]*schema.Schema {
 		"virtual_router_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceVirtualRouter(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

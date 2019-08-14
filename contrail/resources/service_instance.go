@@ -197,7 +197,7 @@ func UpdateServiceInstanceFromResource(object *ServiceInstance, d *schema.Resour
 func ResourceServiceInstanceCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceServiceInstanceCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -359,7 +359,14 @@ func ResourceServiceInstanceRefsSchema() map[string]*schema.Schema {
 		"service_template_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceServiceTemplate(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"instance_ip_refs": &schema.Schema{
 			Optional: true,
@@ -381,7 +388,14 @@ func ResourceServiceInstanceRefsSchema() map[string]*schema.Schema {
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }

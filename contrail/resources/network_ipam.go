@@ -190,7 +190,7 @@ func UpdateNetworkIpamFromResource(object *NetworkIpam, d *schema.ResourceData, 
 func ResourceNetworkIpamCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceNetworkIpamCreate")
-	//log.Print(spew.Sdump(d))
+	log.Print(spew.Sdump(d))
 	// SPEW
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
@@ -356,12 +356,26 @@ func ResourceNetworkIpamRefsSchema() map[string]*schema.Schema {
 		"virtual_dns_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceVirtualDns(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
-			Elem:     ResourceTag(),
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
 		},
 	}
 }
