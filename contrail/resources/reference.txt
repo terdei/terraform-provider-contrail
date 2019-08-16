@@ -368,7 +368,6 @@ resource "contrail_floating_ip_pool_refs" <name> {
 resource "contrail_forwarding_class" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
-	forwarding_class_id = <schema.TypeInt>
 	forwarding_class_dscp = <schema.TypeInt>
 	forwarding_class_vlan_priority = <schema.TypeInt>
 	forwarding_class_mpls_exp = <schema.TypeInt>
@@ -871,7 +870,6 @@ resource "contrail_routing_policy_refs" <name> {
 resource "contrail_security_group" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
-	security_group_id = <schema.TypeString>
 	configured_security_group_id = <schema.TypeInt>
 	security_group_entries = <contrail_PolicyEntriesType>
 	id_perms = <contrail_IdPermsType>
@@ -1063,7 +1061,6 @@ resource "contrail_tag" <name> {
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
 	tag_type_name = <schema.TypeString>
 	tag_value = <schema.TypeString>
-	tag_id = <schema.TypeString>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>
@@ -1077,7 +1074,6 @@ resource "contrail_tag_refs" <name> {
 resource "contrail_tag_type" <name> {
 	name = <schema.TypeString>
 	parent_uuid = <schema.TypeString> // If not set, default parent will be used
-	tag_type_id = <schema.TypeString>
 	id_perms = <contrail_IdPermsType>
 	perms2 = <contrail_PermType2>
 	annotations = <contrail_KeyValuePairs>

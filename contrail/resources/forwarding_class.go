@@ -23,9 +23,6 @@ func SetForwardingClassFromResource(object *ForwardingClass, d *schema.ResourceD
 		key = key + "."
 	}
 	log.Printf("[SetForwardingClassFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("forwarding_class_id"); ok {
-		object.SetForwardingClassId(val.(int))
-	}
 	if val, ok := d.GetOk("forwarding_class_dscp"); ok {
 		object.SetForwardingClassDscp(val.(int))
 	}
@@ -98,7 +95,6 @@ func SetRefsForwardingClassFromResource(object *ForwardingClass, d *schema.Resou
 
 func WriteForwardingClassToResource(object ForwardingClass, d *schema.ResourceData, m interface{}) {
 
-	d.Set("forwarding_class_id", object.GetForwardingClassId())
 	d.Set("forwarding_class_dscp", object.GetForwardingClassDscp())
 	d.Set("forwarding_class_vlan_priority", object.GetForwardingClassVlanPriority())
 	d.Set("forwarding_class_mpls_exp", object.GetForwardingClassMplsExp())
@@ -115,7 +111,6 @@ func WriteForwardingClassToResource(object ForwardingClass, d *schema.ResourceDa
 func TakeForwardingClassAsMap(object *ForwardingClass) map[string]interface{} {
 	omap := make(map[string]interface{})
 
-	omap["forwarding_class_id"] = object.GetForwardingClassId()
 	omap["forwarding_class_dscp"] = object.GetForwardingClassDscp()
 	omap["forwarding_class_vlan_priority"] = object.GetForwardingClassVlanPriority()
 	omap["forwarding_class_mpls_exp"] = object.GetForwardingClassMplsExp()
@@ -136,11 +131,6 @@ func UpdateForwardingClassFromResource(object *ForwardingClass, d *schema.Resour
 		key = key + "."
 	}
 
-	if d.HasChange("forwarding_class_id") {
-		if val, ok := d.GetOk("forwarding_class_id"); ok {
-			object.SetForwardingClassId(val.(int))
-		}
-	}
 	if d.HasChange("forwarding_class_dscp") {
 		if val, ok := d.GetOk("forwarding_class_dscp"); ok {
 			object.SetForwardingClassDscp(val.(int))
@@ -309,10 +299,6 @@ func ResourceForwardingClassSchema() map[string]*schema.Schema {
 			Optional: true,
 		},
 		// Properties
-		"forwarding_class_id": &schema.Schema{
-			Optional: true,
-			Type:     schema.TypeInt,
-		},
 		"forwarding_class_dscp": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeInt,

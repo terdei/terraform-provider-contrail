@@ -30,5 +30,5 @@ resource "contrail_tag" "tag_test" {
     name = "test_tag"
     tag_value = "value"
     tag_type_name = "type"
-
+	display_name = "type=value"
 }`

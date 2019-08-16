@@ -23,9 +23,6 @@ func SetSecurityGroupFromResource(object *SecurityGroup, d *schema.ResourceData,
 		key = key + "."
 	}
 	log.Printf("[SetSecurityGroupFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("security_group_id"); ok {
-		object.SetSecurityGroupId(val.(string))
-	}
 	if val, ok := d.GetOk("configured_security_group_id"); ok {
 		object.SetConfiguredSecurityGroupId(val.(int))
 	}
@@ -83,7 +80,6 @@ func SetRefsSecurityGroupFromResource(object *SecurityGroup, d *schema.ResourceD
 
 func WriteSecurityGroupToResource(object SecurityGroup, d *schema.ResourceData, m interface{}) {
 
-	d.Set("security_group_id", object.GetSecurityGroupId())
 	d.Set("configured_security_group_id", object.GetConfiguredSecurityGroupId())
 	security_group_entriesObj := object.GetSecurityGroupEntries()
 	d.Set("security_group_entries", TakePolicyEntriesTypeAsMap(&security_group_entriesObj))
@@ -100,7 +96,6 @@ func WriteSecurityGroupToResource(object SecurityGroup, d *schema.ResourceData, 
 func TakeSecurityGroupAsMap(object *SecurityGroup) map[string]interface{} {
 	omap := make(map[string]interface{})
 
-	omap["security_group_id"] = object.GetSecurityGroupId()
 	omap["configured_security_group_id"] = object.GetConfiguredSecurityGroupId()
 	security_group_entriesObj := object.GetSecurityGroupEntries()
 	omap["security_group_entries"] = TakePolicyEntriesTypeAsMap(&security_group_entriesObj)
@@ -121,11 +116,6 @@ func UpdateSecurityGroupFromResource(object *SecurityGroup, d *schema.ResourceDa
 		key = key + "."
 	}
 
-	if d.HasChange("security_group_id") {
-		if val, ok := d.GetOk("security_group_id"); ok {
-			object.SetSecurityGroupId(val.(string))
-		}
-	}
 	if d.HasChange("configured_security_group_id") {
 		if val, ok := d.GetOk("configured_security_group_id"); ok {
 			object.SetConfiguredSecurityGroupId(val.(int))
@@ -291,10 +281,6 @@ func ResourceSecurityGroupSchema() map[string]*schema.Schema {
 			Optional: true,
 		},
 		// Properties
-		"security_group_id": &schema.Schema{
-			Optional: true,
-			Type:     schema.TypeString,
-		},
 		"configured_security_group_id": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeInt,

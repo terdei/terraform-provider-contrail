@@ -23,9 +23,6 @@ func SetTagTypeFromResource(object *TagType, d *schema.ResourceData, m interface
 		key = key + "."
 	}
 	log.Printf("[SetTagTypeFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("tag_type_id"); ok {
-		object.SetTagTypeId(val.(string))
-	}
 	if val, ok := d.GetOk("id_perms"); ok {
 		member := new(IdPermsType)
 		SetIdPermsTypeFromMap(member, d, m, (val.([]interface{}))[0])
@@ -75,7 +72,6 @@ func SetRefsTagTypeFromResource(object *TagType, d *schema.ResourceData, m inter
 
 func WriteTagTypeToResource(object TagType, d *schema.ResourceData, m interface{}) {
 
-	d.Set("tag_type_id", object.GetTagTypeId())
 	id_permsObj := object.GetIdPerms()
 	d.Set("id_perms", TakeIdPermsTypeAsMap(&id_permsObj))
 	perms2Obj := object.GetPerms2()
@@ -89,7 +85,6 @@ func WriteTagTypeToResource(object TagType, d *schema.ResourceData, m interface{
 func TakeTagTypeAsMap(object *TagType) map[string]interface{} {
 	omap := make(map[string]interface{})
 
-	omap["tag_type_id"] = object.GetTagTypeId()
 	id_permsObj := object.GetIdPerms()
 	omap["id_perms"] = TakeIdPermsTypeAsMap(&id_permsObj)
 	perms2Obj := object.GetPerms2()
@@ -107,11 +102,6 @@ func UpdateTagTypeFromResource(object *TagType, d *schema.ResourceData, m interf
 		key = key + "."
 	}
 
-	if d.HasChange("tag_type_id") {
-		if val, ok := d.GetOk("tag_type_id"); ok {
-			object.SetTagTypeId(val.(string))
-		}
-	}
 	if d.HasChange("id_perms") {
 		if val, ok := d.GetOk("id_perms"); ok {
 			member := new(IdPermsType)
@@ -265,10 +255,6 @@ func ResourceTagTypeSchema() map[string]*schema.Schema {
 			Optional: true,
 		},
 		// Properties
-		"tag_type_id": &schema.Schema{
-			Optional: true,
-			Type:     schema.TypeString,
-		},
 		"id_perms": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
