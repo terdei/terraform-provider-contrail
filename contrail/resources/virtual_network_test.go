@@ -33,7 +33,13 @@ func TestAccNetworkRefsBasic(t *testing.T) {
 		PreCheck:  func() { testAccPreCheckRequiredEnvVars(t) },
 		Providers: testAccProviders,
 		CheckDestroy: func(s *terraform.State) error {
-			return testAccCheckDestroy(s, "contrail_virtual_network", "virtual-network")
+			if err := testAccCheckDestroy(s, "contrail_virtual_network", "virtual-network"); err != nil {
+				return err
+			}
+			if err := testAccCheckDestroy(s, "contrail_tag", "tag"); err != nil {
+				return err
+			}
+			return nil
 		},
 		Steps: []resource.TestStep{
 			{

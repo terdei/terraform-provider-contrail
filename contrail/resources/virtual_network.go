@@ -253,6 +253,81 @@ func SetRefsVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resourc
 	return nil
 }
 
+func DeleteRefsVirtualNetworkFromResource(object *VirtualNetwork, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsVirtualNetworkFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("security_logging_object_refs"); ok {
+		log.Printf("Got ref security_logging_object_refs -- will call: object.AddSecurityLoggingObject(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteSecurityLoggingObject(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("qos_config_refs"); ok {
+		log.Printf("Got ref qos_config_refs -- will call: object.AddQosConfig(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteQosConfig(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("network_ipam_refs"); ok {
+		log.Printf("Got ref network_ipam_refs -- will call: object.AddNetworkIpam(refObj, *dataObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteNetworkIpam(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("network_policy_refs"); ok {
+		log.Printf("Got ref network_policy_refs -- will call: object.AddNetworkPolicy(refObj, *dataObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteNetworkPolicy(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualNetwork(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("route_table_refs"); ok {
+		log.Printf("Got ref route_table_refs -- will call: object.AddRouteTable(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteRouteTable(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("bgpvpn_refs"); ok {
+		log.Printf("Got ref bgpvpn_refs -- will call: object.AddBgpvpn(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteBgpvpn(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+	return nil
+}
+
 func WriteVirtualNetworkToResource(object VirtualNetwork, d *schema.ResourceData, m interface{}) {
 
 	ecmp_hashing_include_fieldsObj := object.GetEcmpHashingIncludeFields()
@@ -539,6 +614,7 @@ func ResourceVirtualNetworkRefsCreate(d *schema.ResourceData, m interface{}) err
 	if err != nil {
 		return fmt.Errorf("[ResourceVirtualNetworkRefsCreate] Retrieving VirtualNetwork with uuid %s on %v (%v)", uuid, client.GetServer(), err)
 	}
+
 	objVirtualNetwork := obj.(*VirtualNetwork) // Fully set by Contrail backend
 	if err := SetRefsVirtualNetworkFromResource(objVirtualNetwork, d, m); err != nil {
 		return fmt.Errorf("[ResourceVirtualNetworkRefsCreate] Set refs on object VirtualNetwork (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
@@ -605,7 +681,31 @@ func ResourceVirtualNetworkDelete(d *schema.ResourceData, m interface{}) error {
 
 func ResourceVirtualNetworkRefsDelete(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceVirtualNetworkRefsDelete: %v", d.Id())
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceVirtualNetworkRefsCreate] Missing 'uuid' field for resource VirtualNetwork")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("virtual-network", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualNetworkRefsCreate] Retrieving VirtualNetwork with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+
+	objVirtualNetwork := obj.(*VirtualNetwork) // Fully set by Contrail backend
+
+	if err := DeleteRefsVirtualNetworkFromResource(objVirtualNetwork, d, m); err != nil {
+		return fmt.Errorf("[ResourceVirtualNetworkRefsCreate] Delete refs on object VirtualNetwork (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objVirtualNetwork.GetHref())
+	if err := client.Update(objVirtualNetwork); err != nil {
+		return fmt.Errorf("[ResourceVirtualNetworkRefsCreate] Update refs for resource VirtualNetwork (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objVirtualNetwork.GetUuid())
 	return nil
+
 }
 
 func ResourceVirtualNetworkSchema() map[string]*schema.Schema {
