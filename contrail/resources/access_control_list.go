@@ -78,6 +78,26 @@ func SetRefsAccessControlListFromResource(object *AccessControlList, d *schema.R
 	return nil
 }
 
+func DeleteRefsAccessControlListFromResource(object *AccessControlList, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsAccessControlListFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteAccessControlListToResource(object AccessControlList, d *schema.ResourceData, m interface{}) {
 
 	access_control_list_entriesObj := object.GetAccessControlListEntries()
@@ -266,7 +286,31 @@ func ResourceAccessControlListDelete(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourceAccessControlListRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceAccessControlListRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceAccessControlListRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceAccessControlListRefsDelete] Missing 'uuid' field for resource AccessControlList")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("access-control-list", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceAccessControlListRefsDelete] Retrieving AccessControlList with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objAccessControlList := obj.(*AccessControlList) // Fully set by Contrail backend
+	if err := DeleteRefsAccessControlListFromResource(objAccessControlList, d, m); err != nil {
+		return fmt.Errorf("[ResourceAccessControlListRefsDelete] Set refs on object AccessControlList (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objAccessControlList.GetHref())
+	if err := client.Update(objAccessControlList); err != nil {
+		return fmt.Errorf("[ResourceAccessControlListRefsDelete] Delete refs for resource AccessControlList (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objAccessControlList.GetUuid())
 	return nil
 }
 

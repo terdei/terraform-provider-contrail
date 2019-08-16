@@ -98,6 +98,42 @@ func SetRefsCustomerAttachmentFromResource(object *CustomerAttachment, d *schema
 	return nil
 }
 
+func DeleteRefsCustomerAttachmentFromResource(object *CustomerAttachment, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsCustomerAttachmentFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("floating_ip_refs"); ok {
+		log.Printf("Got ref floating_ip_refs -- will call: object.DeleteFloatingIp(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteFloatingIp(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteCustomerAttachmentToResource(object CustomerAttachment, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -268,7 +304,31 @@ func ResourceCustomerAttachmentDelete(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceCustomerAttachmentRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceCustomerAttachmentRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceCustomerAttachmentRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceCustomerAttachmentRefsDelete] Missing 'uuid' field for resource CustomerAttachment")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("customer-attachment", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceCustomerAttachmentRefsDelete] Retrieving CustomerAttachment with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objCustomerAttachment := obj.(*CustomerAttachment) // Fully set by Contrail backend
+	if err := DeleteRefsCustomerAttachmentFromResource(objCustomerAttachment, d, m); err != nil {
+		return fmt.Errorf("[ResourceCustomerAttachmentRefsDelete] Set refs on object CustomerAttachment (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objCustomerAttachment.GetHref())
+	if err := client.Update(objCustomerAttachment); err != nil {
+		return fmt.Errorf("[ResourceCustomerAttachmentRefsDelete] Delete refs for resource CustomerAttachment (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objCustomerAttachment.GetUuid())
 	return nil
 }
 

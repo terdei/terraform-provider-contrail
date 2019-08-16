@@ -75,6 +75,26 @@ func SetRefsLoadbalancerHealthmonitorFromResource(object *LoadbalancerHealthmoni
 	return nil
 }
 
+func DeleteRefsLoadbalancerHealthmonitorFromResource(object *LoadbalancerHealthmonitor, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsLoadbalancerHealthmonitorFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteLoadbalancerHealthmonitorToResource(object LoadbalancerHealthmonitor, d *schema.ResourceData, m interface{}) {
 
 	loadbalancer_healthmonitor_propertiesObj := object.GetLoadbalancerHealthmonitorProperties()
@@ -256,7 +276,31 @@ func ResourceLoadbalancerHealthmonitorDelete(d *schema.ResourceData, m interface
 }
 
 func ResourceLoadbalancerHealthmonitorRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerHealthmonitorRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceLoadbalancerHealthmonitorRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceLoadbalancerHealthmonitorRefsDelete] Missing 'uuid' field for resource LoadbalancerHealthmonitor")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("loadbalancer-healthmonitor", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerHealthmonitorRefsDelete] Retrieving LoadbalancerHealthmonitor with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objLoadbalancerHealthmonitor := obj.(*LoadbalancerHealthmonitor) // Fully set by Contrail backend
+	if err := DeleteRefsLoadbalancerHealthmonitorFromResource(objLoadbalancerHealthmonitor, d, m); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerHealthmonitorRefsDelete] Set refs on object LoadbalancerHealthmonitor (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objLoadbalancerHealthmonitor.GetHref())
+	if err := client.Update(objLoadbalancerHealthmonitor); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerHealthmonitorRefsDelete] Delete refs for resource LoadbalancerHealthmonitor (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objLoadbalancerHealthmonitor.GetUuid())
 	return nil
 }
 

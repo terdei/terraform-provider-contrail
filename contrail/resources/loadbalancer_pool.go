@@ -153,6 +153,66 @@ func SetRefsLoadbalancerPoolFromResource(object *LoadbalancerPool, d *schema.Res
 	return nil
 }
 
+func DeleteRefsLoadbalancerPoolFromResource(object *LoadbalancerPool, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsLoadbalancerPoolFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_instance_refs"); ok {
+		log.Printf("Got ref service_instance_refs -- will call: object.DeleteServiceInstance(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceInstance(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("loadbalancer_listener_refs"); ok {
+		log.Printf("Got ref loadbalancer_listener_refs -- will call: object.DeleteLoadbalancerListener(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteLoadbalancerListener(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("service_appliance_set_refs"); ok {
+		log.Printf("Got ref service_appliance_set_refs -- will call: object.DeleteServiceApplianceSet(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceApplianceSet(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("loadbalancer_healthmonitor_refs"); ok {
+		log.Printf("Got ref loadbalancer_healthmonitor_refs -- will call: object.DeleteLoadbalancerHealthmonitor(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteLoadbalancerHealthmonitor(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteLoadbalancerPoolToResource(object LoadbalancerPool, d *schema.ResourceData, m interface{}) {
 
 	loadbalancer_pool_propertiesObj := object.GetLoadbalancerPoolProperties()
@@ -352,7 +412,31 @@ func ResourceLoadbalancerPoolDelete(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceLoadbalancerPoolRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerPoolRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceLoadbalancerPoolRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceLoadbalancerPoolRefsDelete] Missing 'uuid' field for resource LoadbalancerPool")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("loadbalancer-pool", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerPoolRefsDelete] Retrieving LoadbalancerPool with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objLoadbalancerPool := obj.(*LoadbalancerPool) // Fully set by Contrail backend
+	if err := DeleteRefsLoadbalancerPoolFromResource(objLoadbalancerPool, d, m); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerPoolRefsDelete] Set refs on object LoadbalancerPool (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objLoadbalancerPool.GetHref())
+	if err := client.Update(objLoadbalancerPool); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerPoolRefsDelete] Delete refs for resource LoadbalancerPool (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objLoadbalancerPool.GetUuid())
 	return nil
 }
 

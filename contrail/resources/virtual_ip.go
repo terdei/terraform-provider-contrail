@@ -103,6 +103,42 @@ func SetRefsVirtualIpFromResource(object *VirtualIp, d *schema.ResourceData, m i
 	return nil
 }
 
+func DeleteRefsVirtualIpFromResource(object *VirtualIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsVirtualIpFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("loadbalancer_pool_refs"); ok {
+		log.Printf("Got ref loadbalancer_pool_refs -- will call: object.DeleteLoadbalancerPool(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteLoadbalancerPool(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteVirtualIpToResource(object VirtualIp, d *schema.ResourceData, m interface{}) {
 
 	virtual_ip_propertiesObj := object.GetVirtualIpProperties()
@@ -284,7 +320,31 @@ func ResourceVirtualIpDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceVirtualIpRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualIpRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceVirtualIpRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceVirtualIpRefsDelete] Missing 'uuid' field for resource VirtualIp")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("virtual-ip", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualIpRefsDelete] Retrieving VirtualIp with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objVirtualIp := obj.(*VirtualIp) // Fully set by Contrail backend
+	if err := DeleteRefsVirtualIpFromResource(objVirtualIp, d, m); err != nil {
+		return fmt.Errorf("[ResourceVirtualIpRefsDelete] Set refs on object VirtualIp (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objVirtualIp.GetHref())
+	if err := client.Update(objVirtualIp); err != nil {
+		return fmt.Errorf("[ResourceVirtualIpRefsDelete] Delete refs for resource VirtualIp (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objVirtualIp.GetUuid())
 	return nil
 }
 

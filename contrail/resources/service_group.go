@@ -75,6 +75,26 @@ func SetRefsServiceGroupFromResource(object *ServiceGroup, d *schema.ResourceDat
 	return nil
 }
 
+func DeleteRefsServiceGroupFromResource(object *ServiceGroup, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsServiceGroupFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteServiceGroupToResource(object ServiceGroup, d *schema.ResourceData, m interface{}) {
 
 	service_group_firewall_service_listObj := object.GetServiceGroupFirewallServiceList()
@@ -256,7 +276,31 @@ func ResourceServiceGroupDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceServiceGroupRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceGroupRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceServiceGroupRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceServiceGroupRefsDelete] Missing 'uuid' field for resource ServiceGroup")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("service-group", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceGroupRefsDelete] Retrieving ServiceGroup with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objServiceGroup := obj.(*ServiceGroup) // Fully set by Contrail backend
+	if err := DeleteRefsServiceGroupFromResource(objServiceGroup, d, m); err != nil {
+		return fmt.Errorf("[ResourceServiceGroupRefsDelete] Set refs on object ServiceGroup (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objServiceGroup.GetHref())
+	if err := client.Update(objServiceGroup); err != nil {
+		return fmt.Errorf("[ResourceServiceGroupRefsDelete] Delete refs for resource ServiceGroup (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objServiceGroup.GetUuid())
 	return nil
 }
 

@@ -89,6 +89,34 @@ func SetRefsSubnetFromResource(object *Subnet, d *schema.ResourceData, m interfa
 	return nil
 }
 
+func DeleteRefsSubnetFromResource(object *Subnet, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsSubnetFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteSubnetToResource(object Subnet, d *schema.ResourceData, m interface{}) {
 
 	subnet_ip_prefixObj := object.GetSubnetIpPrefix()
@@ -270,7 +298,31 @@ func ResourceSubnetDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceSubnetRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceSubnetRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceSubnetRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceSubnetRefsDelete] Missing 'uuid' field for resource Subnet")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("subnet", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceSubnetRefsDelete] Retrieving Subnet with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objSubnet := obj.(*Subnet) // Fully set by Contrail backend
+	if err := DeleteRefsSubnetFromResource(objSubnet, d, m); err != nil {
+		return fmt.Errorf("[ResourceSubnetRefsDelete] Set refs on object Subnet (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objSubnet.GetHref())
+	if err := client.Update(objSubnet); err != nil {
+		return fmt.Errorf("[ResourceSubnetRefsDelete] Delete refs for resource Subnet (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objSubnet.GetUuid())
 	return nil
 }
 

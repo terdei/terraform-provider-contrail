@@ -112,6 +112,42 @@ func SetRefsSecurityLoggingObjectFromResource(object *SecurityLoggingObject, d *
 	return nil
 }
 
+func DeleteRefsSecurityLoggingObjectFromResource(object *SecurityLoggingObject, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsSecurityLoggingObjectFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("network_policy_refs"); ok {
+		log.Printf("Got ref network_policy_refs -- will call: object.DeleteNetworkPolicy(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteNetworkPolicy(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("security_group_refs"); ok {
+		log.Printf("Got ref security_group_refs -- will call: object.DeleteSecurityGroup(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteSecurityGroup(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteSecurityLoggingObjectToResource(object SecurityLoggingObject, d *schema.ResourceData, m interface{}) {
 
 	security_logging_object_rulesObj := object.GetSecurityLoggingObjectRules()
@@ -300,7 +336,31 @@ func ResourceSecurityLoggingObjectDelete(d *schema.ResourceData, m interface{}) 
 }
 
 func ResourceSecurityLoggingObjectRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceSecurityLoggingObjectRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceSecurityLoggingObjectRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceSecurityLoggingObjectRefsDelete] Missing 'uuid' field for resource SecurityLoggingObject")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("security-logging-object", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceSecurityLoggingObjectRefsDelete] Retrieving SecurityLoggingObject with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objSecurityLoggingObject := obj.(*SecurityLoggingObject) // Fully set by Contrail backend
+	if err := DeleteRefsSecurityLoggingObjectFromResource(objSecurityLoggingObject, d, m); err != nil {
+		return fmt.Errorf("[ResourceSecurityLoggingObjectRefsDelete] Set refs on object SecurityLoggingObject (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objSecurityLoggingObject.GetHref())
+	if err := client.Update(objSecurityLoggingObject); err != nil {
+		return fmt.Errorf("[ResourceSecurityLoggingObjectRefsDelete] Delete refs for resource SecurityLoggingObject (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objSecurityLoggingObject.GetUuid())
 	return nil
 }
 

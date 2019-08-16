@@ -73,6 +73,26 @@ func SetRefsConfigNodeFromResource(object *ConfigNode, d *schema.ResourceData, m
 	return nil
 }
 
+func DeleteRefsConfigNodeFromResource(object *ConfigNode, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsConfigNodeFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteConfigNodeToResource(object ConfigNode, d *schema.ResourceData, m interface{}) {
 
 	d.Set("config_node_ip_address", object.GetConfigNodeIpAddress())
@@ -250,7 +270,31 @@ func ResourceConfigNodeDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceConfigNodeRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceConfigNodeRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceConfigNodeRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceConfigNodeRefsDelete] Missing 'uuid' field for resource ConfigNode")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("config-node", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceConfigNodeRefsDelete] Retrieving ConfigNode with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objConfigNode := obj.(*ConfigNode) // Fully set by Contrail backend
+	if err := DeleteRefsConfigNodeFromResource(objConfigNode, d, m); err != nil {
+		return fmt.Errorf("[ResourceConfigNodeRefsDelete] Set refs on object ConfigNode (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objConfigNode.GetHref())
+	if err := client.Update(objConfigNode); err != nil {
+		return fmt.Errorf("[ResourceConfigNodeRefsDelete] Delete refs for resource ConfigNode (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objConfigNode.GetUuid())
 	return nil
 }
 

@@ -93,6 +93,34 @@ func SetRefsForwardingClassFromResource(object *ForwardingClass, d *schema.Resou
 	return nil
 }
 
+func DeleteRefsForwardingClassFromResource(object *ForwardingClass, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsForwardingClassFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("qos_queue_refs"); ok {
+		log.Printf("Got ref qos_queue_refs -- will call: object.DeleteQosQueue(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteQosQueue(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteForwardingClassToResource(object ForwardingClass, d *schema.ResourceData, m interface{}) {
 
 	d.Set("forwarding_class_dscp", object.GetForwardingClassDscp())
@@ -284,7 +312,31 @@ func ResourceForwardingClassDelete(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceForwardingClassRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceForwardingClassRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceForwardingClassRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceForwardingClassRefsDelete] Missing 'uuid' field for resource ForwardingClass")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("forwarding-class", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceForwardingClassRefsDelete] Retrieving ForwardingClass with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objForwardingClass := obj.(*ForwardingClass) // Fully set by Contrail backend
+	if err := DeleteRefsForwardingClassFromResource(objForwardingClass, d, m); err != nil {
+		return fmt.Errorf("[ResourceForwardingClassRefsDelete] Set refs on object ForwardingClass (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objForwardingClass.GetHref())
+	if err := client.Update(objForwardingClass); err != nil {
+		return fmt.Errorf("[ResourceForwardingClassRefsDelete] Delete refs for resource ForwardingClass (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objForwardingClass.GetUuid())
 	return nil
 }
 

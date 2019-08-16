@@ -116,6 +116,42 @@ func SetRefsBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceD
 	return nil
 }
 
+func DeleteRefsBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsBgpAsAServiceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("service_health_check_refs"); ok {
+		log.Printf("Got ref service_health_check_refs -- will call: object.DeleteServiceHealthCheck(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceHealthCheck(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteBgpAsAServiceToResource(object BgpAsAService, d *schema.ResourceData, m interface{}) {
 
 	d.Set("autonomous_system", object.GetAutonomousSystem())
@@ -328,7 +364,31 @@ func ResourceBgpAsAServiceDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBgpAsAServiceRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpAsAServiceRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceBgpAsAServiceRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceBgpAsAServiceRefsDelete] Missing 'uuid' field for resource BgpAsAService")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("bgp-as-a-service", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpAsAServiceRefsDelete] Retrieving BgpAsAService with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objBgpAsAService := obj.(*BgpAsAService) // Fully set by Contrail backend
+	if err := DeleteRefsBgpAsAServiceFromResource(objBgpAsAService, d, m); err != nil {
+		return fmt.Errorf("[ResourceBgpAsAServiceRefsDelete] Set refs on object BgpAsAService (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objBgpAsAService.GetHref())
+	if err := client.Update(objBgpAsAService); err != nil {
+		return fmt.Errorf("[ResourceBgpAsAServiceRefsDelete] Delete refs for resource BgpAsAService (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objBgpAsAService.GetUuid())
 	return nil
 }
 

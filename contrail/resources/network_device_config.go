@@ -84,6 +84,34 @@ func SetRefsNetworkDeviceConfigFromResource(object *NetworkDeviceConfig, d *sche
 	return nil
 }
 
+func DeleteRefsNetworkDeviceConfigFromResource(object *NetworkDeviceConfig, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsNetworkDeviceConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("physical_router_refs"); ok {
+		log.Printf("Got ref physical_router_refs -- will call: object.DeletePhysicalRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePhysicalRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteNetworkDeviceConfigToResource(object NetworkDeviceConfig, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -254,7 +282,31 @@ func ResourceNetworkDeviceConfigDelete(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceNetworkDeviceConfigRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkDeviceConfigRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceNetworkDeviceConfigRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceNetworkDeviceConfigRefsDelete] Missing 'uuid' field for resource NetworkDeviceConfig")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("network-device-config", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkDeviceConfigRefsDelete] Retrieving NetworkDeviceConfig with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objNetworkDeviceConfig := obj.(*NetworkDeviceConfig) // Fully set by Contrail backend
+	if err := DeleteRefsNetworkDeviceConfigFromResource(objNetworkDeviceConfig, d, m); err != nil {
+		return fmt.Errorf("[ResourceNetworkDeviceConfigRefsDelete] Set refs on object NetworkDeviceConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objNetworkDeviceConfig.GetHref())
+	if err := client.Update(objNetworkDeviceConfig); err != nil {
+		return fmt.Errorf("[ResourceNetworkDeviceConfigRefsDelete] Delete refs for resource NetworkDeviceConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objNetworkDeviceConfig.GetUuid())
 	return nil
 }
 

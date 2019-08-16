@@ -84,6 +84,34 @@ func SetRefsProviderAttachmentFromResource(object *ProviderAttachment, d *schema
 	return nil
 }
 
+func DeleteRefsProviderAttachmentFromResource(object *ProviderAttachment, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsProviderAttachmentFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_router_refs"); ok {
+		log.Printf("Got ref virtual_router_refs -- will call: object.DeleteVirtualRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteProviderAttachmentToResource(object ProviderAttachment, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -254,7 +282,31 @@ func ResourceProviderAttachmentDelete(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceProviderAttachmentRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceProviderAttachmentRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceProviderAttachmentRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceProviderAttachmentRefsDelete] Missing 'uuid' field for resource ProviderAttachment")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("provider-attachment", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceProviderAttachmentRefsDelete] Retrieving ProviderAttachment with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objProviderAttachment := obj.(*ProviderAttachment) // Fully set by Contrail backend
+	if err := DeleteRefsProviderAttachmentFromResource(objProviderAttachment, d, m); err != nil {
+		return fmt.Errorf("[ResourceProviderAttachmentRefsDelete] Set refs on object ProviderAttachment (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objProviderAttachment.GetHref())
+	if err := client.Update(objProviderAttachment); err != nil {
+		return fmt.Errorf("[ResourceProviderAttachmentRefsDelete] Delete refs for resource ProviderAttachment (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objProviderAttachment.GetUuid())
 	return nil
 }
 

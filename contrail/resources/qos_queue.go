@@ -79,6 +79,26 @@ func SetRefsQosQueueFromResource(object *QosQueue, d *schema.ResourceData, m int
 	return nil
 }
 
+func DeleteRefsQosQueueFromResource(object *QosQueue, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsQosQueueFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteQosQueueToResource(object QosQueue, d *schema.ResourceData, m interface{}) {
 
 	d.Set("min_bandwidth", object.GetMinBandwidth())
@@ -270,7 +290,31 @@ func ResourceQosQueueDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceQosQueueRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceQosQueueRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceQosQueueRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceQosQueueRefsDelete] Missing 'uuid' field for resource QosQueue")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("qos-queue", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceQosQueueRefsDelete] Retrieving QosQueue with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objQosQueue := obj.(*QosQueue) // Fully set by Contrail backend
+	if err := DeleteRefsQosQueueFromResource(objQosQueue, d, m); err != nil {
+		return fmt.Errorf("[ResourceQosQueueRefsDelete] Set refs on object QosQueue (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objQosQueue.GetHref())
+	if err := client.Update(objQosQueue); err != nil {
+		return fmt.Errorf("[ResourceQosQueueRefsDelete] Delete refs for resource QosQueue (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objQosQueue.GetUuid())
 	return nil
 }
 

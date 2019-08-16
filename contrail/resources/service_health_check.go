@@ -92,6 +92,34 @@ func SetRefsServiceHealthCheckFromResource(object *ServiceHealthCheck, d *schema
 	return nil
 }
 
+func DeleteRefsServiceHealthCheckFromResource(object *ServiceHealthCheck, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsServiceHealthCheckFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_instance_refs"); ok {
+		log.Printf("Got ref service_instance_refs -- will call: object.DeleteServiceInstance(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceInstance(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteServiceHealthCheckToResource(object ServiceHealthCheck, d *schema.ResourceData, m interface{}) {
 
 	service_health_check_propertiesObj := object.GetServiceHealthCheckProperties()
@@ -273,7 +301,31 @@ func ResourceServiceHealthCheckDelete(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceServiceHealthCheckRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceHealthCheckRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceServiceHealthCheckRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceServiceHealthCheckRefsDelete] Missing 'uuid' field for resource ServiceHealthCheck")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("service-health-check", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceHealthCheckRefsDelete] Retrieving ServiceHealthCheck with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objServiceHealthCheck := obj.(*ServiceHealthCheck) // Fully set by Contrail backend
+	if err := DeleteRefsServiceHealthCheckFromResource(objServiceHealthCheck, d, m); err != nil {
+		return fmt.Errorf("[ResourceServiceHealthCheckRefsDelete] Set refs on object ServiceHealthCheck (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objServiceHealthCheck.GetHref())
+	if err := client.Update(objServiceHealthCheck); err != nil {
+		return fmt.Errorf("[ResourceServiceHealthCheckRefsDelete] Delete refs for resource ServiceHealthCheck (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objServiceHealthCheck.GetUuid())
 	return nil
 }
 

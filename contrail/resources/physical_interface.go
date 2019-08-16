@@ -87,6 +87,34 @@ func SetRefsPhysicalInterfaceFromResource(object *PhysicalInterface, d *schema.R
 	return nil
 }
 
+func DeleteRefsPhysicalInterfaceFromResource(object *PhysicalInterface, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsPhysicalInterfaceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("physical_interface_refs"); ok {
+		log.Printf("Got ref physical_interface_refs -- will call: object.DeletePhysicalInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePhysicalInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WritePhysicalInterfaceToResource(object PhysicalInterface, d *schema.ResourceData, m interface{}) {
 
 	d.Set("ethernet_segment_identifier", object.GetEthernetSegmentIdentifier())
@@ -264,7 +292,31 @@ func ResourcePhysicalInterfaceDelete(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourcePhysicalInterfaceRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePhysicalInterfaceRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourcePhysicalInterfaceRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourcePhysicalInterfaceRefsDelete] Missing 'uuid' field for resource PhysicalInterface")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("physical-interface", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourcePhysicalInterfaceRefsDelete] Retrieving PhysicalInterface with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objPhysicalInterface := obj.(*PhysicalInterface) // Fully set by Contrail backend
+	if err := DeleteRefsPhysicalInterfaceFromResource(objPhysicalInterface, d, m); err != nil {
+		return fmt.Errorf("[ResourcePhysicalInterfaceRefsDelete] Set refs on object PhysicalInterface (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objPhysicalInterface.GetHref())
+	if err := client.Update(objPhysicalInterface); err != nil {
+		return fmt.Errorf("[ResourcePhysicalInterfaceRefsDelete] Delete refs for resource PhysicalInterface (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objPhysicalInterface.GetUuid())
 	return nil
 }
 

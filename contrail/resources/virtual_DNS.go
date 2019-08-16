@@ -75,6 +75,26 @@ func SetRefsVirtualDnsFromResource(object *VirtualDns, d *schema.ResourceData, m
 	return nil
 }
 
+func DeleteRefsVirtualDnsFromResource(object *VirtualDns, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsVirtualDnsFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteVirtualDnsToResource(object VirtualDns, d *schema.ResourceData, m interface{}) {
 
 	virtual_dns_dataObj := object.GetVirtualDnsData()
@@ -256,7 +276,31 @@ func ResourceVirtualDnsDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceVirtualDnsRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualDnsRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceVirtualDnsRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceVirtualDnsRefsDelete] Missing 'uuid' field for resource VirtualDns")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("virtual-DNS", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualDnsRefsDelete] Retrieving VirtualDns with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objVirtualDns := obj.(*VirtualDns) // Fully set by Contrail backend
+	if err := DeleteRefsVirtualDnsFromResource(objVirtualDns, d, m); err != nil {
+		return fmt.Errorf("[ResourceVirtualDnsRefsDelete] Set refs on object VirtualDns (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objVirtualDns.GetHref())
+	if err := client.Update(objVirtualDns); err != nil {
+		return fmt.Errorf("[ResourceVirtualDnsRefsDelete] Delete refs for resource VirtualDns (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objVirtualDns.GetUuid())
 	return nil
 }
 

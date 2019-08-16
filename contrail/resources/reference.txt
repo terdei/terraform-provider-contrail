@@ -1189,6 +1189,7 @@ resource "contrail_virtual_network" <name> {
 	virtual_network_properties = <contrail_VirtualNetworkType>
 	provider_properties = <contrail_ProviderDetails>
 	is_provider_network = <schema.TypeBool>
+	virtual_network_network_id = <schema.TypeInt>
 	port_security_enabled = <schema.TypeBool>
 	route_target_list = <contrail_RouteTargetList>
 	import_route_target_list = <contrail_RouteTargetList>

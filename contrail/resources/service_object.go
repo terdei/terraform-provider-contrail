@@ -70,6 +70,26 @@ func SetRefsServiceObjectFromResource(object *ServiceObject, d *schema.ResourceD
 	return nil
 }
 
+func DeleteRefsServiceObjectFromResource(object *ServiceObject, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsServiceObjectFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteServiceObjectToResource(object ServiceObject, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -240,7 +260,31 @@ func ResourceServiceObjectDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceServiceObjectRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceObjectRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceServiceObjectRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceServiceObjectRefsDelete] Missing 'uuid' field for resource ServiceObject")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("service-object", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceObjectRefsDelete] Retrieving ServiceObject with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objServiceObject := obj.(*ServiceObject) // Fully set by Contrail backend
+	if err := DeleteRefsServiceObjectFromResource(objServiceObject, d, m); err != nil {
+		return fmt.Errorf("[ResourceServiceObjectRefsDelete] Set refs on object ServiceObject (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objServiceObject.GetHref())
+	if err := client.Update(objServiceObject); err != nil {
+		return fmt.Errorf("[ResourceServiceObjectRefsDelete] Delete refs for resource ServiceObject (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objServiceObject.GetUuid())
 	return nil
 }
 

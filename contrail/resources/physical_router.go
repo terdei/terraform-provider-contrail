@@ -159,6 +159,50 @@ func SetRefsPhysicalRouterFromResource(object *PhysicalRouter, d *schema.Resourc
 	return nil
 }
 
+func DeleteRefsPhysicalRouterFromResource(object *PhysicalRouter, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsPhysicalRouterFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_router_refs"); ok {
+		log.Printf("Got ref virtual_router_refs -- will call: object.DeleteVirtualRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("bgp_router_refs"); ok {
+		log.Printf("Got ref bgp_router_refs -- will call: object.DeleteBgpRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteBgpRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.DeleteVirtualNetwork(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualNetwork(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WritePhysicalRouterToResource(object PhysicalRouter, d *schema.ResourceData, m interface{}) {
 
 	d.Set("physical_router_management_ip", object.GetPhysicalRouterManagementIp())
@@ -436,7 +480,31 @@ func ResourcePhysicalRouterDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourcePhysicalRouterRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePhysicalRouterRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourcePhysicalRouterRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourcePhysicalRouterRefsDelete] Missing 'uuid' field for resource PhysicalRouter")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("physical-router", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourcePhysicalRouterRefsDelete] Retrieving PhysicalRouter with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objPhysicalRouter := obj.(*PhysicalRouter) // Fully set by Contrail backend
+	if err := DeleteRefsPhysicalRouterFromResource(objPhysicalRouter, d, m); err != nil {
+		return fmt.Errorf("[ResourcePhysicalRouterRefsDelete] Set refs on object PhysicalRouter (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objPhysicalRouter.GetHref())
+	if err := client.Update(objPhysicalRouter); err != nil {
+		return fmt.Errorf("[ResourcePhysicalRouterRefsDelete] Delete refs for resource PhysicalRouter (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objPhysicalRouter.GetUuid())
 	return nil
 }
 

@@ -169,6 +169,66 @@ func SetRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m
 	return nil
 }
 
+func DeleteRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsInstanceIpFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.DeleteVirtualNetwork(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualNetwork(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("network_ipam_refs"); ok {
+		log.Printf("Got ref network_ipam_refs -- will call: object.DeleteNetworkIpam(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteNetworkIpam(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("physical_router_refs"); ok {
+		log.Printf("Got ref physical_router_refs -- will call: object.DeletePhysicalRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePhysicalRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_router_refs"); ok {
+		log.Printf("Got ref virtual_router_refs -- will call: object.DeleteVirtualRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteInstanceIpToResource(object InstanceIp, d *schema.ResourceData, m interface{}) {
 
 	d.Set("instance_ip_address", object.GetInstanceIpAddress())
@@ -406,7 +466,31 @@ func ResourceInstanceIpDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceInstanceIpRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceInstanceIpRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceInstanceIpRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceInstanceIpRefsDelete] Missing 'uuid' field for resource InstanceIp")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("instance-ip", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceInstanceIpRefsDelete] Retrieving InstanceIp with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objInstanceIp := obj.(*InstanceIp) // Fully set by Contrail backend
+	if err := DeleteRefsInstanceIpFromResource(objInstanceIp, d, m); err != nil {
+		return fmt.Errorf("[ResourceInstanceIpRefsDelete] Set refs on object InstanceIp (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objInstanceIp.GetHref())
+	if err := client.Update(objInstanceIp); err != nil {
+		return fmt.Errorf("[ResourceInstanceIpRefsDelete] Delete refs for resource InstanceIp (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objInstanceIp.GetUuid())
 	return nil
 }
 

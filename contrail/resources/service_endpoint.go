@@ -112,6 +112,50 @@ func SetRefsServiceEndpointFromResource(object *ServiceEndpoint, d *schema.Resou
 	return nil
 }
 
+func DeleteRefsServiceEndpointFromResource(object *ServiceEndpoint, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsServiceEndpointFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_connection_module_refs"); ok {
+		log.Printf("Got ref service_connection_module_refs -- will call: object.DeleteServiceConnectionModule(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceConnectionModule(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("physical_router_refs"); ok {
+		log.Printf("Got ref physical_router_refs -- will call: object.DeletePhysicalRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePhysicalRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("service_object_refs"); ok {
+		log.Printf("Got ref service_object_refs -- will call: object.DeleteServiceObject(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceObject(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteServiceEndpointToResource(object ServiceEndpoint, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -282,7 +326,31 @@ func ResourceServiceEndpointDelete(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceServiceEndpointRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceEndpointRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceServiceEndpointRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceServiceEndpointRefsDelete] Missing 'uuid' field for resource ServiceEndpoint")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("service-endpoint", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceEndpointRefsDelete] Retrieving ServiceEndpoint with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objServiceEndpoint := obj.(*ServiceEndpoint) // Fully set by Contrail backend
+	if err := DeleteRefsServiceEndpointFromResource(objServiceEndpoint, d, m); err != nil {
+		return fmt.Errorf("[ResourceServiceEndpointRefsDelete] Set refs on object ServiceEndpoint (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objServiceEndpoint.GetHref())
+	if err := client.Update(objServiceEndpoint); err != nil {
+		return fmt.Errorf("[ResourceServiceEndpointRefsDelete] Delete refs for resource ServiceEndpoint (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objServiceEndpoint.GetUuid())
 	return nil
 }
 

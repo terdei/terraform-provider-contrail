@@ -87,6 +87,34 @@ func SetRefsRoutingPolicyFromResource(object *RoutingPolicy, d *schema.ResourceD
 	return nil
 }
 
+func DeleteRefsRoutingPolicyFromResource(object *RoutingPolicy, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsRoutingPolicyFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_instance_refs"); ok {
+		log.Printf("Got ref service_instance_refs -- will call: object.DeleteServiceInstance(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceInstance(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteRoutingPolicyToResource(object RoutingPolicy, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -257,7 +285,31 @@ func ResourceRoutingPolicyDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceRoutingPolicyRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceRoutingPolicyRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceRoutingPolicyRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceRoutingPolicyRefsDelete] Missing 'uuid' field for resource RoutingPolicy")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("routing-policy", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceRoutingPolicyRefsDelete] Retrieving RoutingPolicy with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objRoutingPolicy := obj.(*RoutingPolicy) // Fully set by Contrail backend
+	if err := DeleteRefsRoutingPolicyFromResource(objRoutingPolicy, d, m); err != nil {
+		return fmt.Errorf("[ResourceRoutingPolicyRefsDelete] Set refs on object RoutingPolicy (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objRoutingPolicy.GetHref())
+	if err := client.Update(objRoutingPolicy); err != nil {
+		return fmt.Errorf("[ResourceRoutingPolicyRefsDelete] Delete refs for resource RoutingPolicy (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objRoutingPolicy.GetUuid())
 	return nil
 }
 

@@ -162,6 +162,58 @@ func SetRefsFirewallRuleFromResource(object *FirewallRule, d *schema.ResourceDat
 	return nil
 }
 
+func DeleteRefsFirewallRuleFromResource(object *FirewallRule, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsFirewallRuleFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_group_refs"); ok {
+		log.Printf("Got ref service_group_refs -- will call: object.DeleteServiceGroup(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceGroup(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("address_group_refs"); ok {
+		log.Printf("Got ref address_group_refs -- will call: object.DeleteAddressGroup(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteAddressGroup(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.DeleteVirtualNetwork(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualNetwork(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("security_logging_object_refs"); ok {
+		log.Printf("Got ref security_logging_object_refs -- will call: object.DeleteSecurityLoggingObject(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteSecurityLoggingObject(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteFirewallRuleToResource(object FirewallRule, d *schema.ResourceData, m interface{}) {
 
 	action_listObj := object.GetActionList()
@@ -405,7 +457,31 @@ func ResourceFirewallRuleDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFirewallRuleRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFirewallRuleRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceFirewallRuleRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceFirewallRuleRefsDelete] Missing 'uuid' field for resource FirewallRule")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("firewall-rule", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceFirewallRuleRefsDelete] Retrieving FirewallRule with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objFirewallRule := obj.(*FirewallRule) // Fully set by Contrail backend
+	if err := DeleteRefsFirewallRuleFromResource(objFirewallRule, d, m); err != nil {
+		return fmt.Errorf("[ResourceFirewallRuleRefsDelete] Set refs on object FirewallRule (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objFirewallRule.GetHref())
+	if err := client.Update(objFirewallRule); err != nil {
+		return fmt.Errorf("[ResourceFirewallRuleRefsDelete] Delete refs for resource FirewallRule (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objFirewallRule.GetUuid())
 	return nil
 }
 

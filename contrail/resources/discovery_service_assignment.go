@@ -70,6 +70,26 @@ func SetRefsDiscoveryServiceAssignmentFromResource(object *DiscoveryServiceAssig
 	return nil
 }
 
+func DeleteRefsDiscoveryServiceAssignmentFromResource(object *DiscoveryServiceAssignment, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsDiscoveryServiceAssignmentFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteDiscoveryServiceAssignmentToResource(object DiscoveryServiceAssignment, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -240,7 +260,31 @@ func ResourceDiscoveryServiceAssignmentDelete(d *schema.ResourceData, m interfac
 }
 
 func ResourceDiscoveryServiceAssignmentRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceDiscoveryServiceAssignmentRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceDiscoveryServiceAssignmentRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceDiscoveryServiceAssignmentRefsDelete] Missing 'uuid' field for resource DiscoveryServiceAssignment")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("discovery-service-assignment", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceDiscoveryServiceAssignmentRefsDelete] Retrieving DiscoveryServiceAssignment with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objDiscoveryServiceAssignment := obj.(*DiscoveryServiceAssignment) // Fully set by Contrail backend
+	if err := DeleteRefsDiscoveryServiceAssignmentFromResource(objDiscoveryServiceAssignment, d, m); err != nil {
+		return fmt.Errorf("[ResourceDiscoveryServiceAssignmentRefsDelete] Set refs on object DiscoveryServiceAssignment (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objDiscoveryServiceAssignment.GetHref())
+	if err := client.Update(objDiscoveryServiceAssignment); err != nil {
+		return fmt.Errorf("[ResourceDiscoveryServiceAssignmentRefsDelete] Delete refs for resource DiscoveryServiceAssignment (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objDiscoveryServiceAssignment.GetUuid())
 	return nil
 }
 

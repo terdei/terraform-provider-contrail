@@ -113,6 +113,42 @@ func SetRefsVirtualRouterFromResource(object *VirtualRouter, d *schema.ResourceD
 	return nil
 }
 
+func DeleteRefsVirtualRouterFromResource(object *VirtualRouter, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsVirtualRouterFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("network_ipam_refs"); ok {
+		log.Printf("Got ref network_ipam_refs -- will call: object.DeleteNetworkIpam(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteNetworkIpam(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_machine_refs"); ok {
+		log.Printf("Got ref virtual_machine_refs -- will call: object.DeleteVirtualMachine(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachine(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteVirtualRouterToResource(object VirtualRouter, d *schema.ResourceData, m interface{}) {
 
 	d.Set("virtual_router_type", object.GetVirtualRouterType())
@@ -311,7 +347,31 @@ func ResourceVirtualRouterDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceVirtualRouterRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualRouterRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceVirtualRouterRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceVirtualRouterRefsDelete] Missing 'uuid' field for resource VirtualRouter")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("virtual-router", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualRouterRefsDelete] Retrieving VirtualRouter with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objVirtualRouter := obj.(*VirtualRouter) // Fully set by Contrail backend
+	if err := DeleteRefsVirtualRouterFromResource(objVirtualRouter, d, m); err != nil {
+		return fmt.Errorf("[ResourceVirtualRouterRefsDelete] Set refs on object VirtualRouter (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objVirtualRouter.GetHref())
+	if err := client.Update(objVirtualRouter); err != nil {
+		return fmt.Errorf("[ResourceVirtualRouterRefsDelete] Delete refs for resource VirtualRouter (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objVirtualRouter.GetUuid())
 	return nil
 }
 

@@ -75,6 +75,26 @@ func SetRefsLoadbalancerMemberFromResource(object *LoadbalancerMember, d *schema
 	return nil
 }
 
+func DeleteRefsLoadbalancerMemberFromResource(object *LoadbalancerMember, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsLoadbalancerMemberFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteLoadbalancerMemberToResource(object LoadbalancerMember, d *schema.ResourceData, m interface{}) {
 
 	loadbalancer_member_propertiesObj := object.GetLoadbalancerMemberProperties()
@@ -256,7 +276,31 @@ func ResourceLoadbalancerMemberDelete(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceLoadbalancerMemberRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerMemberRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceLoadbalancerMemberRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceLoadbalancerMemberRefsDelete] Missing 'uuid' field for resource LoadbalancerMember")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("loadbalancer-member", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerMemberRefsDelete] Retrieving LoadbalancerMember with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objLoadbalancerMember := obj.(*LoadbalancerMember) // Fully set by Contrail backend
+	if err := DeleteRefsLoadbalancerMemberFromResource(objLoadbalancerMember, d, m); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerMemberRefsDelete] Set refs on object LoadbalancerMember (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objLoadbalancerMember.GetHref())
+	if err := client.Update(objLoadbalancerMember); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerMemberRefsDelete] Delete refs for resource LoadbalancerMember (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objLoadbalancerMember.GetUuid())
 	return nil
 }
 

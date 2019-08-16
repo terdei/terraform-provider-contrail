@@ -104,6 +104,42 @@ func SetRefsFirewallPolicyFromResource(object *FirewallPolicy, d *schema.Resourc
 	return nil
 }
 
+func DeleteRefsFirewallPolicyFromResource(object *FirewallPolicy, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsFirewallPolicyFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("firewall_rule_refs"); ok {
+		log.Printf("Got ref firewall_rule_refs -- will call: object.DeleteFirewallRule(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteFirewallRule(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("security_logging_object_refs"); ok {
+		log.Printf("Got ref security_logging_object_refs -- will call: object.DeleteSecurityLoggingObject(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteSecurityLoggingObject(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteFirewallPolicyToResource(object FirewallPolicy, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -274,7 +310,31 @@ func ResourceFirewallPolicyDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFirewallPolicyRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFirewallPolicyRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceFirewallPolicyRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceFirewallPolicyRefsDelete] Missing 'uuid' field for resource FirewallPolicy")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("firewall-policy", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceFirewallPolicyRefsDelete] Retrieving FirewallPolicy with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objFirewallPolicy := obj.(*FirewallPolicy) // Fully set by Contrail backend
+	if err := DeleteRefsFirewallPolicyFromResource(objFirewallPolicy, d, m); err != nil {
+		return fmt.Errorf("[ResourceFirewallPolicyRefsDelete] Set refs on object FirewallPolicy (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objFirewallPolicy.GetHref())
+	if err := client.Update(objFirewallPolicy); err != nil {
+		return fmt.Errorf("[ResourceFirewallPolicyRefsDelete] Delete refs for resource FirewallPolicy (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objFirewallPolicy.GetUuid())
 	return nil
 }
 

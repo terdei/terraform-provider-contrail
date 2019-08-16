@@ -105,6 +105,34 @@ func SetRefsQosConfigFromResource(object *QosConfig, d *schema.ResourceData, m i
 	return nil
 }
 
+func DeleteRefsQosConfigFromResource(object *QosConfig, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsQosConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("global_system_config_refs"); ok {
+		log.Printf("Got ref global_system_config_refs -- will call: object.DeleteGlobalSystemConfig(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteGlobalSystemConfig(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteQosConfigToResource(object QosConfig, d *schema.ResourceData, m interface{}) {
 
 	d.Set("qos_config_type", object.GetQosConfigType())
@@ -322,7 +350,31 @@ func ResourceQosConfigDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceQosConfigRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceQosConfigRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceQosConfigRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceQosConfigRefsDelete] Missing 'uuid' field for resource QosConfig")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("qos-config", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceQosConfigRefsDelete] Retrieving QosConfig with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objQosConfig := obj.(*QosConfig) // Fully set by Contrail backend
+	if err := DeleteRefsQosConfigFromResource(objQosConfig, d, m); err != nil {
+		return fmt.Errorf("[ResourceQosConfigRefsDelete] Set refs on object QosConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objQosConfig.GetHref())
+	if err := client.Update(objQosConfig); err != nil {
+		return fmt.Errorf("[ResourceQosConfigRefsDelete] Delete refs for resource QosConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objQosConfig.GetUuid())
 	return nil
 }
 

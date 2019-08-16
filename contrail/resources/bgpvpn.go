@@ -88,6 +88,26 @@ func SetRefsBgpvpnFromResource(object *Bgpvpn, d *schema.ResourceData, m interfa
 	return nil
 }
 
+func DeleteRefsBgpvpnFromResource(object *Bgpvpn, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsBgpvpnFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteBgpvpnToResource(object Bgpvpn, d *schema.ResourceData, m interface{}) {
 
 	route_target_listObj := object.GetRouteTargetList()
@@ -298,7 +318,31 @@ func ResourceBgpvpnDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBgpvpnRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpvpnRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceBgpvpnRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceBgpvpnRefsDelete] Missing 'uuid' field for resource Bgpvpn")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("bgpvpn", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpvpnRefsDelete] Retrieving Bgpvpn with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objBgpvpn := obj.(*Bgpvpn) // Fully set by Contrail backend
+	if err := DeleteRefsBgpvpnFromResource(objBgpvpn, d, m); err != nil {
+		return fmt.Errorf("[ResourceBgpvpnRefsDelete] Set refs on object Bgpvpn (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objBgpvpn.GetHref())
+	if err := client.Update(objBgpvpn); err != nil {
+		return fmt.Errorf("[ResourceBgpvpnRefsDelete] Delete refs for resource Bgpvpn (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objBgpvpn.GetUuid())
 	return nil
 }
 

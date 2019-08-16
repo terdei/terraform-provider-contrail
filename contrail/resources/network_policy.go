@@ -75,6 +75,26 @@ func SetRefsNetworkPolicyFromResource(object *NetworkPolicy, d *schema.ResourceD
 	return nil
 }
 
+func DeleteRefsNetworkPolicyFromResource(object *NetworkPolicy, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsNetworkPolicyFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteNetworkPolicyToResource(object NetworkPolicy, d *schema.ResourceData, m interface{}) {
 
 	network_policy_entriesObj := object.GetNetworkPolicyEntries()
@@ -256,7 +276,31 @@ func ResourceNetworkPolicyDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceNetworkPolicyRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkPolicyRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceNetworkPolicyRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceNetworkPolicyRefsDelete] Missing 'uuid' field for resource NetworkPolicy")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("network-policy", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkPolicyRefsDelete] Retrieving NetworkPolicy with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objNetworkPolicy := obj.(*NetworkPolicy) // Fully set by Contrail backend
+	if err := DeleteRefsNetworkPolicyFromResource(objNetworkPolicy, d, m); err != nil {
+		return fmt.Errorf("[ResourceNetworkPolicyRefsDelete] Set refs on object NetworkPolicy (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objNetworkPolicy.GetHref())
+	if err := client.Update(objNetworkPolicy); err != nil {
+		return fmt.Errorf("[ResourceNetworkPolicyRefsDelete] Delete refs for resource NetworkPolicy (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objNetworkPolicy.GetUuid())
 	return nil
 }
 

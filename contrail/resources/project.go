@@ -140,6 +140,58 @@ func SetRefsProjectFromResource(object *Project, d *schema.ResourceData, m inter
 	return nil
 }
 
+func DeleteRefsProjectFromResource(object *Project, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsProjectFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("namespace_refs"); ok {
+		log.Printf("Got ref namespace_refs -- will call: object.DeleteNamespace(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteNamespace(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("floating_ip_pool_refs"); ok {
+		log.Printf("Got ref floating_ip_pool_refs -- will call: object.DeleteFloatingIpPool(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteFloatingIpPool(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("alias_ip_pool_refs"); ok {
+		log.Printf("Got ref alias_ip_pool_refs -- will call: object.DeleteAliasIpPool(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteAliasIpPool(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("application_policy_set_refs"); ok {
+		log.Printf("Got ref application_policy_set_refs -- will call: object.DeleteApplicationPolicySet(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteApplicationPolicySet(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteProjectToResource(object Project, d *schema.ResourceData, m interface{}) {
 
 	quotaObj := object.GetQuota()
@@ -335,7 +387,31 @@ func ResourceProjectDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceProjectRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceProjectRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceProjectRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceProjectRefsDelete] Missing 'uuid' field for resource Project")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("project", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceProjectRefsDelete] Retrieving Project with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objProject := obj.(*Project) // Fully set by Contrail backend
+	if err := DeleteRefsProjectFromResource(objProject, d, m); err != nil {
+		return fmt.Errorf("[ResourceProjectRefsDelete] Set refs on object Project (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objProject.GetHref())
+	if err := client.Update(objProject); err != nil {
+		return fmt.Errorf("[ResourceProjectRefsDelete] Delete refs for resource Project (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objProject.GetUuid())
 	return nil
 }
 

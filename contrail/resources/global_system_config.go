@@ -137,6 +137,34 @@ func SetRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema
 	return nil
 }
 
+func DeleteRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsGlobalSystemConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("bgp_router_refs"); ok {
+		log.Printf("Got ref bgp_router_refs -- will call: object.DeleteBgpRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteBgpRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteGlobalSystemConfigToResource(object GlobalSystemConfig, d *schema.ResourceData, m interface{}) {
 
 	d.Set("autonomous_system", object.GetAutonomousSystem())
@@ -426,7 +454,31 @@ func ResourceGlobalSystemConfigDelete(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceGlobalSystemConfigRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceGlobalSystemConfigRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceGlobalSystemConfigRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceGlobalSystemConfigRefsDelete] Missing 'uuid' field for resource GlobalSystemConfig")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("global-system-config", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceGlobalSystemConfigRefsDelete] Retrieving GlobalSystemConfig with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objGlobalSystemConfig := obj.(*GlobalSystemConfig) // Fully set by Contrail backend
+	if err := DeleteRefsGlobalSystemConfigFromResource(objGlobalSystemConfig, d, m); err != nil {
+		return fmt.Errorf("[ResourceGlobalSystemConfigRefsDelete] Set refs on object GlobalSystemConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objGlobalSystemConfig.GetHref())
+	if err := client.Update(objGlobalSystemConfig); err != nil {
+		return fmt.Errorf("[ResourceGlobalSystemConfigRefsDelete] Delete refs for resource GlobalSystemConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objGlobalSystemConfig.GetUuid())
 	return nil
 }
 

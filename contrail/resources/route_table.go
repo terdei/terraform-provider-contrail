@@ -75,6 +75,26 @@ func SetRefsRouteTableFromResource(object *RouteTable, d *schema.ResourceData, m
 	return nil
 }
 
+func DeleteRefsRouteTableFromResource(object *RouteTable, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsRouteTableFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteRouteTableToResource(object RouteTable, d *schema.ResourceData, m interface{}) {
 
 	routesObj := object.GetRoutes()
@@ -256,7 +276,31 @@ func ResourceRouteTableDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceRouteTableRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceRouteTableRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceRouteTableRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceRouteTableRefsDelete] Missing 'uuid' field for resource RouteTable")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("route-table", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceRouteTableRefsDelete] Retrieving RouteTable with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objRouteTable := obj.(*RouteTable) // Fully set by Contrail backend
+	if err := DeleteRefsRouteTableFromResource(objRouteTable, d, m); err != nil {
+		return fmt.Errorf("[ResourceRouteTableRefsDelete] Set refs on object RouteTable (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objRouteTable.GetHref())
+	if err := client.Update(objRouteTable); err != nil {
+		return fmt.Errorf("[ResourceRouteTableRefsDelete] Delete refs for resource RouteTable (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objRouteTable.GetUuid())
 	return nil
 }
 

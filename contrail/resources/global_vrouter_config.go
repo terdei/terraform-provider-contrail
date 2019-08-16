@@ -102,6 +102,26 @@ func SetRefsGlobalVrouterConfigFromResource(object *GlobalVrouterConfig, d *sche
 	return nil
 }
 
+func DeleteRefsGlobalVrouterConfigFromResource(object *GlobalVrouterConfig, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsGlobalVrouterConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteGlobalVrouterConfigToResource(object GlobalVrouterConfig, d *schema.ResourceData, m interface{}) {
 
 	ecmp_hashing_include_fieldsObj := object.GetEcmpHashingIncludeFields()
@@ -344,7 +364,31 @@ func ResourceGlobalVrouterConfigDelete(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceGlobalVrouterConfigRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceGlobalVrouterConfigRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceGlobalVrouterConfigRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceGlobalVrouterConfigRefsDelete] Missing 'uuid' field for resource GlobalVrouterConfig")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("global-vrouter-config", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceGlobalVrouterConfigRefsDelete] Retrieving GlobalVrouterConfig with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objGlobalVrouterConfig := obj.(*GlobalVrouterConfig) // Fully set by Contrail backend
+	if err := DeleteRefsGlobalVrouterConfigFromResource(objGlobalVrouterConfig, d, m); err != nil {
+		return fmt.Errorf("[ResourceGlobalVrouterConfigRefsDelete] Set refs on object GlobalVrouterConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objGlobalVrouterConfig.GetHref())
+	if err := client.Update(objGlobalVrouterConfig); err != nil {
+		return fmt.Errorf("[ResourceGlobalVrouterConfigRefsDelete] Delete refs for resource GlobalVrouterConfig (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objGlobalVrouterConfig.GetUuid())
 	return nil
 }
 

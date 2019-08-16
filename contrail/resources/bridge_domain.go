@@ -89,6 +89,26 @@ func SetRefsBridgeDomainFromResource(object *BridgeDomain, d *schema.ResourceDat
 	return nil
 }
 
+func DeleteRefsBridgeDomainFromResource(object *BridgeDomain, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsBridgeDomainFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteBridgeDomainToResource(object BridgeDomain, d *schema.ResourceData, m interface{}) {
 
 	d.Set("mac_learning_enabled", object.GetMacLearningEnabled())
@@ -302,7 +322,31 @@ func ResourceBridgeDomainDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBridgeDomainRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBridgeDomainRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceBridgeDomainRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceBridgeDomainRefsDelete] Missing 'uuid' field for resource BridgeDomain")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("bridge-domain", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceBridgeDomainRefsDelete] Retrieving BridgeDomain with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objBridgeDomain := obj.(*BridgeDomain) // Fully set by Contrail backend
+	if err := DeleteRefsBridgeDomainFromResource(objBridgeDomain, d, m); err != nil {
+		return fmt.Errorf("[ResourceBridgeDomainRefsDelete] Set refs on object BridgeDomain (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objBridgeDomain.GetHref())
+	if err := client.Update(objBridgeDomain); err != nil {
+		return fmt.Errorf("[ResourceBridgeDomainRefsDelete] Delete refs for resource BridgeDomain (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objBridgeDomain.GetUuid())
 	return nil
 }
 

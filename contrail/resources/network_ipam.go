@@ -97,6 +97,34 @@ func SetRefsNetworkIpamFromResource(object *NetworkIpam, d *schema.ResourceData,
 	return nil
 }
 
+func DeleteRefsNetworkIpamFromResource(object *NetworkIpam, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsNetworkIpamFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_dns_refs"); ok {
+		log.Printf("Got ref virtual_dns_refs -- will call: object.DeleteVirtualDns(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualDns(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteNetworkIpamToResource(object NetworkIpam, d *schema.ResourceData, m interface{}) {
 
 	network_ipam_mgmtObj := object.GetNetworkIpamMgmt()
@@ -296,7 +324,31 @@ func ResourceNetworkIpamDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceNetworkIpamRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkIpamRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceNetworkIpamRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceNetworkIpamRefsDelete] Missing 'uuid' field for resource NetworkIpam")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("network-ipam", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkIpamRefsDelete] Retrieving NetworkIpam with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objNetworkIpam := obj.(*NetworkIpam) // Fully set by Contrail backend
+	if err := DeleteRefsNetworkIpamFromResource(objNetworkIpam, d, m); err != nil {
+		return fmt.Errorf("[ResourceNetworkIpamRefsDelete] Set refs on object NetworkIpam (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objNetworkIpam.GetHref())
+	if err := client.Update(objNetworkIpam); err != nil {
+		return fmt.Errorf("[ResourceNetworkIpamRefsDelete] Delete refs for resource NetworkIpam (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objNetworkIpam.GetUuid())
 	return nil
 }
 

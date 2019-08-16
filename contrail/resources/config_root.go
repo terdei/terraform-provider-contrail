@@ -70,6 +70,26 @@ func SetRefsConfigRootFromResource(object *ConfigRoot, d *schema.ResourceData, m
 	return nil
 }
 
+func DeleteRefsConfigRootFromResource(object *ConfigRoot, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsConfigRootFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteConfigRootToResource(object ConfigRoot, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -240,7 +260,31 @@ func ResourceConfigRootDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceConfigRootRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceConfigRootRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceConfigRootRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceConfigRootRefsDelete] Missing 'uuid' field for resource ConfigRoot")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("config-root", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceConfigRootRefsDelete] Retrieving ConfigRoot with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objConfigRoot := obj.(*ConfigRoot) // Fully set by Contrail backend
+	if err := DeleteRefsConfigRootFromResource(objConfigRoot, d, m); err != nil {
+		return fmt.Errorf("[ResourceConfigRootRefsDelete] Set refs on object ConfigRoot (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objConfigRoot.GetHref())
+	if err := client.Update(objConfigRoot); err != nil {
+		return fmt.Errorf("[ResourceConfigRootRefsDelete] Delete refs for resource ConfigRoot (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objConfigRoot.GetUuid())
 	return nil
 }
 

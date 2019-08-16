@@ -104,6 +104,42 @@ func SetRefsApplicationPolicySetFromResource(object *ApplicationPolicySet, d *sc
 	return nil
 }
 
+func DeleteRefsApplicationPolicySetFromResource(object *ApplicationPolicySet, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsApplicationPolicySetFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("firewall_policy_refs"); ok {
+		log.Printf("Got ref firewall_policy_refs -- will call: object.DeleteFirewallPolicy(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteFirewallPolicy(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("global_vrouter_config_refs"); ok {
+		log.Printf("Got ref global_vrouter_config_refs -- will call: object.DeleteGlobalVrouterConfig(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteGlobalVrouterConfig(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteApplicationPolicySetToResource(object ApplicationPolicySet, d *schema.ResourceData, m interface{}) {
 
 	d.Set("all_applications", object.GetAllApplications())
@@ -281,7 +317,31 @@ func ResourceApplicationPolicySetDelete(d *schema.ResourceData, m interface{}) e
 }
 
 func ResourceApplicationPolicySetRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceApplicationPolicySetRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceApplicationPolicySetRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceApplicationPolicySetRefsDelete] Missing 'uuid' field for resource ApplicationPolicySet")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("application-policy-set", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceApplicationPolicySetRefsDelete] Retrieving ApplicationPolicySet with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objApplicationPolicySet := obj.(*ApplicationPolicySet) // Fully set by Contrail backend
+	if err := DeleteRefsApplicationPolicySetFromResource(objApplicationPolicySet, d, m); err != nil {
+		return fmt.Errorf("[ResourceApplicationPolicySetRefsDelete] Set refs on object ApplicationPolicySet (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objApplicationPolicySet.GetHref())
+	if err := client.Update(objApplicationPolicySet); err != nil {
+		return fmt.Errorf("[ResourceApplicationPolicySetRefsDelete] Delete refs for resource ApplicationPolicySet (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objApplicationPolicySet.GetUuid())
 	return nil
 }
 

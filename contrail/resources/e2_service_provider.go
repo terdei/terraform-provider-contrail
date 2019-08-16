@@ -101,6 +101,42 @@ func SetRefsE2ServiceProviderFromResource(object *E2ServiceProvider, d *schema.R
 	return nil
 }
 
+func DeleteRefsE2ServiceProviderFromResource(object *E2ServiceProvider, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsE2ServiceProviderFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("peering_policy_refs"); ok {
+		log.Printf("Got ref peering_policy_refs -- will call: object.DeletePeeringPolicy(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePeeringPolicy(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("physical_router_refs"); ok {
+		log.Printf("Got ref physical_router_refs -- will call: object.DeletePhysicalRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePhysicalRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteE2ServiceProviderToResource(object E2ServiceProvider, d *schema.ResourceData, m interface{}) {
 
 	d.Set("e2_service_provider_promiscuous", object.GetE2ServiceProviderPromiscuous())
@@ -278,7 +314,31 @@ func ResourceE2ServiceProviderDelete(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourceE2ServiceProviderRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceE2ServiceProviderRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceE2ServiceProviderRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceE2ServiceProviderRefsDelete] Missing 'uuid' field for resource E2ServiceProvider")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("e2-service-provider", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceE2ServiceProviderRefsDelete] Retrieving E2ServiceProvider with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objE2ServiceProvider := obj.(*E2ServiceProvider) // Fully set by Contrail backend
+	if err := DeleteRefsE2ServiceProviderFromResource(objE2ServiceProvider, d, m); err != nil {
+		return fmt.Errorf("[ResourceE2ServiceProviderRefsDelete] Set refs on object E2ServiceProvider (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objE2ServiceProvider.GetHref())
+	if err := client.Update(objE2ServiceProvider); err != nil {
+		return fmt.Errorf("[ResourceE2ServiceProviderRefsDelete] Delete refs for resource E2ServiceProvider (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objE2ServiceProvider.GetUuid())
 	return nil
 }
 

@@ -176,6 +176,82 @@ func SetRefsLogicalRouterFromResource(object *LogicalRouter, d *schema.ResourceD
 	return nil
 }
 
+func DeleteRefsLogicalRouterFromResource(object *LogicalRouter, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsLogicalRouterFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("route_target_refs"); ok {
+		log.Printf("Got ref route_target_refs -- will call: object.DeleteRouteTarget(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteRouteTarget(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("route_table_refs"); ok {
+		log.Printf("Got ref route_table_refs -- will call: object.DeleteRouteTable(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteRouteTable(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.DeleteVirtualNetwork(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualNetwork(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("service_instance_refs"); ok {
+		log.Printf("Got ref service_instance_refs -- will call: object.DeleteServiceInstance(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceInstance(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("physical_router_refs"); ok {
+		log.Printf("Got ref physical_router_refs -- will call: object.DeletePhysicalRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePhysicalRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("bgpvpn_refs"); ok {
+		log.Printf("Got ref bgpvpn_refs -- will call: object.DeleteBgpvpn(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteBgpvpn(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteLogicalRouterToResource(object LogicalRouter, d *schema.ResourceData, m interface{}) {
 
 	configured_route_target_listObj := object.GetConfiguredRouteTargetList()
@@ -364,7 +440,31 @@ func ResourceLogicalRouterDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceLogicalRouterRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLogicalRouterRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceLogicalRouterRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceLogicalRouterRefsDelete] Missing 'uuid' field for resource LogicalRouter")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("logical-router", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceLogicalRouterRefsDelete] Retrieving LogicalRouter with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objLogicalRouter := obj.(*LogicalRouter) // Fully set by Contrail backend
+	if err := DeleteRefsLogicalRouterFromResource(objLogicalRouter, d, m); err != nil {
+		return fmt.Errorf("[ResourceLogicalRouterRefsDelete] Set refs on object LogicalRouter (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objLogicalRouter.GetHref())
+	if err := client.Update(objLogicalRouter); err != nil {
+		return fmt.Errorf("[ResourceLogicalRouterRefsDelete] Delete refs for resource LogicalRouter (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objLogicalRouter.GetUuid())
 	return nil
 }
 

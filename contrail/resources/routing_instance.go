@@ -70,6 +70,26 @@ func SetRefsRoutingInstanceFromResource(object *RoutingInstance, d *schema.Resou
 	return nil
 }
 
+func DeleteRefsRoutingInstanceFromResource(object *RoutingInstance, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsRoutingInstanceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteRoutingInstanceToResource(object RoutingInstance, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -240,7 +260,31 @@ func ResourceRoutingInstanceDelete(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceRoutingInstanceRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceRoutingInstanceRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceRoutingInstanceRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceRoutingInstanceRefsDelete] Missing 'uuid' field for resource RoutingInstance")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("routing-instance", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceRoutingInstanceRefsDelete] Retrieving RoutingInstance with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objRoutingInstance := obj.(*RoutingInstance) // Fully set by Contrail backend
+	if err := DeleteRefsRoutingInstanceFromResource(objRoutingInstance, d, m); err != nil {
+		return fmt.Errorf("[ResourceRoutingInstanceRefsDelete] Set refs on object RoutingInstance (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objRoutingInstance.GetHref())
+	if err := client.Update(objRoutingInstance); err != nil {
+		return fmt.Errorf("[ResourceRoutingInstanceRefsDelete] Delete refs for resource RoutingInstance (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objRoutingInstance.GetUuid())
 	return nil
 }
 

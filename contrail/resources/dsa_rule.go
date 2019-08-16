@@ -75,6 +75,26 @@ func SetRefsDsaRuleFromResource(object *DsaRule, d *schema.ResourceData, m inter
 	return nil
 }
 
+func DeleteRefsDsaRuleFromResource(object *DsaRule, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsDsaRuleFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteDsaRuleToResource(object DsaRule, d *schema.ResourceData, m interface{}) {
 
 	dsa_rule_entryObj := object.GetDsaRuleEntry()
@@ -256,7 +276,31 @@ func ResourceDsaRuleDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceDsaRuleRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceDsaRuleRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceDsaRuleRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceDsaRuleRefsDelete] Missing 'uuid' field for resource DsaRule")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("dsa-rule", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceDsaRuleRefsDelete] Retrieving DsaRule with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objDsaRule := obj.(*DsaRule) // Fully set by Contrail backend
+	if err := DeleteRefsDsaRuleFromResource(objDsaRule, d, m); err != nil {
+		return fmt.Errorf("[ResourceDsaRuleRefsDelete] Set refs on object DsaRule (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objDsaRule.GetHref())
+	if err := client.Update(objDsaRule); err != nil {
+		return fmt.Errorf("[ResourceDsaRuleRefsDelete] Delete refs for resource DsaRule (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objDsaRule.GetUuid())
 	return nil
 }
 

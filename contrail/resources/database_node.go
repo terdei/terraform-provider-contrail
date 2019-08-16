@@ -73,6 +73,26 @@ func SetRefsDatabaseNodeFromResource(object *DatabaseNode, d *schema.ResourceDat
 	return nil
 }
 
+func DeleteRefsDatabaseNodeFromResource(object *DatabaseNode, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsDatabaseNodeFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteDatabaseNodeToResource(object DatabaseNode, d *schema.ResourceData, m interface{}) {
 
 	d.Set("database_node_ip_address", object.GetDatabaseNodeIpAddress())
@@ -250,7 +270,31 @@ func ResourceDatabaseNodeDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceDatabaseNodeRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceDatabaseNodeRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceDatabaseNodeRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceDatabaseNodeRefsDelete] Missing 'uuid' field for resource DatabaseNode")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("database-node", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceDatabaseNodeRefsDelete] Retrieving DatabaseNode with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objDatabaseNode := obj.(*DatabaseNode) // Fully set by Contrail backend
+	if err := DeleteRefsDatabaseNodeFromResource(objDatabaseNode, d, m); err != nil {
+		return fmt.Errorf("[ResourceDatabaseNodeRefsDelete] Set refs on object DatabaseNode (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objDatabaseNode.GetHref())
+	if err := client.Update(objDatabaseNode); err != nil {
+		return fmt.Errorf("[ResourceDatabaseNodeRefsDelete] Delete refs for resource DatabaseNode (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objDatabaseNode.GetUuid())
 	return nil
 }
 

@@ -92,6 +92,34 @@ func SetRefsInterfaceRouteTableFromResource(object *InterfaceRouteTable, d *sche
 	return nil
 }
 
+func DeleteRefsInterfaceRouteTableFromResource(object *InterfaceRouteTable, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsInterfaceRouteTableFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_instance_refs"); ok {
+		log.Printf("Got ref service_instance_refs -- will call: object.DeleteServiceInstance(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceInstance(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteInterfaceRouteTableToResource(object InterfaceRouteTable, d *schema.ResourceData, m interface{}) {
 
 	interface_route_table_routesObj := object.GetInterfaceRouteTableRoutes()
@@ -273,7 +301,31 @@ func ResourceInterfaceRouteTableDelete(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceInterfaceRouteTableRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceInterfaceRouteTableRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceInterfaceRouteTableRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceInterfaceRouteTableRefsDelete] Missing 'uuid' field for resource InterfaceRouteTable")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("interface-route-table", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceInterfaceRouteTableRefsDelete] Retrieving InterfaceRouteTable with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objInterfaceRouteTable := obj.(*InterfaceRouteTable) // Fully set by Contrail backend
+	if err := DeleteRefsInterfaceRouteTableFromResource(objInterfaceRouteTable, d, m); err != nil {
+		return fmt.Errorf("[ResourceInterfaceRouteTableRefsDelete] Set refs on object InterfaceRouteTable (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objInterfaceRouteTable.GetHref())
+	if err := client.Update(objInterfaceRouteTable); err != nil {
+		return fmt.Errorf("[ResourceInterfaceRouteTableRefsDelete] Delete refs for resource InterfaceRouteTable (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objInterfaceRouteTable.GetUuid())
 	return nil
 }
 

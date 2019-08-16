@@ -75,6 +75,26 @@ func SetRefsFloatingIpPoolFromResource(object *FloatingIpPool, d *schema.Resourc
 	return nil
 }
 
+func DeleteRefsFloatingIpPoolFromResource(object *FloatingIpPool, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsFloatingIpPoolFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteFloatingIpPoolToResource(object FloatingIpPool, d *schema.ResourceData, m interface{}) {
 
 	floating_ip_pool_subnetsObj := object.GetFloatingIpPoolSubnets()
@@ -256,7 +276,31 @@ func ResourceFloatingIpPoolDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFloatingIpPoolRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFloatingIpPoolRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceFloatingIpPoolRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceFloatingIpPoolRefsDelete] Missing 'uuid' field for resource FloatingIpPool")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("floating-ip-pool", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceFloatingIpPoolRefsDelete] Retrieving FloatingIpPool with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objFloatingIpPool := obj.(*FloatingIpPool) // Fully set by Contrail backend
+	if err := DeleteRefsFloatingIpPoolFromResource(objFloatingIpPool, d, m); err != nil {
+		return fmt.Errorf("[ResourceFloatingIpPoolRefsDelete] Set refs on object FloatingIpPool (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objFloatingIpPool.GetHref())
+	if err := client.Update(objFloatingIpPool); err != nil {
+		return fmt.Errorf("[ResourceFloatingIpPoolRefsDelete] Delete refs for resource FloatingIpPool (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objFloatingIpPool.GetUuid())
 	return nil
 }
 

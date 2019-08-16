@@ -70,6 +70,26 @@ func SetRefsPolicyManagementFromResource(object *PolicyManagement, d *schema.Res
 	return nil
 }
 
+func DeleteRefsPolicyManagementFromResource(object *PolicyManagement, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsPolicyManagementFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WritePolicyManagementToResource(object PolicyManagement, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -240,7 +260,31 @@ func ResourcePolicyManagementDelete(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourcePolicyManagementRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePolicyManagementRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourcePolicyManagementRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourcePolicyManagementRefsDelete] Missing 'uuid' field for resource PolicyManagement")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("policy-management", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourcePolicyManagementRefsDelete] Retrieving PolicyManagement with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objPolicyManagement := obj.(*PolicyManagement) // Fully set by Contrail backend
+	if err := DeleteRefsPolicyManagementFromResource(objPolicyManagement, d, m); err != nil {
+		return fmt.Errorf("[ResourcePolicyManagementRefsDelete] Set refs on object PolicyManagement (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objPolicyManagement.GetHref())
+	if err := client.Update(objPolicyManagement); err != nil {
+		return fmt.Errorf("[ResourcePolicyManagementRefsDelete] Delete refs for resource PolicyManagement (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objPolicyManagement.GetUuid())
 	return nil
 }
 

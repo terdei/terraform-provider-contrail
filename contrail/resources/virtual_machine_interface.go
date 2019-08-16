@@ -329,6 +329,138 @@ func SetRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface,
 	return nil
 }
 
+func DeleteRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsVirtualMachineInterfaceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("security_logging_object_refs"); ok {
+		log.Printf("Got ref security_logging_object_refs -- will call: object.DeleteSecurityLoggingObject(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteSecurityLoggingObject(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("qos_config_refs"); ok {
+		log.Printf("Got ref qos_config_refs -- will call: object.DeleteQosConfig(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteQosConfig(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("security_group_refs"); ok {
+		log.Printf("Got ref security_group_refs -- will call: object.DeleteSecurityGroup(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteSecurityGroup(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_machine_refs"); ok {
+		log.Printf("Got ref virtual_machine_refs -- will call: object.DeleteVirtualMachine(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachine(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.DeleteVirtualNetwork(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualNetwork(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("routing_instance_refs"); ok {
+		log.Printf("Got ref routing_instance_refs -- will call: object.DeleteRoutingInstance(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteRoutingInstance(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("bgp_router_refs"); ok {
+		log.Printf("Got ref bgp_router_refs -- will call: object.DeleteBgpRouter(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteBgpRouter(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("port_tuple_refs"); ok {
+		log.Printf("Got ref port_tuple_refs -- will call: object.DeletePortTuple(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePortTuple(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("service_health_check_refs"); ok {
+		log.Printf("Got ref service_health_check_refs -- will call: object.DeleteServiceHealthCheck(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceHealthCheck(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("interface_route_table_refs"); ok {
+		log.Printf("Got ref interface_route_table_refs -- will call: object.DeleteInterfaceRouteTable(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteInterfaceRouteTable(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("physical_interface_refs"); ok {
+		log.Printf("Got ref physical_interface_refs -- will call: object.DeletePhysicalInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeletePhysicalInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("bridge_domain_refs"); ok {
+		log.Printf("Got ref bridge_domain_refs -- will call: object.DeleteBridgeDomain(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteBridgeDomain(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("service_endpoint_refs"); ok {
+		log.Printf("Got ref service_endpoint_refs -- will call: object.DeleteServiceEndpoint(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceEndpoint(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteVirtualMachineInterfaceToResource(object VirtualMachineInterface, d *schema.ResourceData, m interface{}) {
 
 	ecmp_hashing_include_fieldsObj := object.GetEcmpHashingIncludeFields()
@@ -626,7 +758,31 @@ func ResourceVirtualMachineInterfaceDelete(d *schema.ResourceData, m interface{}
 }
 
 func ResourceVirtualMachineInterfaceRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualMachineInterfaceRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceVirtualMachineInterfaceRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceRefsDelete] Missing 'uuid' field for resource VirtualMachineInterface")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("virtual-machine-interface", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceRefsDelete] Retrieving VirtualMachineInterface with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objVirtualMachineInterface := obj.(*VirtualMachineInterface) // Fully set by Contrail backend
+	if err := DeleteRefsVirtualMachineInterfaceFromResource(objVirtualMachineInterface, d, m); err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceRefsDelete] Set refs on object VirtualMachineInterface (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objVirtualMachineInterface.GetHref())
+	if err := client.Update(objVirtualMachineInterface); err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceRefsDelete] Delete refs for resource VirtualMachineInterface (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objVirtualMachineInterface.GetUuid())
 	return nil
 }
 

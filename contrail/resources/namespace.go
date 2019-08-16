@@ -75,6 +75,26 @@ func SetRefsNamespaceFromResource(object *Namespace, d *schema.ResourceData, m i
 	return nil
 }
 
+func DeleteRefsNamespaceFromResource(object *Namespace, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsNamespaceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteNamespaceToResource(object Namespace, d *schema.ResourceData, m interface{}) {
 
 	namespace_cidrObj := object.GetNamespaceCidr()
@@ -256,7 +276,31 @@ func ResourceNamespaceDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceNamespaceRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNamespaceRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceNamespaceRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceNamespaceRefsDelete] Missing 'uuid' field for resource Namespace")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("namespace", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceNamespaceRefsDelete] Retrieving Namespace with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objNamespace := obj.(*Namespace) // Fully set by Contrail backend
+	if err := DeleteRefsNamespaceFromResource(objNamespace, d, m); err != nil {
+		return fmt.Errorf("[ResourceNamespaceRefsDelete] Set refs on object Namespace (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objNamespace.GetHref())
+	if err := client.Update(objNamespace); err != nil {
+		return fmt.Errorf("[ResourceNamespaceRefsDelete] Delete refs for resource Namespace (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objNamespace.GetUuid())
 	return nil
 }
 

@@ -75,6 +75,26 @@ func SetRefsAddressGroupFromResource(object *AddressGroup, d *schema.ResourceDat
 	return nil
 }
 
+func DeleteRefsAddressGroupFromResource(object *AddressGroup, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsAddressGroupFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteAddressGroupToResource(object AddressGroup, d *schema.ResourceData, m interface{}) {
 
 	address_group_prefixObj := object.GetAddressGroupPrefix()
@@ -256,7 +276,31 @@ func ResourceAddressGroupDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceAddressGroupRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceAddressGroupRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceAddressGroupRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceAddressGroupRefsDelete] Missing 'uuid' field for resource AddressGroup")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("address-group", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceAddressGroupRefsDelete] Retrieving AddressGroup with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objAddressGroup := obj.(*AddressGroup) // Fully set by Contrail backend
+	if err := DeleteRefsAddressGroupFromResource(objAddressGroup, d, m); err != nil {
+		return fmt.Errorf("[ResourceAddressGroupRefsDelete] Set refs on object AddressGroup (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objAddressGroup.GetHref())
+	if err := client.Update(objAddressGroup); err != nil {
+		return fmt.Errorf("[ResourceAddressGroupRefsDelete] Delete refs for resource AddressGroup (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objAddressGroup.GetUuid())
 	return nil
 }
 

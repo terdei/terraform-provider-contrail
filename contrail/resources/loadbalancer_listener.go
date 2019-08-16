@@ -89,6 +89,34 @@ func SetRefsLoadbalancerListenerFromResource(object *LoadbalancerListener, d *sc
 	return nil
 }
 
+func DeleteRefsLoadbalancerListenerFromResource(object *LoadbalancerListener, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsLoadbalancerListenerFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("loadbalancer_refs"); ok {
+		log.Printf("Got ref loadbalancer_refs -- will call: object.DeleteLoadbalancer(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteLoadbalancer(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteLoadbalancerListenerToResource(object LoadbalancerListener, d *schema.ResourceData, m interface{}) {
 
 	loadbalancer_listener_propertiesObj := object.GetLoadbalancerListenerProperties()
@@ -270,7 +298,31 @@ func ResourceLoadbalancerListenerDelete(d *schema.ResourceData, m interface{}) e
 }
 
 func ResourceLoadbalancerListenerRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerListenerRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceLoadbalancerListenerRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceLoadbalancerListenerRefsDelete] Missing 'uuid' field for resource LoadbalancerListener")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("loadbalancer-listener", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerListenerRefsDelete] Retrieving LoadbalancerListener with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objLoadbalancerListener := obj.(*LoadbalancerListener) // Fully set by Contrail backend
+	if err := DeleteRefsLoadbalancerListenerFromResource(objLoadbalancerListener, d, m); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerListenerRefsDelete] Set refs on object LoadbalancerListener (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objLoadbalancerListener.GetHref())
+	if err := client.Update(objLoadbalancerListener); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerListenerRefsDelete] Delete refs for resource LoadbalancerListener (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objLoadbalancerListener.GetUuid())
 	return nil
 }
 

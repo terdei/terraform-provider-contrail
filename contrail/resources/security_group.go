@@ -78,6 +78,26 @@ func SetRefsSecurityGroupFromResource(object *SecurityGroup, d *schema.ResourceD
 	return nil
 }
 
+func DeleteRefsSecurityGroupFromResource(object *SecurityGroup, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsSecurityGroupFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteSecurityGroupToResource(object SecurityGroup, d *schema.ResourceData, m interface{}) {
 
 	d.Set("configured_security_group_id", object.GetConfiguredSecurityGroupId())
@@ -266,7 +286,31 @@ func ResourceSecurityGroupDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceSecurityGroupRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceSecurityGroupRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceSecurityGroupRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceSecurityGroupRefsDelete] Missing 'uuid' field for resource SecurityGroup")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("security-group", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceSecurityGroupRefsDelete] Retrieving SecurityGroup with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objSecurityGroup := obj.(*SecurityGroup) // Fully set by Contrail backend
+	if err := DeleteRefsSecurityGroupFromResource(objSecurityGroup, d, m); err != nil {
+		return fmt.Errorf("[ResourceSecurityGroupRefsDelete] Set refs on object SecurityGroup (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objSecurityGroup.GetHref())
+	if err := client.Update(objSecurityGroup); err != nil {
+		return fmt.Errorf("[ResourceSecurityGroupRefsDelete] Delete refs for resource SecurityGroup (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objSecurityGroup.GetUuid())
 	return nil
 }
 

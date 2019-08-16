@@ -111,6 +111,42 @@ func SetRefsServiceInstanceFromResource(object *ServiceInstance, d *schema.Resou
 	return nil
 }
 
+func DeleteRefsServiceInstanceFromResource(object *ServiceInstance, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsServiceInstanceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_template_refs"); ok {
+		log.Printf("Got ref service_template_refs -- will call: object.DeleteServiceTemplate(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteServiceTemplate(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("instance_ip_refs"); ok {
+		log.Printf("Got ref instance_ip_refs -- will call: object.DeleteInstanceIp(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteInstanceIp(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteServiceInstanceToResource(object ServiceInstance, d *schema.ResourceData, m interface{}) {
 
 	service_instance_propertiesObj := object.GetServiceInstanceProperties()
@@ -303,7 +339,31 @@ func ResourceServiceInstanceDelete(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceServiceInstanceRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceInstanceRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceServiceInstanceRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceServiceInstanceRefsDelete] Missing 'uuid' field for resource ServiceInstance")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("service-instance", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceInstanceRefsDelete] Retrieving ServiceInstance with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objServiceInstance := obj.(*ServiceInstance) // Fully set by Contrail backend
+	if err := DeleteRefsServiceInstanceFromResource(objServiceInstance, d, m); err != nil {
+		return fmt.Errorf("[ResourceServiceInstanceRefsDelete] Set refs on object ServiceInstance (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objServiceInstance.GetHref())
+	if err := client.Update(objServiceInstance); err != nil {
+		return fmt.Errorf("[ResourceServiceInstanceRefsDelete] Delete refs for resource ServiceInstance (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objServiceInstance.GetUuid())
 	return nil
 }
 

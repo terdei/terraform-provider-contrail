@@ -121,6 +121,42 @@ func SetRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m
 	return nil
 }
 
+func DeleteRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsFloatingIpFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("project_refs"); ok {
+		log.Printf("Got ref project_refs -- will call: object.DeleteProject(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteProject(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteVirtualMachineInterface(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteFloatingIpToResource(object FloatingIp, d *schema.ResourceData, m interface{}) {
 
 	d.Set("floating_ip_address", object.GetFloatingIpAddress())
@@ -344,7 +380,31 @@ func ResourceFloatingIpDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFloatingIpRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFloatingIpRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceFloatingIpRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceFloatingIpRefsDelete] Missing 'uuid' field for resource FloatingIp")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("floating-ip", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceFloatingIpRefsDelete] Retrieving FloatingIp with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objFloatingIp := obj.(*FloatingIp) // Fully set by Contrail backend
+	if err := DeleteRefsFloatingIpFromResource(objFloatingIp, d, m); err != nil {
+		return fmt.Errorf("[ResourceFloatingIpRefsDelete] Set refs on object FloatingIp (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objFloatingIp.GetHref())
+	if err := client.Update(objFloatingIp); err != nil {
+		return fmt.Errorf("[ResourceFloatingIpRefsDelete] Delete refs for resource FloatingIp (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objFloatingIp.GetUuid())
 	return nil
 }
 

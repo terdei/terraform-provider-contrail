@@ -70,6 +70,26 @@ func SetRefsAliasIpPoolFromResource(object *AliasIpPool, d *schema.ResourceData,
 	return nil
 }
 
+func DeleteRefsAliasIpPoolFromResource(object *AliasIpPool, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsAliasIpPoolFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteAliasIpPoolToResource(object AliasIpPool, d *schema.ResourceData, m interface{}) {
 
 	id_permsObj := object.GetIdPerms()
@@ -240,7 +260,31 @@ func ResourceAliasIpPoolDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceAliasIpPoolRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceAliasIpPoolRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceAliasIpPoolRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceAliasIpPoolRefsDelete] Missing 'uuid' field for resource AliasIpPool")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("alias-ip-pool", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceAliasIpPoolRefsDelete] Retrieving AliasIpPool with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objAliasIpPool := obj.(*AliasIpPool) // Fully set by Contrail backend
+	if err := DeleteRefsAliasIpPoolFromResource(objAliasIpPool, d, m); err != nil {
+		return fmt.Errorf("[ResourceAliasIpPoolRefsDelete] Set refs on object AliasIpPool (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objAliasIpPool.GetHref())
+	if err := client.Update(objAliasIpPool); err != nil {
+		return fmt.Errorf("[ResourceAliasIpPoolRefsDelete] Delete refs for resource AliasIpPool (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objAliasIpPool.GetUuid())
 	return nil
 }
 

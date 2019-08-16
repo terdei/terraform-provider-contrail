@@ -90,6 +90,34 @@ func SetRefsTagFromResource(object *Tag, d *schema.ResourceData, m interface{}, 
 	return nil
 }
 
+func DeleteRefsTagFromResource(object *Tag, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[DeleteRefsTagFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("tag_type_refs"); ok {
+		log.Printf("Got ref tag_type_refs -- will call: object.DeleteTagType(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTagType(refId.(string))
+		}
+	}
+	if val, ok := d.GetOk("tag_refs"); ok {
+		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			object.DeleteTag(refId.(string))
+		}
+	}
+
+	return nil
+}
+
 func WriteTagToResource(object Tag, d *schema.ResourceData, m interface{}) {
 
 	d.Set("tag_type_name", object.GetTagTypeName())
@@ -274,7 +302,31 @@ func ResourceTagDelete(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceTagRefsDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceTagRefsDelete: %v", d.Id())
+	// SPEW
+	log.Printf("ResourceTagRefsDelete")
+	//log.Printf("SPEW: %v", spew.Sdump(d))
+	// SPEW
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	uuid_obj, ok := d.GetOk("uuid")
+	if ok == false {
+		return fmt.Errorf("[ResourceTagRefsDelete] Missing 'uuid' field for resource Tag")
+	}
+	uuid := uuid_obj.(string)
+	obj, err := client.FindByUuid("tag", uuid)
+	if err != nil {
+		return fmt.Errorf("[ResourceTagRefsDelete] Retrieving Tag with uuid %s on %v (%v)", uuid, client.GetServer(), err)
+	}
+	objTag := obj.(*Tag) // Fully set by Contrail backend
+	if err := DeleteRefsTagFromResource(objTag, d, m); err != nil {
+		return fmt.Errorf("[ResourceTagRefsDelete] Set refs on object Tag (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	log.Printf("Object href: %v", objTag.GetHref())
+	if err := client.Update(objTag); err != nil {
+		return fmt.Errorf("[ResourceTagRefsDelete] Delete refs for resource Tag (uuid: %v) on %v (%v)", uuid, client.GetServer(), err)
+	}
+	d.SetId(objTag.GetUuid())
 	return nil
 }
 
