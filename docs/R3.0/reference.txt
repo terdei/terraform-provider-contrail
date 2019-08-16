@@ -462,7 +462,6 @@ resource "contrail_virtual_network" <name> {
 	ecmp_hashing_include_fields = <contrail_EcmpHashingIncludeFields>
 	virtual_network_properties = <contrail_VirtualNetworkType>
 	provider_properties = <contrail_ProviderDetails>
-	virtual_network_network_id = <schema.TypeInt>
 	route_target_list = <contrail_RouteTargetList>
 	import_route_target_list = <contrail_RouteTargetList>
 	export_route_target_list = <contrail_RouteTargetList>

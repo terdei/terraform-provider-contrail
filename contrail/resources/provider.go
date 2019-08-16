@@ -1,4 +1,4 @@
-package contrail
+package resources
 
 import (
 	"fmt"
@@ -8,15 +8,13 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 
 	"log"
-
-	"github.com/terraform-provider-contrail/contrail/resources"
 )
 
 var mutexKV = mutexkv.NewMutexKV()
 
 // Provider is a terraform provider implementation
 func Provider() *schema.Provider {
-	log.Printf("Resources map (for custom Contrail provider): %+v", resources.ContrailResourcesMap)
+	log.Printf("Resources map (for custom Contrail provider): %+v", ContrailResourcesMap)
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"server": &schema.Schema{
@@ -63,7 +61,7 @@ func Provider() *schema.Provider {
 				Description: descriptions["auth_url"],
 			},
 		},
-		ResourcesMap:  resources.ContrailResourcesMap,
+		ResourcesMap:  ContrailResourcesMap,
 		ConfigureFunc: providerConfigure,
 	}
 }

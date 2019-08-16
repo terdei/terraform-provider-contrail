@@ -41,9 +41,6 @@ func SetVirtualNetworkFromResource(object *VirtualNetwork, d *schema.ResourceDat
 	if val, ok := d.GetOk("is_provider_network"); ok {
 		object.SetIsProviderNetwork(val.(bool))
 	}
-	if val, ok := d.GetOk("virtual_network_network_id"); ok {
-		object.SetVirtualNetworkNetworkId(val.(int))
-	}
 	if val, ok := d.GetOk("port_security_enabled"); ok {
 		object.SetPortSecurityEnabled(val.(bool))
 	}
@@ -265,7 +262,7 @@ func WriteVirtualNetworkToResource(object VirtualNetwork, d *schema.ResourceData
 	provider_propertiesObj := object.GetProviderProperties()
 	d.Set("provider_properties", TakeProviderDetailsAsMap(&provider_propertiesObj))
 	d.Set("is_provider_network", object.GetIsProviderNetwork())
-	d.Set("virtual_network_network_id", object.GetVirtualNetworkNetworkId())
+
 	d.Set("port_security_enabled", object.GetPortSecurityEnabled())
 	route_target_listObj := object.GetRouteTargetList()
 	d.Set("route_target_list", TakeRouteTargetListAsMap(&route_target_listObj))
@@ -308,7 +305,6 @@ func TakeVirtualNetworkAsMap(object *VirtualNetwork) map[string]interface{} {
 	provider_propertiesObj := object.GetProviderProperties()
 	omap["provider_properties"] = TakeProviderDetailsAsMap(&provider_propertiesObj)
 	omap["is_provider_network"] = object.GetIsProviderNetwork()
-	omap["virtual_network_network_id"] = object.GetVirtualNetworkNetworkId()
 	omap["port_security_enabled"] = object.GetPortSecurityEnabled()
 	route_target_listObj := object.GetRouteTargetList()
 	omap["route_target_list"] = TakeRouteTargetListAsMap(&route_target_listObj)
@@ -374,11 +370,7 @@ func UpdateVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resource
 			object.SetIsProviderNetwork(val.(bool))
 		}
 	}
-	if d.HasChange("virtual_network_network_id") {
-		if val, ok := d.GetOk("virtual_network_network_id"); ok {
-			object.SetVirtualNetworkNetworkId(val.(int))
-		}
-	}
+
 	if d.HasChange("port_security_enabled") {
 		if val, ok := d.GetOk("port_security_enabled"); ok {
 			object.SetPortSecurityEnabled(val.(bool))
@@ -645,10 +637,6 @@ func ResourceVirtualNetworkSchema() map[string]*schema.Schema {
 		"is_provider_network": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeBool,
-		},
-		"virtual_network_network_id": &schema.Schema{
-			Optional: true,
-			Type:     schema.TypeInt,
 		},
 		"port_security_enabled": &schema.Schema{
 			Optional: true,

@@ -16,7 +16,6 @@ const (
 	virtual_network_virtual_network_properties
 	virtual_network_provider_properties
 	virtual_network_is_provider_network
-	virtual_network_virtual_network_network_id
 	virtual_network_port_security_enabled
 	virtual_network_route_target_list
 	virtual_network_import_route_target_list
@@ -65,7 +64,6 @@ type VirtualNetwork struct {
 	virtual_network_properties          VirtualNetworkType
 	provider_properties                 ProviderDetails
 	is_provider_network                 bool
-	virtual_network_network_id          int
 	port_security_enabled               bool
 	route_target_list                   RouteTargetList
 	import_route_target_list            RouteTargetList
@@ -189,15 +187,6 @@ func (obj *VirtualNetwork) GetIsProviderNetwork() bool {
 func (obj *VirtualNetwork) SetIsProviderNetwork(value bool) {
 	obj.is_provider_network = value
 	obj.modified.SetBit(&obj.modified, virtual_network_is_provider_network, 1)
-}
-
-func (obj *VirtualNetwork) GetVirtualNetworkNetworkId() int {
-	return obj.virtual_network_network_id
-}
-
-func (obj *VirtualNetwork) SetVirtualNetworkNetworkId(value int) {
-	obj.virtual_network_network_id = value
-	obj.modified.SetBit(&obj.modified, virtual_network_virtual_network_network_id, 1)
 }
 
 func (obj *VirtualNetwork) GetPortSecurityEnabled() bool {
@@ -1324,15 +1313,6 @@ func (obj *VirtualNetwork) MarshalJSON() ([]byte, error) {
 		msg["is_provider_network"] = &value
 	}
 
-	if obj.modified.Bit(virtual_network_virtual_network_network_id) != 0 {
-		var value json.RawMessage
-		value, err := json.Marshal(&obj.virtual_network_network_id)
-		if err != nil {
-			return nil, err
-		}
-		msg["virtual_network_network_id"] = &value
-	}
-
 	if obj.modified.Bit(virtual_network_port_security_enabled) != 0 {
 		var value json.RawMessage
 		value, err := json.Marshal(&obj.port_security_enabled)
@@ -1631,12 +1611,6 @@ func (obj *VirtualNetwork) UnmarshalJSON(body []byte) error {
 			err = json.Unmarshal(value, &obj.is_provider_network)
 			if err == nil {
 				obj.valid.SetBit(&obj.valid, virtual_network_is_provider_network, 1)
-			}
-			break
-		case "virtual_network_network_id":
-			err = json.Unmarshal(value, &obj.virtual_network_network_id)
-			if err == nil {
-				obj.valid.SetBit(&obj.valid, virtual_network_virtual_network_network_id, 1)
 			}
 			break
 		case "port_security_enabled":
@@ -1968,15 +1942,6 @@ func (obj *VirtualNetwork) UpdateObject() ([]byte, error) {
 			return nil, err
 		}
 		msg["is_provider_network"] = &value
-	}
-
-	if obj.modified.Bit(virtual_network_virtual_network_network_id) != 0 {
-		var value json.RawMessage
-		value, err := json.Marshal(&obj.virtual_network_network_id)
-		if err != nil {
-			return nil, err
-		}
-		msg["virtual_network_network_id"] = &value
 	}
 
 	if obj.modified.Bit(virtual_network_port_security_enabled) != 0 {

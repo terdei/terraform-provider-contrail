@@ -333,7 +333,6 @@ resource "contrail_virtual_network" <name> {
 	name = <schema.TypeString>
 	parent_fq_name = <schema.TypeString>
 	virtual_network_properties = <contrail_VirtualNetworkType>
-	virtual_network_network_id = <schema.TypeInt>
 	route_target_list = <contrail_RouteTargetList>
 	router_external = <schema.TypeBool>
 	is_shared = <schema.TypeBool>
