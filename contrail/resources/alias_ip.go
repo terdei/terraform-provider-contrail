@@ -58,20 +58,6 @@ func SetRefsAliasIpFromResource(object *AliasIp, d *schema.ResourceData, m inter
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsAliasIpFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("project_refs"); ok {
-		log.Printf("Got ref project_refs -- will call: object.AddProject(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("project", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving project by Uuid = %v as ref for Project on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddProject(refObj.(*Project))
-		}
-	}
 	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -104,6 +90,32 @@ func SetRefsAliasIpFromResource(object *AliasIp, d *schema.ResourceData, m inter
 	return nil
 }
 
+func SetReqRefsAliasIpFromResource(object *AliasIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsAliasIpFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("project_refs"); ok {
+		log.Printf("Got ref project_refs -- will call: object.AddProject(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("project", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving project by Uuid = %v as ref for Project on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddProject(refObj.(*Project))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsAliasIpFromResource(object *AliasIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -112,14 +124,6 @@ func DeleteRefsAliasIpFromResource(object *AliasIp, d *schema.ResourceData, m in
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[DeleteRefsAliasIpFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("project_refs"); ok {
-		log.Printf("Got ref project_refs -- will call: object.DeleteProject(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteProject(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
 		for k, v := range val.([]interface{}) {
@@ -234,6 +238,10 @@ func ResourceAliasIpCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetAliasIpFromResource(object, d, m)
+
+	if err := SetReqRefsAliasIpFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceAliasIpReqRefsCreate] Set required refs on object AliasIp on %v (%v)", client.GetServer(), err)
+	}
 
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceAliasIpCreate] Creation of resource AliasIp on %v: (%v)", client.GetServer(), err)
@@ -390,15 +398,6 @@ func ResourceAliasIpSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
-	}
-}
-
-func ResourceAliasIpRefsSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"uuid": &schema.Schema{
-			Type:     schema.TypeString,
-			Required: true,
-		},
 		"project_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -410,6 +409,15 @@ func ResourceAliasIpRefsSchema() map[string]*schema.Schema {
 					},
 				},
 			},
+		},
+	}
+}
+
+func ResourceAliasIpRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
 		},
 		"virtual_machine_interface_refs": &schema.Schema{
 			Optional: true,

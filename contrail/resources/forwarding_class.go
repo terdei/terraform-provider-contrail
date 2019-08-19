@@ -61,20 +61,6 @@ func SetRefsForwardingClassFromResource(object *ForwardingClass, d *schema.Resou
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsForwardingClassFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("qos_queue_refs"); ok {
-		log.Printf("Got ref qos_queue_refs -- will call: object.AddQosQueue(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("qos-queue", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving qos-queue by Uuid = %v as ref for QosQueue on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddQosQueue(refObj.(*QosQueue))
-		}
-	}
 	if val, ok := d.GetOk("tag_refs"); ok {
 		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -93,6 +79,32 @@ func SetRefsForwardingClassFromResource(object *ForwardingClass, d *schema.Resou
 	return nil
 }
 
+func SetReqRefsForwardingClassFromResource(object *ForwardingClass, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsForwardingClassFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("qos_queue_refs"); ok {
+		log.Printf("Got ref qos_queue_refs -- will call: object.AddQosQueue(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("qos-queue", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving qos-queue by Uuid = %v as ref for QosQueue on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddQosQueue(refObj.(*QosQueue))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsForwardingClassFromResource(object *ForwardingClass, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -101,14 +113,6 @@ func DeleteRefsForwardingClassFromResource(object *ForwardingClass, d *schema.Re
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[DeleteRefsForwardingClassFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("qos_queue_refs"); ok {
-		log.Printf("Got ref qos_queue_refs -- will call: object.DeleteQosQueue(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteQosQueue(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("tag_refs"); ok {
 		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
 		for k, v := range val.([]interface{}) {
@@ -222,6 +226,10 @@ func ResourceForwardingClassCreate(d *schema.ResourceData, m interface{}) error 
 	}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetForwardingClassFromResource(object, d, m)
+
+	if err := SetReqRefsForwardingClassFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceForwardingClassReqRefsCreate] Set required refs on object ForwardingClass on %v (%v)", client.GetServer(), err)
+	}
 
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceForwardingClassCreate] Creation of resource ForwardingClass on %v: (%v)", client.GetServer(), err)
@@ -382,15 +390,6 @@ func ResourceForwardingClassSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
-	}
-}
-
-func ResourceForwardingClassRefsSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"uuid": &schema.Schema{
-			Type:     schema.TypeString,
-			Required: true,
-		},
 		"qos_queue_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -402,6 +401,15 @@ func ResourceForwardingClassRefsSchema() map[string]*schema.Schema {
 					},
 				},
 			},
+		},
+	}
+}
+
+func ResourceForwardingClassRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,

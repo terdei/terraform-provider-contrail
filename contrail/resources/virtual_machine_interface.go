@@ -179,20 +179,6 @@ func SetRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface,
 			object.AddVirtualMachine(refObj.(*VirtualMachine))
 		}
 	}
-	if val, ok := d.GetOk("virtual_network_refs"); ok {
-		log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("virtual-network", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-network by Uuid = %v as ref for VirtualNetwork on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddVirtualNetwork(refObj.(*VirtualNetwork))
-		}
-	}
 	if val, ok := d.GetOk("routing_instance_refs"); ok {
 		log.Printf("Got ref routing_instance_refs -- will call: object.AddRoutingInstance(refObj, *dataObj)")
 		for k, v := range val.([]interface{}) {
@@ -208,20 +194,6 @@ func SetRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface,
 			}
 			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 			object.AddRoutingInstance(refObj.(*RoutingInstance), *dataObj)
-		}
-	}
-	if val, ok := d.GetOk("bgp_router_refs"); ok {
-		log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("bgp-router", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving bgp-router by Uuid = %v as ref for BgpRouter on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddBgpRouter(refObj.(*BgpRouter))
 		}
 	}
 	if val, ok := d.GetOk("port_tuple_refs"); ok {
@@ -329,6 +301,46 @@ func SetRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface,
 	return nil
 }
 
+func SetReqRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsVirtualMachineInterfaceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("virtual-network", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-network by Uuid = %v as ref for VirtualNetwork on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+		}
+	}
+	if val, ok := d.GetOk("bgp_router_refs"); ok {
+		log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("bgp-router", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving bgp-router by Uuid = %v as ref for BgpRouter on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddBgpRouter(refObj.(*BgpRouter))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -377,28 +389,12 @@ func DeleteRefsVirtualMachineInterfaceFromResource(object *VirtualMachineInterfa
 			object.DeleteVirtualMachine(refId.(string))
 		}
 	}
-	if val, ok := d.GetOk("virtual_network_refs"); ok {
-		log.Printf("Got ref virtual_network_refs -- will call: object.DeleteVirtualNetwork(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteVirtualNetwork(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("routing_instance_refs"); ok {
 		log.Printf("Got ref routing_instance_refs -- will call: object.DeleteRoutingInstance(refObj.(string))")
 		for k, v := range val.([]interface{}) {
 			log.Printf("Item: %+v => <%T> %+v", k, v, v)
 			refId := (v.(map[string]interface{}))["to"]
 			object.DeleteRoutingInstance(refId.(string))
-		}
-	}
-	if val, ok := d.GetOk("bgp_router_refs"); ok {
-		log.Printf("Got ref bgp_router_refs -- will call: object.DeleteBgpRouter(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteBgpRouter(refId.(string))
 		}
 	}
 	if val, ok := d.GetOk("port_tuple_refs"); ok {
@@ -669,6 +665,10 @@ func ResourceVirtualMachineInterfaceCreate(d *schema.ResourceData, m interface{}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetVirtualMachineInterfaceFromResource(object, d, m)
 
+	if err := SetReqRefsVirtualMachineInterfaceFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceReqRefsCreate] Set required refs on object VirtualMachineInterface on %v (%v)", client.GetServer(), err)
+	}
+
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceVirtualMachineInterfaceCreate] Creation of resource VirtualMachineInterface on %v: (%v)", client.GetServer(), err)
 	}
@@ -877,6 +877,30 @@ func ResourceVirtualMachineInterfaceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
+		"virtual_network_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
+		},
+		"bgp_router_refs": &schema.Schema{
+			Optional: true,
+			Type:     schema.TypeList,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"to": &schema.Schema{
+						Type:     schema.TypeString,
+						Required: true,
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -946,18 +970,6 @@ func ResourceVirtualMachineInterfaceRefsSchema() map[string]*schema.Schema {
 				},
 			},
 		},
-		"virtual_network_refs": &schema.Schema{
-			Optional: true,
-			Type:     schema.TypeList,
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"to": &schema.Schema{
-						Type:     schema.TypeString,
-						Required: true,
-					},
-				},
-			},
-		},
 		"routing_instance_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -970,18 +982,6 @@ func ResourceVirtualMachineInterfaceRefsSchema() map[string]*schema.Schema {
 					"attr": &schema.Schema{
 						Type:     schema.TypeList,
 						Elem:     ResourcePolicyBasedForwardingRuleType(),
-						Required: true,
-					},
-				},
-			},
-		},
-		"bgp_router_refs": &schema.Schema{
-			Optional: true,
-			Type:     schema.TypeList,
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"to": &schema.Schema{
-						Type:     schema.TypeString,
 						Required: true,
 					},
 				},

@@ -70,20 +70,6 @@ func SetRefsBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceD
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsBgpAsAServiceFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
-		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("virtual-machine-interface", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-machine-interface by Uuid = %v as ref for VirtualMachineInterface on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
-		}
-	}
 	if val, ok := d.GetOk("service_health_check_refs"); ok {
 		log.Printf("Got ref service_health_check_refs -- will call: object.AddServiceHealthCheck(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -116,6 +102,32 @@ func SetRefsBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceD
 	return nil
 }
 
+func SetReqRefsBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsBgpAsAServiceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("virtual-machine-interface", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-machine-interface by Uuid = %v as ref for VirtualMachineInterface on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -124,14 +136,6 @@ func DeleteRefsBgpAsAServiceFromResource(object *BgpAsAService, d *schema.Resour
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[DeleteRefsBgpAsAServiceFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
-		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteVirtualMachineInterface(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("service_health_check_refs"); ok {
 		log.Printf("Got ref service_health_check_refs -- will call: object.DeleteServiceHealthCheck(refObj.(string))")
 		for k, v := range val.([]interface{}) {
@@ -274,6 +278,10 @@ func ResourceBgpAsAServiceCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetBgpAsAServiceFromResource(object, d, m)
+
+	if err := SetReqRefsBgpAsAServiceFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceBgpAsAServiceReqRefsCreate] Set required refs on object BgpAsAService on %v (%v)", client.GetServer(), err)
+	}
 
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceBgpAsAServiceCreate] Creation of resource BgpAsAService on %v: (%v)", client.GetServer(), err)
@@ -446,15 +454,6 @@ func ResourceBgpAsAServiceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
-	}
-}
-
-func ResourceBgpAsAServiceRefsSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"uuid": &schema.Schema{
-			Type:     schema.TypeString,
-			Required: true,
-		},
 		"virtual_machine_interface_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -466,6 +465,15 @@ func ResourceBgpAsAServiceRefsSchema() map[string]*schema.Schema {
 					},
 				},
 			},
+		},
+	}
+}
+
+func ResourceBgpAsAServiceRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
 		},
 		"service_health_check_refs": &schema.Schema{
 			Optional: true,

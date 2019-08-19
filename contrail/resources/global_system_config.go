@@ -105,20 +105,6 @@ func SetRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsGlobalSystemConfigFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("bgp_router_refs"); ok {
-		log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("bgp-router", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving bgp-router by Uuid = %v as ref for BgpRouter on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddBgpRouter(refObj.(*BgpRouter))
-		}
-	}
 	if val, ok := d.GetOk("tag_refs"); ok {
 		log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -137,6 +123,32 @@ func SetRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema
 	return nil
 }
 
+func SetReqRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsGlobalSystemConfigFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("bgp_router_refs"); ok {
+		log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("bgp-router", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving bgp-router by Uuid = %v as ref for BgpRouter on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddBgpRouter(refObj.(*BgpRouter))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -145,14 +157,6 @@ func DeleteRefsGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *sch
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[DeleteRefsGlobalSystemConfigFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("bgp_router_refs"); ok {
-		log.Printf("Got ref bgp_router_refs -- will call: object.DeleteBgpRouter(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteBgpRouter(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("tag_refs"); ok {
 		log.Printf("Got ref tag_refs -- will call: object.DeleteTag(refObj.(string))")
 		for k, v := range val.([]interface{}) {
@@ -365,6 +369,10 @@ func ResourceGlobalSystemConfigCreate(d *schema.ResourceData, m interface{}) err
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetGlobalSystemConfigFromResource(object, d, m)
 
+	if err := SetReqRefsGlobalSystemConfigFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceGlobalSystemConfigReqRefsCreate] Set required refs on object GlobalSystemConfig on %v (%v)", client.GetServer(), err)
+	}
+
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceGlobalSystemConfigCreate] Creation of resource GlobalSystemConfig on %v: (%v)", client.GetServer(), err)
 	}
@@ -571,15 +579,6 @@ func ResourceGlobalSystemConfigSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
-	}
-}
-
-func ResourceGlobalSystemConfigRefsSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"uuid": &schema.Schema{
-			Type:     schema.TypeString,
-			Required: true,
-		},
 		"bgp_router_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -591,6 +590,15 @@ func ResourceGlobalSystemConfigRefsSchema() map[string]*schema.Schema {
 					},
 				},
 			},
+		},
+	}
+}
+
+func ResourceGlobalSystemConfigRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
 		},
 		"tag_refs": &schema.Schema{
 			Optional: true,

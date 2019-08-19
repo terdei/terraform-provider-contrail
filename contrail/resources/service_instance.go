@@ -62,20 +62,6 @@ func SetRefsServiceInstanceFromResource(object *ServiceInstance, d *schema.Resou
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsServiceInstanceFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("service_template_refs"); ok {
-		log.Printf("Got ref service_template_refs -- will call: object.AddServiceTemplate(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("service-template", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving service-template by Uuid = %v as ref for ServiceTemplate on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddServiceTemplate(refObj.(*ServiceTemplate))
-		}
-	}
 	if val, ok := d.GetOk("instance_ip_refs"); ok {
 		log.Printf("Got ref instance_ip_refs -- will call: object.AddInstanceIp(refObj, *dataObj)")
 		for k, v := range val.([]interface{}) {
@@ -111,6 +97,32 @@ func SetRefsServiceInstanceFromResource(object *ServiceInstance, d *schema.Resou
 	return nil
 }
 
+func SetReqRefsServiceInstanceFromResource(object *ServiceInstance, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsServiceInstanceFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("service_template_refs"); ok {
+		log.Printf("Got ref service_template_refs -- will call: object.AddServiceTemplate(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("service-template", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving service-template by Uuid = %v as ref for ServiceTemplate on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddServiceTemplate(refObj.(*ServiceTemplate))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsServiceInstanceFromResource(object *ServiceInstance, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -119,14 +131,6 @@ func DeleteRefsServiceInstanceFromResource(object *ServiceInstance, d *schema.Re
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[DeleteRefsServiceInstanceFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("service_template_refs"); ok {
-		log.Printf("Got ref service_template_refs -- will call: object.DeleteServiceTemplate(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteServiceTemplate(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("instance_ip_refs"); ok {
 		log.Printf("Got ref instance_ip_refs -- will call: object.DeleteInstanceIp(refObj.(string))")
 		for k, v := range val.([]interface{}) {
@@ -249,6 +253,10 @@ func ResourceServiceInstanceCreate(d *schema.ResourceData, m interface{}) error 
 	}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetServiceInstanceFromResource(object, d, m)
+
+	if err := SetReqRefsServiceInstanceFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceServiceInstanceReqRefsCreate] Set required refs on object ServiceInstance on %v (%v)", client.GetServer(), err)
+	}
 
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceServiceInstanceCreate] Creation of resource ServiceInstance on %v: (%v)", client.GetServer(), err)
@@ -407,15 +415,6 @@ func ResourceServiceInstanceSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
-	}
-}
-
-func ResourceServiceInstanceRefsSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"uuid": &schema.Schema{
-			Type:     schema.TypeString,
-			Required: true,
-		},
 		"service_template_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -427,6 +426,15 @@ func ResourceServiceInstanceRefsSchema() map[string]*schema.Schema {
 					},
 				},
 			},
+		},
+	}
+}
+
+func ResourceServiceInstanceRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
 		},
 		"instance_ip_refs": &schema.Schema{
 			Optional: true,

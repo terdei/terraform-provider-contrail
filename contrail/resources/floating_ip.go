@@ -75,20 +75,6 @@ func SetRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsFloatingIpFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("project_refs"); ok {
-		log.Printf("Got ref project_refs -- will call: object.AddProject(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("project", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving project by Uuid = %v as ref for Project on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddProject(refObj.(*Project))
-		}
-	}
 	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -121,6 +107,32 @@ func SetRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m
 	return nil
 }
 
+func SetReqRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsFloatingIpFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("project_refs"); ok {
+		log.Printf("Got ref project_refs -- will call: object.AddProject(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("project", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving project by Uuid = %v as ref for Project on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddProject(refObj.(*Project))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -129,14 +141,6 @@ func DeleteRefsFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[DeleteRefsFloatingIpFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("project_refs"); ok {
-		log.Printf("Got ref project_refs -- will call: object.DeleteProject(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteProject(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
 		for k, v := range val.([]interface{}) {
@@ -290,6 +294,10 @@ func ResourceFloatingIpCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetFloatingIpFromResource(object, d, m)
+
+	if err := SetReqRefsFloatingIpFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceFloatingIpReqRefsCreate] Set required refs on object FloatingIp on %v (%v)", client.GetServer(), err)
+	}
 
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceFloatingIpCreate] Creation of resource FloatingIp on %v: (%v)", client.GetServer(), err)
@@ -467,15 +475,6 @@ func ResourceFloatingIpSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
-	}
-}
-
-func ResourceFloatingIpRefsSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"uuid": &schema.Schema{
-			Type:     schema.TypeString,
-			Required: true,
-		},
 		"project_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -487,6 +486,15 @@ func ResourceFloatingIpRefsSchema() map[string]*schema.Schema {
 					},
 				},
 			},
+		},
+	}
+}
+
+func ResourceFloatingIpRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
 		},
 		"virtual_machine_interface_refs": &schema.Schema{
 			Optional: true,

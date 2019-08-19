@@ -81,34 +81,6 @@ func SetRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[SetRefsInstanceIpFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("virtual_network_refs"); ok {
-		log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("virtual-network", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-network by Uuid = %v as ref for VirtualNetwork on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddVirtualNetwork(refObj.(*VirtualNetwork))
-		}
-	}
-	if val, ok := d.GetOk("network_ipam_refs"); ok {
-		log.Printf("Got ref network_ipam_refs -- will call: object.AddNetworkIpam(refObj)")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-			refObj, err := client.FindByUuid("network-ipam", refId.(string))
-			if err != nil {
-				return fmt.Errorf("[SnippetSetObjRef] Retrieving network-ipam by Uuid = %v as ref for NetworkIpam on %v (%v)", refId, client.GetServer(), err)
-			}
-			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-			object.AddNetworkIpam(refObj.(*NetworkIpam))
-		}
-	}
 	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
 		for k, v := range val.([]interface{}) {
@@ -169,6 +141,46 @@ func SetRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m
 	return nil
 }
 
+func SetReqRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	log.Printf("[SetRefsInstanceIpFromResource] key = %v, prefix = %v", key, prefix)
+	if val, ok := d.GetOk("virtual_network_refs"); ok {
+		log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("virtual-network", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving virtual-network by Uuid = %v as ref for VirtualNetwork on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+		}
+	}
+	if val, ok := d.GetOk("network_ipam_refs"); ok {
+		log.Printf("Got ref network_ipam_refs -- will call: object.AddNetworkIpam(refObj)")
+		for k, v := range val.([]interface{}) {
+			log.Printf("Item: %+v => <%T> %+v", k, v, v)
+			refId := (v.(map[string]interface{}))["to"]
+			log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+			refObj, err := client.FindByUuid("network-ipam", refId.(string))
+			if err != nil {
+				return fmt.Errorf("[SnippetSetObjRef] Retrieving network-ipam by Uuid = %v as ref for NetworkIpam on %v (%v)", refId, client.GetServer(), err)
+			}
+			log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+			object.AddNetworkIpam(refObj.(*NetworkIpam))
+		}
+	}
+
+	return nil
+}
+
 func DeleteRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m interface{}, prefix ...string) error {
 	key := strings.Join(prefix, ".")
 	if len(key) != 0 {
@@ -177,22 +189,6 @@ func DeleteRefsInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	log.Printf("[DeleteRefsInstanceIpFromResource] key = %v, prefix = %v", key, prefix)
-	if val, ok := d.GetOk("virtual_network_refs"); ok {
-		log.Printf("Got ref virtual_network_refs -- will call: object.DeleteVirtualNetwork(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteVirtualNetwork(refId.(string))
-		}
-	}
-	if val, ok := d.GetOk("network_ipam_refs"); ok {
-		log.Printf("Got ref network_ipam_refs -- will call: object.DeleteNetworkIpam(refObj.(string))")
-		for k, v := range val.([]interface{}) {
-			log.Printf("Item: %+v => <%T> %+v", k, v, v)
-			refId := (v.(map[string]interface{}))["to"]
-			object.DeleteNetworkIpam(refId.(string))
-		}
-	}
 	if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 		log.Printf("Got ref virtual_machine_interface_refs -- will call: object.DeleteVirtualMachineInterface(refObj.(string))")
 		for k, v := range val.([]interface{}) {
@@ -376,6 +372,10 @@ func ResourceInstanceIpCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetInstanceIpFromResource(object, d, m)
+
+	if err := SetReqRefsInstanceIpFromResource(object, d, m); err != nil {
+		return fmt.Errorf("[ResourceInstanceIpReqRefsCreate] Set required refs on object InstanceIp on %v (%v)", client.GetServer(), err)
+	}
 
 	if err := client.Create(object); err != nil {
 		return fmt.Errorf("[ResourceInstanceIpCreate] Creation of resource InstanceIp on %v: (%v)", client.GetServer(), err)
@@ -561,15 +561,6 @@ func ResourceInstanceIpSchema() map[string]*schema.Schema {
 			Optional: true,
 			Type:     schema.TypeString,
 		},
-	}
-}
-
-func ResourceInstanceIpRefsSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"uuid": &schema.Schema{
-			Type:     schema.TypeString,
-			Required: true,
-		},
 		"virtual_network_refs": &schema.Schema{
 			Optional: true,
 			Type:     schema.TypeList,
@@ -593,6 +584,15 @@ func ResourceInstanceIpRefsSchema() map[string]*schema.Schema {
 					},
 				},
 			},
+		},
+	}
+}
+
+func ResourceInstanceIpRefsSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"uuid": &schema.Schema{
+			Type:     schema.TypeString,
+			Required: true,
 		},
 		"virtual_machine_interface_refs": &schema.Schema{
 			Optional: true,
