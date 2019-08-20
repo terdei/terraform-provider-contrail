@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -101,6 +102,77 @@ func testAccCheckExists(key string, clientKey string) resource.TestCheckFunc {
 
 		if err != nil {
 			return fmt.Errorf("Error creating %s : %s", clientKey, err)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckRefExists(key string, clientKey string, refKey string, refClientKey string, referenceFieldName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+
+		rs, ok := s.RootModule().Resources[key]
+		if !ok {
+			return fmt.Errorf("Not found: %s", key)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("No ID is set")
+		}
+
+		client := testAccProvider.Meta().(*contrail.Client)
+		base, err := client.FindByUuid(clientKey, rs.Primary.ID)
+
+		if err != nil {
+			return fmt.Errorf("Error creating %s : %s", clientKey, err)
+		}
+
+		rs, ok = s.RootModule().Resources[refKey]
+		if !ok {
+			return fmt.Errorf("Not found: %s", refKey)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("No ID is set")
+		}
+
+		refBase, err := client.FindByUuid(refClientKey, rs.Primary.ID)
+
+		if err != nil {
+			return fmt.Errorf("Error creating %s : %s", refClientKey, err)
+		}
+
+		tagUUID := reflect.ValueOf(base).Elem().FieldByName(referenceFieldName).Index(0).FieldByName("Uuid").String()
+
+		if tagUUID != refBase.GetUuid() {
+			return fmt.Errorf("Error creating reference from %s object to %s object", key, refKey)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckRefDeleted(key string, clientKey string, referenceFieldName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+
+		rs, ok := s.RootModule().Resources[key]
+		if !ok {
+			return fmt.Errorf("Not found: %s", key)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("No ID is set")
+		}
+
+		client := testAccProvider.Meta().(*contrail.Client)
+		base, err := client.FindByUuid(clientKey, rs.Primary.ID)
+
+		if err != nil {
+			return fmt.Errorf("Error creating %s : %s", clientKey, err)
+		}
+
+		if reflect.ValueOf(base).Elem().FieldByName(referenceFieldName).Len() != 0 {
+			return fmt.Errorf("Error deleting reference from %s object to %s", key, referenceFieldName)
 		}
 
 		return nil

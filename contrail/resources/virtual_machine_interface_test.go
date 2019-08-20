@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// step #2 should be failed before implementation of reading and updating for references.
+// config will not contain virtual machine id once VM's will be tested.
 func TestAccPortBasic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
@@ -28,23 +30,45 @@ func TestAccPortBasic(t *testing.T) {
 					testAccCheckExists("contrail_virtual_network.network_test", "virtual-network"),
 				),
 			},
+			{
+				Config: testAccPort_with_additional_network_basic,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckExists("contrail_virtual_machine_interface.port_test", "virtual-machine-interface"),
+					testAccCheckExists("contrail_virtual_network.network_test", "virtual-network"),
+					testAccCheckExists("contrail_virtual_network.network_test2", "virtual-network"),
+				),
+			},
 		},
 	})
 }
 
-const testAccPort_basic = `
+const testAccPort_basic = testAccNetworking_basic + `
 
-resource "contrail_virtual_network" "network_test" {
-  name = "test_name"
-  display_name = "test_display_name"
+resource "contrail_virtual_machine_interface" "port_test" {
+ 	 name  = "port_test"
+	 display_name = "test_display_name"
+  	 parent_uuid = "824d5eb9-5f9c-407d-b957-2eec0ec8f269"
+     virtual_network_refs {
+    	to = contrail_virtual_network.network_test.id
+     }
+}
+`
+
+const testAccPort_with_additional_network_basic = testAccNetworking_basic + `
+
+resource "contrail_virtual_network" "network_test2" {
+	name = "test_name2"
+	display_name = "test_display_name2"
 }
 
 resource "contrail_virtual_machine_interface" "port_test" {
  	 name  = "port_test"
 	 display_name = "test_display_name"
-  	 parent_uuid = "c4e1d6c4-a040-4b5c-9da0-48f1da4ce432"
+  	 parent_uuid = "824d5eb9-5f9c-407d-b957-2eec0ec8f269"
      virtual_network_refs {
-    	to = contrail_virtual_network.network_test.id
+    	to = contrail_virtual_network.network_test2.id
      }
+	depends_on = [ contrail_virtual_machine_interface.network_test2.id ]
 }
+
 `
