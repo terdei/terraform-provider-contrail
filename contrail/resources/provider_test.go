@@ -21,6 +21,9 @@ var (
 	OS_TOKEN            = os.Getenv("OS_TOKEN")
 	OS_AUTH_URL         = os.Getenv("OS_AUTH_URL")
 	TF_ACC              = os.Getenv("TF_ACC")
+
+	OS_PROJECT_ID = os.Getenv("OS_PROJECT_ID")
+	OS_VM_ID      = os.Getenv("OS_VM_ID")
 )
 
 var testAccProviders map[string]terraform.ResourceProvider

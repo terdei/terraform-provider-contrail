@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 	"testing"
@@ -63,13 +64,14 @@ func TestAccNetworkRefsBasic(t *testing.T) {
 	})
 }
 
-const testAccNetworking_basic = `
+var testAccNetworking_basic = fmt.Sprintf(`
 resource "contrail_virtual_network" "network_test" {
   name = "test_name"
-  display_name = "test_display_name"
-}`
+  display_name = "test_display_name" 
+  parent_uuid = "%s"
+}`, OS_PROJECT_ID)
 
-const testTagRef_basic = testAccNetworking_basic + `
+var testTagRef_basic = testAccNetworking_basic + `
 
 resource "contrail_virtual_network_refs" "network_ref" {
 	uuid = contrail_virtual_network.network_test.id
@@ -88,7 +90,7 @@ resource "contrail_tag" "tag_test" {
 
 `
 
-const testTagRefWithoutRef_basic = testAccNetworking_basic + `
+var testTagRefWithoutRef_basic = testAccNetworking_basic + `
 
 resource "contrail_tag" "tag_test" {
     name = "test_tag"

@@ -489,6 +489,26 @@ func WriteVirtualMachineInterfaceToResource(object VirtualMachineInterface, d *s
 	d.Set("annotations", TakeKeyValuePairsAsMap(&annotationsObj))
 	d.Set("display_name", object.GetDisplayName())
 
+	ref, _ := object.GetVirtualNetworkRefs()
+	d.Set("virtual_network_refs", TakeRefsAsMap(&ref))
+}
+
+func TakeRefsAsMap(object *contrail.ReferenceList) interface{} {
+
+	var ref_list []interface{}
+
+	// COMPLEX SEQUENCE
+	for _, v := range *object {
+		ref_list = append(ref_list, TakeRefAsMap(v))
+	}
+
+	return ref_list
+}
+
+func TakeRefAsMap(object contrail.Reference) map[string]interface{} {
+	omap := make(map[string]interface{})
+	omap["to"] = object.Uuid
+	return omap
 }
 
 func TakeVirtualMachineInterfaceAsMap(object *VirtualMachineInterface) map[string]interface{} {
@@ -532,6 +552,8 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 	if len(key) != 0 {
 		key = key + "."
 	}
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
 
 	if d.HasChange("ecmp_hashing_include_fields") {
 		if val, ok := d.GetOk("ecmp_hashing_include_fields"); ok {
@@ -642,7 +664,20 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 			object.SetDisplayName(val.(string))
 		}
 	}
-
+	if d.HasChange("virtual_network_refs") {
+		if val, ok := d.GetOk("virtual_network_refs"); ok {
+			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+			object.ClearVirtualNetwork()
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-network", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+			}
+		}
+	}
 }
 
 func ResourceVirtualMachineInterfaceCreate(d *schema.ResourceData, m interface{}) error {
