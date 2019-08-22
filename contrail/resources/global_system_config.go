@@ -199,6 +199,15 @@ func WriteGlobalSystemConfigToResource(object GlobalSystemConfig, d *schema.Reso
 	d.Set("annotations", TakeKeyValuePairsAsMap(&annotationsObj))
 	d.Set("display_name", object.GetDisplayName())
 
+	if ref, err := object.GetBgpRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("bgp_router_refs", refList)
+	}
 }
 
 func TakeGlobalSystemConfigAsMap(object *GlobalSystemConfig) map[string]interface{} {
@@ -344,6 +353,22 @@ func UpdateGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("bgp_router_refs") {
+		if val, ok := d.GetOk("bgp_router_refs"); ok {
+			log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("bgp-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddBgpRouter(refObj.(*BgpRouter))
+			}
 		}
 	}
 

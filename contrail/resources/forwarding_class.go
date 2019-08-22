@@ -138,6 +138,15 @@ func WriteForwardingClassToResource(object ForwardingClass, d *schema.ResourceDa
 	d.Set("annotations", TakeKeyValuePairsAsMap(&annotationsObj))
 	d.Set("display_name", object.GetDisplayName())
 
+	if ref, err := object.GetQosQueueRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("qos_queue_refs", refList)
+	}
 }
 
 func TakeForwardingClassAsMap(object *ForwardingClass) map[string]interface{} {
@@ -202,6 +211,22 @@ func UpdateForwardingClassFromResource(object *ForwardingClass, d *schema.Resour
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("qos_queue_refs") {
+		if val, ok := d.GetOk("qos_queue_refs"); ok {
+			log.Printf("Got ref qos_queue_refs -- will call: object.AddQosQueue(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("qos-queue", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddQosQueue(refObj.(*QosQueue))
+			}
 		}
 	}
 

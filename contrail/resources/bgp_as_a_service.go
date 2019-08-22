@@ -172,6 +172,15 @@ func WriteBgpAsAServiceToResource(object BgpAsAService, d *schema.ResourceData, 
 	d.Set("annotations", TakeKeyValuePairsAsMap(&annotationsObj))
 	d.Set("display_name", object.GetDisplayName())
 
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
 }
 
 func TakeBgpAsAServiceAsMap(object *BgpAsAService) map[string]interface{} {
@@ -254,6 +263,22 @@ func UpdateBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceDa
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_machine_interface_refs") {
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
 		}
 	}
 

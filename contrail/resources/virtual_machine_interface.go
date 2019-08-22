@@ -489,26 +489,24 @@ func WriteVirtualMachineInterfaceToResource(object VirtualMachineInterface, d *s
 	d.Set("annotations", TakeKeyValuePairsAsMap(&annotationsObj))
 	d.Set("display_name", object.GetDisplayName())
 
-	ref, _ := object.GetVirtualNetworkRefs()
-	d.Set("virtual_network_refs", TakeRefsAsMap(&ref))
-}
-
-func TakeRefsAsMap(object *contrail.ReferenceList) interface{} {
-
-	var ref_list []interface{}
-
-	// COMPLEX SEQUENCE
-	for _, v := range *object {
-		ref_list = append(ref_list, TakeRefAsMap(v))
+	if ref, err := object.GetVirtualNetworkRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_network_refs", refList)
 	}
-
-	return ref_list
-}
-
-func TakeRefAsMap(object contrail.Reference) map[string]interface{} {
-	omap := make(map[string]interface{})
-	omap["to"] = object.Uuid
-	return omap
+	if ref, err := object.GetBgpRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("bgp_router_refs", refList)
+	}
 }
 
 func TakeVirtualMachineInterfaceAsMap(object *VirtualMachineInterface) map[string]interface{} {
@@ -552,8 +550,6 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 	if len(key) != 0 {
 		key = key + "."
 	}
-	client := m.(*contrail.Client)
-	client.GetServer() // dummy call
 
 	if d.HasChange("ecmp_hashing_include_fields") {
 		if val, ok := d.GetOk("ecmp_hashing_include_fields"); ok {
@@ -664,10 +660,12 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 			object.SetDisplayName(val.(string))
 		}
 	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
 	if d.HasChange("virtual_network_refs") {
 		if val, ok := d.GetOk("virtual_network_refs"); ok {
 			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
-			object.ClearVirtualNetwork()
 			for k, v := range val.([]interface{}) {
 				log.Printf("Item: %+v => <%T> %+v", k, v, v)
 				refId := (v.(map[string]interface{}))["to"]
@@ -678,6 +676,20 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 			}
 		}
 	}
+	if d.HasChange("bgp_router_refs") {
+		if val, ok := d.GetOk("bgp_router_refs"); ok {
+			log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("bgp-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddBgpRouter(refObj.(*BgpRouter))
+			}
+		}
+	}
+
 }
 
 func ResourceVirtualMachineInterfaceCreate(d *schema.ResourceData, m interface{}) error {
