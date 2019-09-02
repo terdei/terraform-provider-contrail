@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-// step #2 should be failed before implementation of reading and updating for non-default references.
 func TestAccNetworkBasic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
@@ -27,6 +26,7 @@ func TestAccNetworkBasic(t *testing.T) {
 	})
 }
 
+// step #2 should be failed before implementation of reading and updating for non-default references.
 func TestAccNetworkRefsBasic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
@@ -125,7 +125,6 @@ resource "contrail_tag" "tag_test2" {
 `
 
 var testTagRefWithoutRef_basic = testAccNetworking_basic + `
-
 resource "contrail_tag" "tag_test" {
     name = "test_tag"
     tag_value = "value"
