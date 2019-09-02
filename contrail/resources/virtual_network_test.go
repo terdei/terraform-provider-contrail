@@ -106,7 +106,7 @@ resource "contrail_virtual_network_refs" "network_ref" {
 	tag_refs {
 	  to = contrail_tag.tag_test2.id
 	}
-	depends_on = [ contrail_tag.tag_test ]
+	depends_on = [ contrail_tag.tag_test2 ]
 }
 
 resource "contrail_tag" "tag_test" {

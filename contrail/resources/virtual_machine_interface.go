@@ -666,6 +666,7 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 	if d.HasChange("virtual_network_refs") {
 		if val, ok := d.GetOk("virtual_network_refs"); ok {
 			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+			object.ClearVirtualNetwork()
 			for k, v := range val.([]interface{}) {
 				log.Printf("Item: %+v => <%T> %+v", k, v, v)
 				refId := (v.(map[string]interface{}))["to"]
@@ -679,6 +680,7 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 	if d.HasChange("bgp_router_refs") {
 		if val, ok := d.GetOk("bgp_router_refs"); ok {
 			log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
+			object.ClearBgpRouter()
 			for k, v := range val.([]interface{}) {
 				log.Printf("Item: %+v => <%T> %+v", k, v, v)
 				refId := (v.(map[string]interface{}))["to"]

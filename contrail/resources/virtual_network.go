@@ -329,6 +329,18 @@ func DeleteRefsVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Reso
 	return nil
 }
 
+func WriteVirtualNetworkRefsToResource(object VirtualNetwork, d *schema.ResourceData, m interface{}) {
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func WriteVirtualNetworkToResource(object VirtualNetwork, d *schema.ResourceData, m interface{}) {
 
 	ecmp_hashing_include_fieldsObj := object.GetEcmpHashingIncludeFields()
@@ -411,6 +423,25 @@ func TakeVirtualNetworkAsMap(object *VirtualNetwork) map[string]interface{} {
 	omap["display_name"] = object.GetDisplayName()
 
 	return omap
+}
+
+func UpdateVirtualNetworkRefsFromResource(object *VirtualNetwork, d *schema.ResourceData, m interface{}, prefix ...string) {
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTags(refObj)")
+			object.ClearTag()
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
 }
 
 func UpdateVirtualNetworkFromResource(object *VirtualNetwork, d *schema.ResourceData, m interface{}, prefix ...string) {
@@ -640,7 +671,16 @@ func ResourceVirtualNetworkRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceVirtualNetworkRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualNetworkRefsREAD")
+	log.Printf("ResourceVirtualNetworkRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("virtual-network", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualNetworkRefsRead] Read resource virtual-network on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*VirtualNetwork)
+
+	WriteVirtualNetworkRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -664,6 +704,20 @@ func ResourceVirtualNetworkUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceVirtualNetworkRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceVirtualNetworkRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("virtual-network", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualNetworkResourceRefsUpdate] Retrieving VirtualNetwork with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*VirtualNetwork)
+	UpdateVirtualNetworkRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceVirtualNetworkRefsUpdate] Update of resource VirtualNetwork on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 
