@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// step #2 should be failed before implementation of reading and updating for non-default references.
 func TestAccNetworkBasic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
@@ -51,6 +52,15 @@ func TestAccNetworkRefsBasic(t *testing.T) {
 				),
 			},
 			{
+				Config: testTagUpdate_basic,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckExists("contrail_virtual_network.network_test", "virtual-network"),
+					testAccCheckExists("contrail_tag.tag_test", "tag"),
+					testAccCheckExists("contrail_tag.tag_test2", "tag"),
+					testAccCheckRefExists("contrail_virtual_network.network_test",
+						"virtual-network", "contrail_tag.tag_test2", "tag", "tag_refs"),
+				),
+			}, {
 				Config: testTagRefWithoutRef_basic,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckExists("contrail_virtual_network.network_test", "virtual-network"),
@@ -86,6 +96,31 @@ resource "contrail_tag" "tag_test" {
     tag_value = "value"
     tag_type_name = "type"
 	display_name = "type=value"
+}
+`
+
+var testTagUpdate_basic = testAccNetworking_basic + `
+
+resource "contrail_virtual_network_refs" "network_ref" {
+	uuid = contrail_virtual_network.network_test.id
+	tag_refs {
+	  to = contrail_tag.tag_test2.id
+	}
+	depends_on = [ contrail_tag.tag_test ]
+}
+
+resource "contrail_tag" "tag_test" {
+    name = "test_tag"
+    tag_value = "value"
+    tag_type_name = "type"
+	display_name = "type=value"
+}
+
+resource "contrail_tag" "tag_test2" {
+    name = "test_tag2"
+    tag_value = "value2"
+    tag_type_name = "type2"
+	display_name = "type2=value2"
 }
 `
 

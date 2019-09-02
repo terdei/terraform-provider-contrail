@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-// step #2 should be failed before implementation of reading and updating for references.
-// config will not contain virtual machine id once VM's will be tested.
 func TestAccPortBasic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
