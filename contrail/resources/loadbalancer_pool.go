@@ -230,6 +230,64 @@ func WriteLoadbalancerPoolToResource(object LoadbalancerPool, d *schema.Resource
 
 }
 
+func WriteLoadbalancerPoolRefsToResource(object LoadbalancerPool, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceInstanceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_instance_refs", refList)
+	}
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
+	if ref, err := object.GetLoadbalancerListenerRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("loadbalancer_listener_refs", refList)
+	}
+	if ref, err := object.GetServiceApplianceSetRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_appliance_set_refs", refList)
+	}
+	if ref, err := object.GetLoadbalancerHealthmonitorRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("loadbalancer_healthmonitor_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeLoadbalancerPoolAsMap(object *LoadbalancerPool) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -303,6 +361,101 @@ func UpdateLoadbalancerPoolFromResource(object *LoadbalancerPool, d *schema.Reso
 
 }
 
+func UpdateLoadbalancerPoolRefsFromResource(object *LoadbalancerPool, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_instance_refs") {
+		object.ClearServiceInstance()
+		if val, ok := d.GetOk("service_instance_refs"); ok {
+			log.Printf("Got ref service_instance_refs -- will call: object.AddServiceInstance(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-instance", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceInstance(refObj.(*ServiceInstance))
+			}
+		}
+	}
+	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+	if d.HasChange("loadbalancer_listener_refs") {
+		object.ClearLoadbalancerListener()
+		if val, ok := d.GetOk("loadbalancer_listener_refs"); ok {
+			log.Printf("Got ref loadbalancer_listener_refs -- will call: object.AddLoadbalancerListener(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("loadbalancer-listener", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddLoadbalancerListener(refObj.(*LoadbalancerListener))
+			}
+		}
+	}
+	if d.HasChange("service_appliance_set_refs") {
+		object.ClearServiceApplianceSet()
+		if val, ok := d.GetOk("service_appliance_set_refs"); ok {
+			log.Printf("Got ref service_appliance_set_refs -- will call: object.AddServiceApplianceSet(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-appliance-set", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceApplianceSet(refObj.(*ServiceApplianceSet))
+			}
+		}
+	}
+	if d.HasChange("loadbalancer_healthmonitor_refs") {
+		object.ClearLoadbalancerHealthmonitor()
+		if val, ok := d.GetOk("loadbalancer_healthmonitor_refs"); ok {
+			log.Printf("Got ref loadbalancer_healthmonitor_refs -- will call: object.AddLoadbalancerHealthmonitor(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("loadbalancer-healthmonitor", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddLoadbalancerHealthmonitor(refObj.(*LoadbalancerHealthmonitor))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceLoadbalancerPoolCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceLoadbalancerPoolCreate")
@@ -360,7 +513,7 @@ func ResourceLoadbalancerPoolRefsCreate(d *schema.ResourceData, m interface{}) e
 }
 
 func ResourceLoadbalancerPoolRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerPoolREAD")
+	log.Printf("ResourceLoadbalancerPoolRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("loadbalancer-pool", d.Id())
@@ -373,7 +526,15 @@ func ResourceLoadbalancerPoolRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceLoadbalancerPoolRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerPoolRefsREAD")
+	log.Printf("ResourceLoadbalancerPoolRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("loadbalancer-pool", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerPoolRefsRead] Read resource loadbalancer-pool on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*LoadbalancerPool)
+	WriteLoadbalancerPoolRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -383,7 +544,7 @@ func ResourceLoadbalancerPoolUpdate(d *schema.ResourceData, m interface{}) error
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("loadbalancer-pool", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceLoadbalancerPoolResourceUpdate] Retrieving LoadbalancerPool with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceLoadbalancerPoolUpdate] Retrieving LoadbalancerPool with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*LoadbalancerPool)
 	UpdateLoadbalancerPoolFromResource(uobject, d, m)
@@ -397,6 +558,19 @@ func ResourceLoadbalancerPoolUpdate(d *schema.ResourceData, m interface{}) error
 
 func ResourceLoadbalancerPoolRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceLoadbalancerPoolRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("loadbalancer-pool", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerPoolRefsUpdate] Retrieving LoadbalancerPool with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*LoadbalancerPool)
+	UpdateLoadbalancerPoolRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerPoolRefsUpdate] Update of resource LoadbalancerPool on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

@@ -153,6 +153,28 @@ func WriteQosConfigToResource(object QosConfig, d *schema.ResourceData, m interf
 
 }
 
+func WriteQosConfigRefsToResource(object QosConfig, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetGlobalSystemConfigRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("global_system_config_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeQosConfigAsMap(object *QosConfig) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -241,6 +263,45 @@ func UpdateQosConfigFromResource(object *QosConfig, d *schema.ResourceData, m in
 
 }
 
+func UpdateQosConfigRefsFromResource(object *QosConfig, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("global_system_config_refs") {
+		object.ClearGlobalSystemConfig()
+		if val, ok := d.GetOk("global_system_config_refs"); ok {
+			log.Printf("Got ref global_system_config_refs -- will call: object.AddGlobalSystemConfig(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("global-system-config", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddGlobalSystemConfig(refObj.(*GlobalSystemConfig))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceQosConfigCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceQosConfigCreate")
@@ -298,7 +359,7 @@ func ResourceQosConfigRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceQosConfigRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceQosConfigREAD")
+	log.Printf("ResourceQosConfigRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("qos-config", d.Id())
@@ -311,7 +372,15 @@ func ResourceQosConfigRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceQosConfigRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceQosConfigRefsREAD")
+	log.Printf("ResourceQosConfigRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("qos-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceQosConfigRefsRead] Read resource qos-config on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*QosConfig)
+	WriteQosConfigRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -321,7 +390,7 @@ func ResourceQosConfigUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("qos-config", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceQosConfigResourceUpdate] Retrieving QosConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceQosConfigUpdate] Retrieving QosConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*QosConfig)
 	UpdateQosConfigFromResource(uobject, d, m)
@@ -335,6 +404,19 @@ func ResourceQosConfigUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceQosConfigRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceQosConfigRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("qos-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceQosConfigRefsUpdate] Retrieving QosConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*QosConfig)
+	UpdateQosConfigRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceQosConfigRefsUpdate] Update of resource QosConfig on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

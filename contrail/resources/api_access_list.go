@@ -109,6 +109,19 @@ func WriteApiAccessListToResource(object ApiAccessList, d *schema.ResourceData, 
 
 }
 
+func WriteApiAccessListRefsToResource(object ApiAccessList, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeApiAccessListAsMap(object *ApiAccessList) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -162,6 +175,31 @@ func UpdateApiAccessListFromResource(object *ApiAccessList, d *schema.ResourceDa
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateApiAccessListRefsFromResource(object *ApiAccessList, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -224,7 +262,7 @@ func ResourceApiAccessListRefsCreate(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourceApiAccessListRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceApiAccessListREAD")
+	log.Printf("ResourceApiAccessListRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("api-access-list", d.Id())
@@ -237,7 +275,15 @@ func ResourceApiAccessListRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceApiAccessListRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceApiAccessListRefsREAD")
+	log.Printf("ResourceApiAccessListRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("api-access-list", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceApiAccessListRefsRead] Read resource api-access-list on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ApiAccessList)
+	WriteApiAccessListRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -247,7 +293,7 @@ func ResourceApiAccessListUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("api-access-list", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceApiAccessListResourceUpdate] Retrieving ApiAccessList with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceApiAccessListUpdate] Retrieving ApiAccessList with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ApiAccessList)
 	UpdateApiAccessListFromResource(uobject, d, m)
@@ -261,6 +307,19 @@ func ResourceApiAccessListUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceApiAccessListRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceApiAccessListRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("api-access-list", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceApiAccessListRefsUpdate] Retrieving ApiAccessList with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ApiAccessList)
+	UpdateApiAccessListRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceApiAccessListRefsUpdate] Update of resource ApiAccessList on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

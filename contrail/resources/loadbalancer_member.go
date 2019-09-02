@@ -109,6 +109,19 @@ func WriteLoadbalancerMemberToResource(object LoadbalancerMember, d *schema.Reso
 
 }
 
+func WriteLoadbalancerMemberRefsToResource(object LoadbalancerMember, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeLoadbalancerMemberAsMap(object *LoadbalancerMember) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -162,6 +175,31 @@ func UpdateLoadbalancerMemberFromResource(object *LoadbalancerMember, d *schema.
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateLoadbalancerMemberRefsFromResource(object *LoadbalancerMember, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -224,7 +262,7 @@ func ResourceLoadbalancerMemberRefsCreate(d *schema.ResourceData, m interface{})
 }
 
 func ResourceLoadbalancerMemberRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerMemberREAD")
+	log.Printf("ResourceLoadbalancerMemberRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("loadbalancer-member", d.Id())
@@ -237,7 +275,15 @@ func ResourceLoadbalancerMemberRead(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceLoadbalancerMemberRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerMemberRefsREAD")
+	log.Printf("ResourceLoadbalancerMemberRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("loadbalancer-member", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerMemberRefsRead] Read resource loadbalancer-member on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*LoadbalancerMember)
+	WriteLoadbalancerMemberRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -247,7 +293,7 @@ func ResourceLoadbalancerMemberUpdate(d *schema.ResourceData, m interface{}) err
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("loadbalancer-member", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceLoadbalancerMemberResourceUpdate] Retrieving LoadbalancerMember with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceLoadbalancerMemberUpdate] Retrieving LoadbalancerMember with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*LoadbalancerMember)
 	UpdateLoadbalancerMemberFromResource(uobject, d, m)
@@ -261,6 +307,19 @@ func ResourceLoadbalancerMemberUpdate(d *schema.ResourceData, m interface{}) err
 
 func ResourceLoadbalancerMemberRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceLoadbalancerMemberRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("loadbalancer-member", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerMemberRefsUpdate] Retrieving LoadbalancerMember with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*LoadbalancerMember)
+	UpdateLoadbalancerMemberRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerMemberRefsUpdate] Update of resource LoadbalancerMember on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

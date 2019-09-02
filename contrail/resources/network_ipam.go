@@ -142,6 +142,28 @@ func WriteNetworkIpamToResource(object NetworkIpam, d *schema.ResourceData, m in
 
 }
 
+func WriteNetworkIpamRefsToResource(object NetworkIpam, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetVirtualDnsRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_dns_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeNetworkIpamAsMap(object *NetworkIpam) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -215,6 +237,45 @@ func UpdateNetworkIpamFromResource(object *NetworkIpam, d *schema.ResourceData, 
 
 }
 
+func UpdateNetworkIpamRefsFromResource(object *NetworkIpam, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_dns_refs") {
+		object.ClearVirtualDns()
+		if val, ok := d.GetOk("virtual_dns_refs"); ok {
+			log.Printf("Got ref virtual_dns_refs -- will call: object.AddVirtualDns(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-DNS", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualDns(refObj.(*VirtualDns))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceNetworkIpamCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceNetworkIpamCreate")
@@ -272,7 +333,7 @@ func ResourceNetworkIpamRefsCreate(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceNetworkIpamRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkIpamREAD")
+	log.Printf("ResourceNetworkIpamRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("network-ipam", d.Id())
@@ -285,7 +346,15 @@ func ResourceNetworkIpamRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceNetworkIpamRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkIpamRefsREAD")
+	log.Printf("ResourceNetworkIpamRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("network-ipam", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkIpamRefsRead] Read resource network-ipam on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*NetworkIpam)
+	WriteNetworkIpamRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -295,7 +364,7 @@ func ResourceNetworkIpamUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("network-ipam", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceNetworkIpamResourceUpdate] Retrieving NetworkIpam with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceNetworkIpamUpdate] Retrieving NetworkIpam with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*NetworkIpam)
 	UpdateNetworkIpamFromResource(uobject, d, m)
@@ -309,6 +378,19 @@ func ResourceNetworkIpamUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceNetworkIpamRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceNetworkIpamRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("network-ipam", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkIpamRefsUpdate] Retrieving NetworkIpam with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*NetworkIpam)
+	UpdateNetworkIpamRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceNetworkIpamRefsUpdate] Update of resource NetworkIpam on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

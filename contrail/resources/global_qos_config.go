@@ -109,6 +109,19 @@ func WriteGlobalQosConfigToResource(object GlobalQosConfig, d *schema.ResourceDa
 
 }
 
+func WriteGlobalQosConfigRefsToResource(object GlobalQosConfig, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeGlobalQosConfigAsMap(object *GlobalQosConfig) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -162,6 +175,31 @@ func UpdateGlobalQosConfigFromResource(object *GlobalQosConfig, d *schema.Resour
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateGlobalQosConfigRefsFromResource(object *GlobalQosConfig, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -224,7 +262,7 @@ func ResourceGlobalQosConfigRefsCreate(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceGlobalQosConfigRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceGlobalQosConfigREAD")
+	log.Printf("ResourceGlobalQosConfigRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("global-qos-config", d.Id())
@@ -237,7 +275,15 @@ func ResourceGlobalQosConfigRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceGlobalQosConfigRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceGlobalQosConfigRefsREAD")
+	log.Printf("ResourceGlobalQosConfigRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("global-qos-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceGlobalQosConfigRefsRead] Read resource global-qos-config on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*GlobalQosConfig)
+	WriteGlobalQosConfigRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -247,7 +293,7 @@ func ResourceGlobalQosConfigUpdate(d *schema.ResourceData, m interface{}) error 
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("global-qos-config", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceGlobalQosConfigResourceUpdate] Retrieving GlobalQosConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceGlobalQosConfigUpdate] Retrieving GlobalQosConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*GlobalQosConfig)
 	UpdateGlobalQosConfigFromResource(uobject, d, m)
@@ -261,6 +307,19 @@ func ResourceGlobalQosConfigUpdate(d *schema.ResourceData, m interface{}) error 
 
 func ResourceGlobalQosConfigRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceGlobalQosConfigRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("global-qos-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceGlobalQosConfigRefsUpdate] Retrieving GlobalQosConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*GlobalQosConfig)
+	UpdateGlobalQosConfigRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceGlobalQosConfigRefsUpdate] Update of resource GlobalQosConfig on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

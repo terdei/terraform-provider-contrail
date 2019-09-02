@@ -329,18 +329,6 @@ func DeleteRefsVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Reso
 	return nil
 }
 
-func WriteVirtualNetworkRefsToResource(object VirtualNetwork, d *schema.ResourceData, m interface{}) {
-	if ref, err := object.GetTagRefs(); err != nil {
-		var refList []interface{}
-		for _, v := range ref {
-			omap := make(map[string]interface{})
-			omap["to"] = v.Uuid
-			refList = append(refList, omap)
-		}
-		d.Set("tag_refs", refList)
-	}
-}
-
 func WriteVirtualNetworkToResource(object VirtualNetwork, d *schema.ResourceData, m interface{}) {
 
 	ecmp_hashing_include_fieldsObj := object.GetEcmpHashingIncludeFields()
@@ -380,6 +368,82 @@ func WriteVirtualNetworkToResource(object VirtualNetwork, d *schema.ResourceData
 	d.Set("annotations", TakeKeyValuePairsAsMap(&annotationsObj))
 	d.Set("display_name", object.GetDisplayName())
 
+}
+
+func WriteVirtualNetworkRefsToResource(object VirtualNetwork, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetSecurityLoggingObjectRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("security_logging_object_refs", refList)
+	}
+	if ref, err := object.GetQosConfigRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("qos_config_refs", refList)
+	}
+	if ref, err := object.GetNetworkIpamRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("network_ipam_refs", refList)
+	}
+	if ref, err := object.GetNetworkPolicyRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("network_policy_refs", refList)
+	}
+	if ref, err := object.GetVirtualNetworkRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_network_refs", refList)
+	}
+	if ref, err := object.GetRouteTableRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("route_table_refs", refList)
+	}
+	if ref, err := object.GetBgpvpnRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("bgpvpn_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
 }
 
 func TakeVirtualNetworkAsMap(object *VirtualNetwork) map[string]interface{} {
@@ -423,25 +487,6 @@ func TakeVirtualNetworkAsMap(object *VirtualNetwork) map[string]interface{} {
 	omap["display_name"] = object.GetDisplayName()
 
 	return omap
-}
-
-func UpdateVirtualNetworkRefsFromResource(object *VirtualNetwork, d *schema.ResourceData, m interface{}, prefix ...string) {
-	client := m.(*contrail.Client)
-	client.GetServer() // dummy call
-	if d.HasChange("tag_refs") {
-		if val, ok := d.GetOk("tag_refs"); ok {
-			log.Printf("Got ref tag_refs -- will call: object.AddTags(refObj)")
-			object.ClearTag()
-			for k, v := range val.([]interface{}) {
-				log.Printf("Item: %+v => <%T> %+v", k, v, v)
-				refId := (v.(map[string]interface{}))["to"]
-				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
-				refObj, _ := client.FindByUuid("tag", refId.(string))
-				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
-				object.AddTag(refObj.(*Tag))
-			}
-		}
-	}
 }
 
 func UpdateVirtualNetworkFromResource(object *VirtualNetwork, d *schema.ResourceData, m interface{}, prefix ...string) {
@@ -601,6 +646,135 @@ func UpdateVirtualNetworkFromResource(object *VirtualNetwork, d *schema.Resource
 
 }
 
+func UpdateVirtualNetworkRefsFromResource(object *VirtualNetwork, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("security_logging_object_refs") {
+		object.ClearSecurityLoggingObject()
+		if val, ok := d.GetOk("security_logging_object_refs"); ok {
+			log.Printf("Got ref security_logging_object_refs -- will call: object.AddSecurityLoggingObject(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("security-logging-object", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddSecurityLoggingObject(refObj.(*SecurityLoggingObject))
+			}
+		}
+	}
+	if d.HasChange("qos_config_refs") {
+		object.ClearQosConfig()
+		if val, ok := d.GetOk("qos_config_refs"); ok {
+			log.Printf("Got ref qos_config_refs -- will call: object.AddQosConfig(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("qos-config", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddQosConfig(refObj.(*QosConfig))
+			}
+		}
+	}
+	if d.HasChange("network_ipam_refs") {
+		object.ClearNetworkIpam()
+		if val, ok := d.GetOk("network_ipam_refs"); ok {
+			log.Printf("Got ref network_ipam_refs -- will call: object.AddNetworkIpam(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("network-ipam", refId.(string))
+				dataObj := new(VnSubnetsType)
+				SetVnSubnetsTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddNetworkIpam(refObj.(*NetworkIpam), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("network_policy_refs") {
+		object.ClearNetworkPolicy()
+		if val, ok := d.GetOk("network_policy_refs"); ok {
+			log.Printf("Got ref network_policy_refs -- will call: object.AddNetworkPolicy(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("network-policy", refId.(string))
+				dataObj := new(VirtualNetworkPolicyType)
+				SetVirtualNetworkPolicyTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddNetworkPolicy(refObj.(*NetworkPolicy), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("virtual_network_refs") {
+		object.ClearVirtualNetwork()
+		if val, ok := d.GetOk("virtual_network_refs"); ok {
+			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-network", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+			}
+		}
+	}
+	if d.HasChange("route_table_refs") {
+		object.ClearRouteTable()
+		if val, ok := d.GetOk("route_table_refs"); ok {
+			log.Printf("Got ref route_table_refs -- will call: object.AddRouteTable(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("route-table", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddRouteTable(refObj.(*RouteTable))
+			}
+		}
+	}
+	if d.HasChange("bgpvpn_refs") {
+		object.ClearBgpvpn()
+		if val, ok := d.GetOk("bgpvpn_refs"); ok {
+			log.Printf("Got ref bgpvpn_refs -- will call: object.AddBgpvpn(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("bgpvpn", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddBgpvpn(refObj.(*Bgpvpn))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceVirtualNetworkCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceVirtualNetworkCreate")
@@ -658,7 +832,7 @@ func ResourceVirtualNetworkRefsCreate(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceVirtualNetworkRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualNetworkREAD")
+	log.Printf("ResourceVirtualNetworkRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("virtual-network", d.Id())
@@ -679,7 +853,6 @@ func ResourceVirtualNetworkRefsRead(d *schema.ResourceData, m interface{}) error
 		return fmt.Errorf("[ResourceVirtualNetworkRefsRead] Read resource virtual-network on %v: (%v)", client.GetServer(), err)
 	}
 	object := base.(*VirtualNetwork)
-
 	WriteVirtualNetworkRefsToResource(*object, d, m)
 	return nil
 }
@@ -690,7 +863,7 @@ func ResourceVirtualNetworkUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("virtual-network", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceVirtualNetworkResourceUpdate] Retrieving VirtualNetwork with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceVirtualNetworkUpdate] Retrieving VirtualNetwork with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*VirtualNetwork)
 	UpdateVirtualNetworkFromResource(uobject, d, m)
@@ -708,13 +881,12 @@ func ResourceVirtualNetworkRefsUpdate(d *schema.ResourceData, m interface{}) err
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("virtual-network", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceVirtualNetworkResourceRefsUpdate] Retrieving VirtualNetwork with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceVirtualNetworkRefsUpdate] Retrieving VirtualNetwork with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*VirtualNetwork)
 	UpdateVirtualNetworkRefsFromResource(uobject, d, m)
 
 	log.Printf("Object href: %v", uobject.GetHref())
-
 	if err := client.Update(uobject); err != nil {
 		return fmt.Errorf("[ResourceVirtualNetworkRefsUpdate] Update of resource VirtualNetwork on %v: (%v)", client.GetServer(), err)
 	}

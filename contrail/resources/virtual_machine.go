@@ -124,6 +124,28 @@ func WriteVirtualMachineToResource(object VirtualMachine, d *schema.ResourceData
 
 }
 
+func WriteVirtualMachineRefsToResource(object VirtualMachine, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceInstanceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_instance_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeVirtualMachineAsMap(object *VirtualMachine) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -168,6 +190,45 @@ func UpdateVirtualMachineFromResource(object *VirtualMachine, d *schema.Resource
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateVirtualMachineRefsFromResource(object *VirtualMachine, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_instance_refs") {
+		object.ClearServiceInstance()
+		if val, ok := d.GetOk("service_instance_refs"); ok {
+			log.Printf("Got ref service_instance_refs -- will call: object.AddServiceInstance(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-instance", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceInstance(refObj.(*ServiceInstance))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -230,7 +291,7 @@ func ResourceVirtualMachineRefsCreate(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceVirtualMachineRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualMachineREAD")
+	log.Printf("ResourceVirtualMachineRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("virtual-machine", d.Id())
@@ -243,7 +304,15 @@ func ResourceVirtualMachineRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceVirtualMachineRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualMachineRefsREAD")
+	log.Printf("ResourceVirtualMachineRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("virtual-machine", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineRefsRead] Read resource virtual-machine on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*VirtualMachine)
+	WriteVirtualMachineRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -253,7 +322,7 @@ func ResourceVirtualMachineUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("virtual-machine", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceVirtualMachineResourceUpdate] Retrieving VirtualMachine with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceVirtualMachineUpdate] Retrieving VirtualMachine with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*VirtualMachine)
 	UpdateVirtualMachineFromResource(uobject, d, m)
@@ -267,6 +336,19 @@ func ResourceVirtualMachineUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceVirtualMachineRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceVirtualMachineRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("virtual-machine", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineRefsUpdate] Retrieving VirtualMachine with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*VirtualMachine)
+	UpdateVirtualMachineRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineRefsUpdate] Update of resource VirtualMachine on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

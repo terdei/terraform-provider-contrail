@@ -109,6 +109,19 @@ func WriteNetworkPolicyToResource(object NetworkPolicy, d *schema.ResourceData, 
 
 }
 
+func WriteNetworkPolicyRefsToResource(object NetworkPolicy, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeNetworkPolicyAsMap(object *NetworkPolicy) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -162,6 +175,31 @@ func UpdateNetworkPolicyFromResource(object *NetworkPolicy, d *schema.ResourceDa
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateNetworkPolicyRefsFromResource(object *NetworkPolicy, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -224,7 +262,7 @@ func ResourceNetworkPolicyRefsCreate(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourceNetworkPolicyRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkPolicyREAD")
+	log.Printf("ResourceNetworkPolicyRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("network-policy", d.Id())
@@ -237,7 +275,15 @@ func ResourceNetworkPolicyRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceNetworkPolicyRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkPolicyRefsREAD")
+	log.Printf("ResourceNetworkPolicyRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("network-policy", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkPolicyRefsRead] Read resource network-policy on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*NetworkPolicy)
+	WriteNetworkPolicyRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -247,7 +293,7 @@ func ResourceNetworkPolicyUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("network-policy", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceNetworkPolicyResourceUpdate] Retrieving NetworkPolicy with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceNetworkPolicyUpdate] Retrieving NetworkPolicy with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*NetworkPolicy)
 	UpdateNetworkPolicyFromResource(uobject, d, m)
@@ -261,6 +307,19 @@ func ResourceNetworkPolicyUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceNetworkPolicyRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceNetworkPolicyRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("network-policy", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkPolicyRefsUpdate] Retrieving NetworkPolicy with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*NetworkPolicy)
+	UpdateNetworkPolicyRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceNetworkPolicyRefsUpdate] Update of resource NetworkPolicy on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

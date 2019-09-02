@@ -267,6 +267,82 @@ func WriteLogicalRouterToResource(object LogicalRouter, d *schema.ResourceData, 
 
 }
 
+func WriteLogicalRouterRefsToResource(object LogicalRouter, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
+	if ref, err := object.GetRouteTargetRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("route_target_refs", refList)
+	}
+	if ref, err := object.GetRouteTableRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("route_table_refs", refList)
+	}
+	if ref, err := object.GetVirtualNetworkRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_network_refs", refList)
+	}
+	if ref, err := object.GetServiceInstanceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_instance_refs", refList)
+	}
+	if ref, err := object.GetPhysicalRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("physical_router_refs", refList)
+	}
+	if ref, err := object.GetBgpvpnRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("bgpvpn_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeLogicalRouterAsMap(object *LogicalRouter) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -331,6 +407,129 @@ func UpdateLogicalRouterFromResource(object *LogicalRouter, d *schema.ResourceDa
 
 }
 
+func UpdateLogicalRouterRefsFromResource(object *LogicalRouter, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+	if d.HasChange("route_target_refs") {
+		object.ClearRouteTarget()
+		if val, ok := d.GetOk("route_target_refs"); ok {
+			log.Printf("Got ref route_target_refs -- will call: object.AddRouteTarget(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("route-target", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddRouteTarget(refObj.(*RouteTarget))
+			}
+		}
+	}
+	if d.HasChange("route_table_refs") {
+		object.ClearRouteTable()
+		if val, ok := d.GetOk("route_table_refs"); ok {
+			log.Printf("Got ref route_table_refs -- will call: object.AddRouteTable(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("route-table", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddRouteTable(refObj.(*RouteTable))
+			}
+		}
+	}
+	if d.HasChange("virtual_network_refs") {
+		object.ClearVirtualNetwork()
+		if val, ok := d.GetOk("virtual_network_refs"); ok {
+			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-network", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+			}
+		}
+	}
+	if d.HasChange("service_instance_refs") {
+		object.ClearServiceInstance()
+		if val, ok := d.GetOk("service_instance_refs"); ok {
+			log.Printf("Got ref service_instance_refs -- will call: object.AddServiceInstance(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-instance", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceInstance(refObj.(*ServiceInstance))
+			}
+		}
+	}
+	if d.HasChange("physical_router_refs") {
+		object.ClearPhysicalRouter()
+		if val, ok := d.GetOk("physical_router_refs"); ok {
+			log.Printf("Got ref physical_router_refs -- will call: object.AddPhysicalRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("physical-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPhysicalRouter(refObj.(*PhysicalRouter))
+			}
+		}
+	}
+	if d.HasChange("bgpvpn_refs") {
+		object.ClearBgpvpn()
+		if val, ok := d.GetOk("bgpvpn_refs"); ok {
+			log.Printf("Got ref bgpvpn_refs -- will call: object.AddBgpvpn(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("bgpvpn", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddBgpvpn(refObj.(*Bgpvpn))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceLogicalRouterCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceLogicalRouterCreate")
@@ -388,7 +587,7 @@ func ResourceLogicalRouterRefsCreate(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourceLogicalRouterRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLogicalRouterREAD")
+	log.Printf("ResourceLogicalRouterRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("logical-router", d.Id())
@@ -401,7 +600,15 @@ func ResourceLogicalRouterRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceLogicalRouterRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLogicalRouterRefsREAD")
+	log.Printf("ResourceLogicalRouterRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("logical-router", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLogicalRouterRefsRead] Read resource logical-router on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*LogicalRouter)
+	WriteLogicalRouterRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -411,7 +618,7 @@ func ResourceLogicalRouterUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("logical-router", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceLogicalRouterResourceUpdate] Retrieving LogicalRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceLogicalRouterUpdate] Retrieving LogicalRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*LogicalRouter)
 	UpdateLogicalRouterFromResource(uobject, d, m)
@@ -425,6 +632,19 @@ func ResourceLogicalRouterUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceLogicalRouterRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceLogicalRouterRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("logical-router", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLogicalRouterRefsUpdate] Retrieving LogicalRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*LogicalRouter)
+	UpdateLogicalRouterRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceLogicalRouterRefsUpdate] Update of resource LogicalRouter on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

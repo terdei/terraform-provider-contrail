@@ -146,6 +146,37 @@ func WriteCustomerAttachmentToResource(object CustomerAttachment, d *schema.Reso
 
 }
 
+func WriteCustomerAttachmentRefsToResource(object CustomerAttachment, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
+	if ref, err := object.GetFloatingIpRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("floating_ip_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeCustomerAttachmentAsMap(object *CustomerAttachment) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -190,6 +221,59 @@ func UpdateCustomerAttachmentFromResource(object *CustomerAttachment, d *schema.
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateCustomerAttachmentRefsFromResource(object *CustomerAttachment, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+	if d.HasChange("floating_ip_refs") {
+		object.ClearFloatingIp()
+		if val, ok := d.GetOk("floating_ip_refs"); ok {
+			log.Printf("Got ref floating_ip_refs -- will call: object.AddFloatingIp(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("floating-ip", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddFloatingIp(refObj.(*FloatingIp))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -252,7 +336,7 @@ func ResourceCustomerAttachmentRefsCreate(d *schema.ResourceData, m interface{})
 }
 
 func ResourceCustomerAttachmentRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceCustomerAttachmentREAD")
+	log.Printf("ResourceCustomerAttachmentRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("customer-attachment", d.Id())
@@ -265,7 +349,15 @@ func ResourceCustomerAttachmentRead(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceCustomerAttachmentRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceCustomerAttachmentRefsREAD")
+	log.Printf("ResourceCustomerAttachmentRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("customer-attachment", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceCustomerAttachmentRefsRead] Read resource customer-attachment on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*CustomerAttachment)
+	WriteCustomerAttachmentRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -275,7 +367,7 @@ func ResourceCustomerAttachmentUpdate(d *schema.ResourceData, m interface{}) err
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("customer-attachment", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceCustomerAttachmentResourceUpdate] Retrieving CustomerAttachment with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceCustomerAttachmentUpdate] Retrieving CustomerAttachment with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*CustomerAttachment)
 	UpdateCustomerAttachmentFromResource(uobject, d, m)
@@ -289,6 +381,19 @@ func ResourceCustomerAttachmentUpdate(d *schema.ResourceData, m interface{}) err
 
 func ResourceCustomerAttachmentRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceCustomerAttachmentRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("customer-attachment", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceCustomerAttachmentRefsUpdate] Retrieving CustomerAttachment with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*CustomerAttachment)
+	UpdateCustomerAttachmentRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceCustomerAttachmentRefsUpdate] Update of resource CustomerAttachment on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

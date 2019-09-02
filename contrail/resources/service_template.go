@@ -131,6 +131,28 @@ func WriteServiceTemplateToResource(object ServiceTemplate, d *schema.ResourceDa
 
 }
 
+func WriteServiceTemplateRefsToResource(object ServiceTemplate, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceApplianceSetRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_appliance_set_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeServiceTemplateAsMap(object *ServiceTemplate) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -184,6 +206,45 @@ func UpdateServiceTemplateFromResource(object *ServiceTemplate, d *schema.Resour
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateServiceTemplateRefsFromResource(object *ServiceTemplate, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_appliance_set_refs") {
+		object.ClearServiceApplianceSet()
+		if val, ok := d.GetOk("service_appliance_set_refs"); ok {
+			log.Printf("Got ref service_appliance_set_refs -- will call: object.AddServiceApplianceSet(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-appliance-set", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceApplianceSet(refObj.(*ServiceApplianceSet))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -246,7 +307,7 @@ func ResourceServiceTemplateRefsCreate(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceServiceTemplateRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceTemplateREAD")
+	log.Printf("ResourceServiceTemplateRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("service-template", d.Id())
@@ -259,7 +320,15 @@ func ResourceServiceTemplateRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceServiceTemplateRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceTemplateRefsREAD")
+	log.Printf("ResourceServiceTemplateRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("service-template", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceTemplateRefsRead] Read resource service-template on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ServiceTemplate)
+	WriteServiceTemplateRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -269,7 +338,7 @@ func ResourceServiceTemplateUpdate(d *schema.ResourceData, m interface{}) error 
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("service-template", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceServiceTemplateResourceUpdate] Retrieving ServiceTemplate with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceServiceTemplateUpdate] Retrieving ServiceTemplate with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ServiceTemplate)
 	UpdateServiceTemplateFromResource(uobject, d, m)
@@ -283,6 +352,19 @@ func ResourceServiceTemplateUpdate(d *schema.ResourceData, m interface{}) error 
 
 func ResourceServiceTemplateRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceServiceTemplateRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("service-template", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceTemplateRefsUpdate] Retrieving ServiceTemplate with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ServiceTemplate)
+	UpdateServiceTemplateRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceServiceTemplateRefsUpdate] Update of resource ServiceTemplate on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

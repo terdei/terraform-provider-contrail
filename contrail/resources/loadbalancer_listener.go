@@ -131,6 +131,28 @@ func WriteLoadbalancerListenerToResource(object LoadbalancerListener, d *schema.
 
 }
 
+func WriteLoadbalancerListenerRefsToResource(object LoadbalancerListener, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetLoadbalancerRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("loadbalancer_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeLoadbalancerListenerAsMap(object *LoadbalancerListener) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -184,6 +206,45 @@ func UpdateLoadbalancerListenerFromResource(object *LoadbalancerListener, d *sch
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateLoadbalancerListenerRefsFromResource(object *LoadbalancerListener, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("loadbalancer_refs") {
+		object.ClearLoadbalancer()
+		if val, ok := d.GetOk("loadbalancer_refs"); ok {
+			log.Printf("Got ref loadbalancer_refs -- will call: object.AddLoadbalancer(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("loadbalancer", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddLoadbalancer(refObj.(*Loadbalancer))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -246,7 +307,7 @@ func ResourceLoadbalancerListenerRefsCreate(d *schema.ResourceData, m interface{
 }
 
 func ResourceLoadbalancerListenerRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerListenerREAD")
+	log.Printf("ResourceLoadbalancerListenerRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("loadbalancer-listener", d.Id())
@@ -259,7 +320,15 @@ func ResourceLoadbalancerListenerRead(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceLoadbalancerListenerRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceLoadbalancerListenerRefsREAD")
+	log.Printf("ResourceLoadbalancerListenerRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("loadbalancer-listener", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerListenerRefsRead] Read resource loadbalancer-listener on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*LoadbalancerListener)
+	WriteLoadbalancerListenerRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -269,7 +338,7 @@ func ResourceLoadbalancerListenerUpdate(d *schema.ResourceData, m interface{}) e
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("loadbalancer-listener", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceLoadbalancerListenerResourceUpdate] Retrieving LoadbalancerListener with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceLoadbalancerListenerUpdate] Retrieving LoadbalancerListener with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*LoadbalancerListener)
 	UpdateLoadbalancerListenerFromResource(uobject, d, m)
@@ -283,6 +352,19 @@ func ResourceLoadbalancerListenerUpdate(d *schema.ResourceData, m interface{}) e
 
 func ResourceLoadbalancerListenerRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceLoadbalancerListenerRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("loadbalancer-listener", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerListenerRefsUpdate] Retrieving LoadbalancerListener with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*LoadbalancerListener)
+	UpdateLoadbalancerListenerRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceLoadbalancerListenerRefsUpdate] Update of resource LoadbalancerListener on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

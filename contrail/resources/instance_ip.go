@@ -265,6 +265,46 @@ func WriteInstanceIpToResource(object InstanceIp, d *schema.ResourceData, m inte
 	}
 }
 
+func WriteInstanceIpRefsToResource(object InstanceIp, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
+	if ref, err := object.GetPhysicalRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("physical_router_refs", refList)
+	}
+	if ref, err := object.GetVirtualRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_router_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeInstanceIpAsMap(object *InstanceIp) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -372,6 +412,7 @@ func UpdateInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m 
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	if d.HasChange("virtual_network_refs") {
+		object.ClearVirtualNetwork()
 		if val, ok := d.GetOk("virtual_network_refs"); ok {
 			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
 			for k, v := range val.([]interface{}) {
@@ -385,6 +426,7 @@ func UpdateInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m 
 		}
 	}
 	if d.HasChange("network_ipam_refs") {
+		object.ClearNetworkIpam()
 		if val, ok := d.GetOk("network_ipam_refs"); ok {
 			log.Printf("Got ref network_ipam_refs -- will call: object.AddNetworkIpam(refObj)")
 			for k, v := range val.([]interface{}) {
@@ -394,6 +436,73 @@ func UpdateInstanceIpFromResource(object *InstanceIp, d *schema.ResourceData, m 
 				refObj, _ := client.FindByUuid("network-ipam", refId.(string))
 				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 				object.AddNetworkIpam(refObj.(*NetworkIpam))
+			}
+		}
+	}
+
+}
+
+func UpdateInstanceIpRefsFromResource(object *InstanceIp, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+	if d.HasChange("physical_router_refs") {
+		object.ClearPhysicalRouter()
+		if val, ok := d.GetOk("physical_router_refs"); ok {
+			log.Printf("Got ref physical_router_refs -- will call: object.AddPhysicalRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("physical-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPhysicalRouter(refObj.(*PhysicalRouter))
+			}
+		}
+	}
+	if d.HasChange("virtual_router_refs") {
+		object.ClearVirtualRouter()
+		if val, ok := d.GetOk("virtual_router_refs"); ok {
+			log.Printf("Got ref virtual_router_refs -- will call: object.AddVirtualRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualRouter(refObj.(*VirtualRouter))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
 			}
 		}
 	}
@@ -461,7 +570,7 @@ func ResourceInstanceIpRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceInstanceIpRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceInstanceIpREAD")
+	log.Printf("ResourceInstanceIpRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("instance-ip", d.Id())
@@ -474,7 +583,15 @@ func ResourceInstanceIpRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceInstanceIpRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceInstanceIpRefsREAD")
+	log.Printf("ResourceInstanceIpRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("instance-ip", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceInstanceIpRefsRead] Read resource instance-ip on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*InstanceIp)
+	WriteInstanceIpRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -484,7 +601,7 @@ func ResourceInstanceIpUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("instance-ip", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceInstanceIpResourceUpdate] Retrieving InstanceIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceInstanceIpUpdate] Retrieving InstanceIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*InstanceIp)
 	UpdateInstanceIpFromResource(uobject, d, m)
@@ -498,6 +615,19 @@ func ResourceInstanceIpUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceInstanceIpRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceInstanceIpRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("instance-ip", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceInstanceIpRefsUpdate] Retrieving InstanceIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*InstanceIp)
+	UpdateInstanceIpRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceInstanceIpRefsUpdate] Update of resource InstanceIp on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

@@ -153,6 +153,37 @@ func WriteApplicationPolicySetToResource(object ApplicationPolicySet, d *schema.
 
 }
 
+func WriteApplicationPolicySetRefsToResource(object ApplicationPolicySet, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetFirewallPolicyRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("firewall_policy_refs", refList)
+	}
+	if ref, err := object.GetGlobalVrouterConfigRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("global_vrouter_config_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeApplicationPolicySetAsMap(object *ApplicationPolicySet) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -203,6 +234,62 @@ func UpdateApplicationPolicySetFromResource(object *ApplicationPolicySet, d *sch
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateApplicationPolicySetRefsFromResource(object *ApplicationPolicySet, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("firewall_policy_refs") {
+		object.ClearFirewallPolicy()
+		if val, ok := d.GetOk("firewall_policy_refs"); ok {
+			log.Printf("Got ref firewall_policy_refs -- will call: object.AddFirewallPolicy(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("firewall-policy", refId.(string))
+				dataObj := new(FirewallSequence)
+				SetFirewallSequenceFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddFirewallPolicy(refObj.(*FirewallPolicy), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("global_vrouter_config_refs") {
+		object.ClearGlobalVrouterConfig()
+		if val, ok := d.GetOk("global_vrouter_config_refs"); ok {
+			log.Printf("Got ref global_vrouter_config_refs -- will call: object.AddGlobalVrouterConfig(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("global-vrouter-config", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddGlobalVrouterConfig(refObj.(*GlobalVrouterConfig))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -265,7 +352,7 @@ func ResourceApplicationPolicySetRefsCreate(d *schema.ResourceData, m interface{
 }
 
 func ResourceApplicationPolicySetRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceApplicationPolicySetREAD")
+	log.Printf("ResourceApplicationPolicySetRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("application-policy-set", d.Id())
@@ -278,7 +365,15 @@ func ResourceApplicationPolicySetRead(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceApplicationPolicySetRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceApplicationPolicySetRefsREAD")
+	log.Printf("ResourceApplicationPolicySetRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("application-policy-set", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceApplicationPolicySetRefsRead] Read resource application-policy-set on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ApplicationPolicySet)
+	WriteApplicationPolicySetRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -288,7 +383,7 @@ func ResourceApplicationPolicySetUpdate(d *schema.ResourceData, m interface{}) e
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("application-policy-set", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceApplicationPolicySetResourceUpdate] Retrieving ApplicationPolicySet with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceApplicationPolicySetUpdate] Retrieving ApplicationPolicySet with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ApplicationPolicySet)
 	UpdateApplicationPolicySetFromResource(uobject, d, m)
@@ -302,6 +397,19 @@ func ResourceApplicationPolicySetUpdate(d *schema.ResourceData, m interface{}) e
 
 func ResourceApplicationPolicySetRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceApplicationPolicySetRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("application-policy-set", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceApplicationPolicySetRefsUpdate] Retrieving ApplicationPolicySet with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ApplicationPolicySet)
+	UpdateApplicationPolicySetRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceApplicationPolicySetRefsUpdate] Update of resource ApplicationPolicySet on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

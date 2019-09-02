@@ -128,6 +128,28 @@ func WritePhysicalInterfaceToResource(object PhysicalInterface, d *schema.Resour
 
 }
 
+func WritePhysicalInterfaceRefsToResource(object PhysicalInterface, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetPhysicalInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("physical_interface_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakePhysicalInterfaceAsMap(object *PhysicalInterface) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -178,6 +200,45 @@ func UpdatePhysicalInterfaceFromResource(object *PhysicalInterface, d *schema.Re
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdatePhysicalInterfaceRefsFromResource(object *PhysicalInterface, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("physical_interface_refs") {
+		object.ClearPhysicalInterface()
+		if val, ok := d.GetOk("physical_interface_refs"); ok {
+			log.Printf("Got ref physical_interface_refs -- will call: object.AddPhysicalInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("physical-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPhysicalInterface(refObj.(*PhysicalInterface))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -240,7 +301,7 @@ func ResourcePhysicalInterfaceRefsCreate(d *schema.ResourceData, m interface{}) 
 }
 
 func ResourcePhysicalInterfaceRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePhysicalInterfaceREAD")
+	log.Printf("ResourcePhysicalInterfaceRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("physical-interface", d.Id())
@@ -253,7 +314,15 @@ func ResourcePhysicalInterfaceRead(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourcePhysicalInterfaceRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePhysicalInterfaceRefsREAD")
+	log.Printf("ResourcePhysicalInterfaceRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("physical-interface", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePhysicalInterfaceRefsRead] Read resource physical-interface on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*PhysicalInterface)
+	WritePhysicalInterfaceRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -263,7 +332,7 @@ func ResourcePhysicalInterfaceUpdate(d *schema.ResourceData, m interface{}) erro
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("physical-interface", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourcePhysicalInterfaceResourceUpdate] Retrieving PhysicalInterface with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourcePhysicalInterfaceUpdate] Retrieving PhysicalInterface with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*PhysicalInterface)
 	UpdatePhysicalInterfaceFromResource(uobject, d, m)
@@ -277,6 +346,19 @@ func ResourcePhysicalInterfaceUpdate(d *schema.ResourceData, m interface{}) erro
 
 func ResourcePhysicalInterfaceRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourcePhysicalInterfaceRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("physical-interface", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePhysicalInterfaceRefsUpdate] Retrieving PhysicalInterface with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*PhysicalInterface)
+	UpdatePhysicalInterfaceRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourcePhysicalInterfaceRefsUpdate] Update of resource PhysicalInterface on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

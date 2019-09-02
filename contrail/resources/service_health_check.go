@@ -134,6 +134,28 @@ func WriteServiceHealthCheckToResource(object ServiceHealthCheck, d *schema.Reso
 
 }
 
+func WriteServiceHealthCheckRefsToResource(object ServiceHealthCheck, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceInstanceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_instance_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeServiceHealthCheckAsMap(object *ServiceHealthCheck) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -187,6 +209,48 @@ func UpdateServiceHealthCheckFromResource(object *ServiceHealthCheck, d *schema.
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateServiceHealthCheckRefsFromResource(object *ServiceHealthCheck, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_instance_refs") {
+		object.ClearServiceInstance()
+		if val, ok := d.GetOk("service_instance_refs"); ok {
+			log.Printf("Got ref service_instance_refs -- will call: object.AddServiceInstance(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-instance", refId.(string))
+				dataObj := new(ServiceInterfaceTag)
+				SetServiceInterfaceTagFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceInstance(refObj.(*ServiceInstance), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -249,7 +313,7 @@ func ResourceServiceHealthCheckRefsCreate(d *schema.ResourceData, m interface{})
 }
 
 func ResourceServiceHealthCheckRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceHealthCheckREAD")
+	log.Printf("ResourceServiceHealthCheckRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("service-health-check", d.Id())
@@ -262,7 +326,15 @@ func ResourceServiceHealthCheckRead(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceServiceHealthCheckRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceHealthCheckRefsREAD")
+	log.Printf("ResourceServiceHealthCheckRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("service-health-check", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceHealthCheckRefsRead] Read resource service-health-check on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ServiceHealthCheck)
+	WriteServiceHealthCheckRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -272,7 +344,7 @@ func ResourceServiceHealthCheckUpdate(d *schema.ResourceData, m interface{}) err
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("service-health-check", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceServiceHealthCheckResourceUpdate] Retrieving ServiceHealthCheck with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceServiceHealthCheckUpdate] Retrieving ServiceHealthCheck with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ServiceHealthCheck)
 	UpdateServiceHealthCheckFromResource(uobject, d, m)
@@ -286,6 +358,19 @@ func ResourceServiceHealthCheckUpdate(d *schema.ResourceData, m interface{}) err
 
 func ResourceServiceHealthCheckRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceServiceHealthCheckRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("service-health-check", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceHealthCheckRefsUpdate] Retrieving ServiceHealthCheck with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ServiceHealthCheck)
+	UpdateServiceHealthCheckRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceServiceHealthCheckRefsUpdate] Update of resource ServiceHealthCheck on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

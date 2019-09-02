@@ -26,7 +26,6 @@ func TestAccNetworkBasic(t *testing.T) {
 	})
 }
 
-// step #2 should be failed before implementation of reading and updating for non-default references.
 func TestAccNetworkRefsBasic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{

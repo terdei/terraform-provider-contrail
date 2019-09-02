@@ -127,6 +127,19 @@ func WriteBgpvpnToResource(object Bgpvpn, d *schema.ResourceData, m interface{})
 
 }
 
+func WriteBgpvpnRefsToResource(object Bgpvpn, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeBgpvpnAsMap(object *Bgpvpn) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -209,6 +222,31 @@ func UpdateBgpvpnFromResource(object *Bgpvpn, d *schema.ResourceData, m interfac
 
 }
 
+func UpdateBgpvpnRefsFromResource(object *Bgpvpn, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceBgpvpnCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceBgpvpnCreate")
@@ -266,7 +304,7 @@ func ResourceBgpvpnRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBgpvpnRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpvpnREAD")
+	log.Printf("ResourceBgpvpnRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("bgpvpn", d.Id())
@@ -279,7 +317,15 @@ func ResourceBgpvpnRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBgpvpnRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpvpnRefsREAD")
+	log.Printf("ResourceBgpvpnRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("bgpvpn", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpvpnRefsRead] Read resource bgpvpn on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*Bgpvpn)
+	WriteBgpvpnRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -289,7 +335,7 @@ func ResourceBgpvpnUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("bgpvpn", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceBgpvpnResourceUpdate] Retrieving Bgpvpn with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceBgpvpnUpdate] Retrieving Bgpvpn with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*Bgpvpn)
 	UpdateBgpvpnFromResource(uobject, d, m)
@@ -303,6 +349,19 @@ func ResourceBgpvpnUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceBgpvpnRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceBgpvpnRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("bgpvpn", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpvpnRefsUpdate] Retrieving Bgpvpn with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*Bgpvpn)
+	UpdateBgpvpnRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceBgpvpnRefsUpdate] Update of resource Bgpvpn on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

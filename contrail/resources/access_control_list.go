@@ -113,6 +113,19 @@ func WriteAccessControlListToResource(object AccessControlList, d *schema.Resour
 
 }
 
+func WriteAccessControlListRefsToResource(object AccessControlList, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeAccessControlListAsMap(object *AccessControlList) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -177,6 +190,31 @@ func UpdateAccessControlListFromResource(object *AccessControlList, d *schema.Re
 
 }
 
+func UpdateAccessControlListRefsFromResource(object *AccessControlList, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceAccessControlListCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceAccessControlListCreate")
@@ -234,7 +272,7 @@ func ResourceAccessControlListRefsCreate(d *schema.ResourceData, m interface{}) 
 }
 
 func ResourceAccessControlListRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceAccessControlListREAD")
+	log.Printf("ResourceAccessControlListRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("access-control-list", d.Id())
@@ -247,7 +285,15 @@ func ResourceAccessControlListRead(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceAccessControlListRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceAccessControlListRefsREAD")
+	log.Printf("ResourceAccessControlListRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("access-control-list", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceAccessControlListRefsRead] Read resource access-control-list on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*AccessControlList)
+	WriteAccessControlListRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -257,7 +303,7 @@ func ResourceAccessControlListUpdate(d *schema.ResourceData, m interface{}) erro
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("access-control-list", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceAccessControlListResourceUpdate] Retrieving AccessControlList with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceAccessControlListUpdate] Retrieving AccessControlList with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*AccessControlList)
 	UpdateAccessControlListFromResource(uobject, d, m)
@@ -271,6 +317,19 @@ func ResourceAccessControlListUpdate(d *schema.ResourceData, m interface{}) erro
 
 func ResourceAccessControlListRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceAccessControlListRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("access-control-list", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceAccessControlListRefsUpdate] Retrieving AccessControlList with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*AccessControlList)
+	UpdateAccessControlListRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceAccessControlListRefsUpdate] Update of resource AccessControlList on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

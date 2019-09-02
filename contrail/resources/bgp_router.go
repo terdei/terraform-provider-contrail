@@ -102,6 +102,19 @@ func WriteBgpRouterToResource(object BgpRouter, d *schema.ResourceData, m interf
 
 }
 
+func WriteBgpRouterRefsToResource(object BgpRouter, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeBgpRouterAsMap(object *BgpRouter) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -146,6 +159,31 @@ func UpdateBgpRouterFromResource(object *BgpRouter, d *schema.ResourceData, m in
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateBgpRouterRefsFromResource(object *BgpRouter, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -208,7 +246,7 @@ func ResourceBgpRouterRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBgpRouterRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpRouterREAD")
+	log.Printf("ResourceBgpRouterRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("bgp-router", d.Id())
@@ -221,7 +259,15 @@ func ResourceBgpRouterRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBgpRouterRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpRouterRefsREAD")
+	log.Printf("ResourceBgpRouterRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("bgp-router", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpRouterRefsRead] Read resource bgp-router on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*BgpRouter)
+	WriteBgpRouterRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -231,7 +277,7 @@ func ResourceBgpRouterUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("bgp-router", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceBgpRouterResourceUpdate] Retrieving BgpRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceBgpRouterUpdate] Retrieving BgpRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*BgpRouter)
 	UpdateBgpRouterFromResource(uobject, d, m)
@@ -245,6 +291,19 @@ func ResourceBgpRouterUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceBgpRouterRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceBgpRouterRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("bgp-router", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpRouterRefsUpdate] Retrieving BgpRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*BgpRouter)
+	UpdateBgpRouterRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceBgpRouterRefsUpdate] Update of resource BgpRouter on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

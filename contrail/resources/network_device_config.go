@@ -124,6 +124,28 @@ func WriteNetworkDeviceConfigToResource(object NetworkDeviceConfig, d *schema.Re
 
 }
 
+func WriteNetworkDeviceConfigRefsToResource(object NetworkDeviceConfig, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetPhysicalRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("physical_router_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeNetworkDeviceConfigAsMap(object *NetworkDeviceConfig) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -168,6 +190,45 @@ func UpdateNetworkDeviceConfigFromResource(object *NetworkDeviceConfig, d *schem
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateNetworkDeviceConfigRefsFromResource(object *NetworkDeviceConfig, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("physical_router_refs") {
+		object.ClearPhysicalRouter()
+		if val, ok := d.GetOk("physical_router_refs"); ok {
+			log.Printf("Got ref physical_router_refs -- will call: object.AddPhysicalRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("physical-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPhysicalRouter(refObj.(*PhysicalRouter))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -230,7 +291,7 @@ func ResourceNetworkDeviceConfigRefsCreate(d *schema.ResourceData, m interface{}
 }
 
 func ResourceNetworkDeviceConfigRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkDeviceConfigREAD")
+	log.Printf("ResourceNetworkDeviceConfigRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("network-device-config", d.Id())
@@ -243,7 +304,15 @@ func ResourceNetworkDeviceConfigRead(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourceNetworkDeviceConfigRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNetworkDeviceConfigRefsREAD")
+	log.Printf("ResourceNetworkDeviceConfigRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("network-device-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkDeviceConfigRefsRead] Read resource network-device-config on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*NetworkDeviceConfig)
+	WriteNetworkDeviceConfigRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -253,7 +322,7 @@ func ResourceNetworkDeviceConfigUpdate(d *schema.ResourceData, m interface{}) er
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("network-device-config", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceNetworkDeviceConfigResourceUpdate] Retrieving NetworkDeviceConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceNetworkDeviceConfigUpdate] Retrieving NetworkDeviceConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*NetworkDeviceConfig)
 	UpdateNetworkDeviceConfigFromResource(uobject, d, m)
@@ -267,6 +336,19 @@ func ResourceNetworkDeviceConfigUpdate(d *schema.ResourceData, m interface{}) er
 
 func ResourceNetworkDeviceConfigRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceNetworkDeviceConfigRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("network-device-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNetworkDeviceConfigRefsUpdate] Retrieving NetworkDeviceConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*NetworkDeviceConfig)
+	UpdateNetworkDeviceConfigRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceNetworkDeviceConfigRefsUpdate] Update of resource NetworkDeviceConfig on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

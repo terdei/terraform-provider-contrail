@@ -109,6 +109,19 @@ func WriteNamespaceToResource(object Namespace, d *schema.ResourceData, m interf
 
 }
 
+func WriteNamespaceRefsToResource(object Namespace, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeNamespaceAsMap(object *Namespace) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -162,6 +175,31 @@ func UpdateNamespaceFromResource(object *Namespace, d *schema.ResourceData, m in
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateNamespaceRefsFromResource(object *Namespace, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -224,7 +262,7 @@ func ResourceNamespaceRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceNamespaceRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNamespaceREAD")
+	log.Printf("ResourceNamespaceRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("namespace", d.Id())
@@ -237,7 +275,15 @@ func ResourceNamespaceRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceNamespaceRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceNamespaceRefsREAD")
+	log.Printf("ResourceNamespaceRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("namespace", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNamespaceRefsRead] Read resource namespace on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*Namespace)
+	WriteNamespaceRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -247,7 +293,7 @@ func ResourceNamespaceUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("namespace", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceNamespaceResourceUpdate] Retrieving Namespace with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceNamespaceUpdate] Retrieving Namespace with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*Namespace)
 	UpdateNamespaceFromResource(uobject, d, m)
@@ -261,6 +307,19 @@ func ResourceNamespaceUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceNamespaceRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceNamespaceRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("namespace", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceNamespaceRefsUpdate] Retrieving Namespace with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*Namespace)
+	UpdateNamespaceRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceNamespaceRefsUpdate] Update of resource Namespace on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

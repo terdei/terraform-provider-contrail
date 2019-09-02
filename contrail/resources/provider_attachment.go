@@ -124,6 +124,28 @@ func WriteProviderAttachmentToResource(object ProviderAttachment, d *schema.Reso
 
 }
 
+func WriteProviderAttachmentRefsToResource(object ProviderAttachment, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetVirtualRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_router_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeProviderAttachmentAsMap(object *ProviderAttachment) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -168,6 +190,45 @@ func UpdateProviderAttachmentFromResource(object *ProviderAttachment, d *schema.
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateProviderAttachmentRefsFromResource(object *ProviderAttachment, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_router_refs") {
+		object.ClearVirtualRouter()
+		if val, ok := d.GetOk("virtual_router_refs"); ok {
+			log.Printf("Got ref virtual_router_refs -- will call: object.AddVirtualRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualRouter(refObj.(*VirtualRouter))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -230,7 +291,7 @@ func ResourceProviderAttachmentRefsCreate(d *schema.ResourceData, m interface{})
 }
 
 func ResourceProviderAttachmentRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceProviderAttachmentREAD")
+	log.Printf("ResourceProviderAttachmentRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("provider-attachment", d.Id())
@@ -243,7 +304,15 @@ func ResourceProviderAttachmentRead(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceProviderAttachmentRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceProviderAttachmentRefsREAD")
+	log.Printf("ResourceProviderAttachmentRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("provider-attachment", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceProviderAttachmentRefsRead] Read resource provider-attachment on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ProviderAttachment)
+	WriteProviderAttachmentRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -253,7 +322,7 @@ func ResourceProviderAttachmentUpdate(d *schema.ResourceData, m interface{}) err
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("provider-attachment", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceProviderAttachmentResourceUpdate] Retrieving ProviderAttachment with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceProviderAttachmentUpdate] Retrieving ProviderAttachment with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ProviderAttachment)
 	UpdateProviderAttachmentFromResource(uobject, d, m)
@@ -267,6 +336,19 @@ func ResourceProviderAttachmentUpdate(d *schema.ResourceData, m interface{}) err
 
 func ResourceProviderAttachmentRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceProviderAttachmentRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("provider-attachment", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceProviderAttachmentRefsUpdate] Retrieving ProviderAttachment with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ProviderAttachment)
+	UpdateProviderAttachmentRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceProviderAttachmentRefsUpdate] Update of resource ProviderAttachment on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

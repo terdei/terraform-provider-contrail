@@ -232,6 +232,46 @@ func WritePhysicalRouterToResource(object PhysicalRouter, d *schema.ResourceData
 
 }
 
+func WritePhysicalRouterRefsToResource(object PhysicalRouter, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetVirtualRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_router_refs", refList)
+	}
+	if ref, err := object.GetBgpRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("bgp_router_refs", refList)
+	}
+	if ref, err := object.GetVirtualNetworkRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_network_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakePhysicalRouterAsMap(object *PhysicalRouter) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -371,6 +411,73 @@ func UpdatePhysicalRouterFromResource(object *PhysicalRouter, d *schema.Resource
 
 }
 
+func UpdatePhysicalRouterRefsFromResource(object *PhysicalRouter, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_router_refs") {
+		object.ClearVirtualRouter()
+		if val, ok := d.GetOk("virtual_router_refs"); ok {
+			log.Printf("Got ref virtual_router_refs -- will call: object.AddVirtualRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualRouter(refObj.(*VirtualRouter))
+			}
+		}
+	}
+	if d.HasChange("bgp_router_refs") {
+		object.ClearBgpRouter()
+		if val, ok := d.GetOk("bgp_router_refs"); ok {
+			log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("bgp-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddBgpRouter(refObj.(*BgpRouter))
+			}
+		}
+	}
+	if d.HasChange("virtual_network_refs") {
+		object.ClearVirtualNetwork()
+		if val, ok := d.GetOk("virtual_network_refs"); ok {
+			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-network", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourcePhysicalRouterCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourcePhysicalRouterCreate")
@@ -428,7 +535,7 @@ func ResourcePhysicalRouterRefsCreate(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourcePhysicalRouterRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePhysicalRouterREAD")
+	log.Printf("ResourcePhysicalRouterRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("physical-router", d.Id())
@@ -441,7 +548,15 @@ func ResourcePhysicalRouterRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourcePhysicalRouterRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePhysicalRouterRefsREAD")
+	log.Printf("ResourcePhysicalRouterRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("physical-router", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePhysicalRouterRefsRead] Read resource physical-router on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*PhysicalRouter)
+	WritePhysicalRouterRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -451,7 +566,7 @@ func ResourcePhysicalRouterUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("physical-router", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourcePhysicalRouterResourceUpdate] Retrieving PhysicalRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourcePhysicalRouterUpdate] Retrieving PhysicalRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*PhysicalRouter)
 	UpdatePhysicalRouterFromResource(uobject, d, m)
@@ -465,6 +580,19 @@ func ResourcePhysicalRouterUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourcePhysicalRouterRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourcePhysicalRouterRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("physical-router", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePhysicalRouterRefsUpdate] Retrieving PhysicalRouter with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*PhysicalRouter)
+	UpdatePhysicalRouterRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourcePhysicalRouterRefsUpdate] Update of resource PhysicalRouter on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

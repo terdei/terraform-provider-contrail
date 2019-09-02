@@ -128,6 +128,19 @@ func WriteBridgeDomainToResource(object BridgeDomain, d *schema.ResourceData, m 
 
 }
 
+func WriteBridgeDomainRefsToResource(object BridgeDomain, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeBridgeDomainAsMap(object *BridgeDomain) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -213,6 +226,31 @@ func UpdateBridgeDomainFromResource(object *BridgeDomain, d *schema.ResourceData
 
 }
 
+func UpdateBridgeDomainRefsFromResource(object *BridgeDomain, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceBridgeDomainCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceBridgeDomainCreate")
@@ -270,7 +308,7 @@ func ResourceBridgeDomainRefsCreate(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceBridgeDomainRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBridgeDomainREAD")
+	log.Printf("ResourceBridgeDomainRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("bridge-domain", d.Id())
@@ -283,7 +321,15 @@ func ResourceBridgeDomainRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBridgeDomainRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBridgeDomainRefsREAD")
+	log.Printf("ResourceBridgeDomainRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("bridge-domain", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBridgeDomainRefsRead] Read resource bridge-domain on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*BridgeDomain)
+	WriteBridgeDomainRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -293,7 +339,7 @@ func ResourceBridgeDomainUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("bridge-domain", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceBridgeDomainResourceUpdate] Retrieving BridgeDomain with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceBridgeDomainUpdate] Retrieving BridgeDomain with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*BridgeDomain)
 	UpdateBridgeDomainFromResource(uobject, d, m)
@@ -307,6 +353,19 @@ func ResourceBridgeDomainUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceBridgeDomainRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceBridgeDomainRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("bridge-domain", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBridgeDomainRefsUpdate] Retrieving BridgeDomain with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*BridgeDomain)
+	UpdateBridgeDomainRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceBridgeDomainRefsUpdate] Update of resource BridgeDomain on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

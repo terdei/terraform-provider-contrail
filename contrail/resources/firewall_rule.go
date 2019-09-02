@@ -239,6 +239,55 @@ func WriteFirewallRuleToResource(object FirewallRule, d *schema.ResourceData, m 
 
 }
 
+func WriteFirewallRuleRefsToResource(object FirewallRule, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceGroupRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_group_refs", refList)
+	}
+	if ref, err := object.GetAddressGroupRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("address_group_refs", refList)
+	}
+	if ref, err := object.GetVirtualNetworkRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_network_refs", refList)
+	}
+	if ref, err := object.GetSecurityLoggingObjectRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("security_logging_object_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeFirewallRuleAsMap(object *FirewallRule) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -348,6 +397,90 @@ func UpdateFirewallRuleFromResource(object *FirewallRule, d *schema.ResourceData
 
 }
 
+func UpdateFirewallRuleRefsFromResource(object *FirewallRule, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_group_refs") {
+		object.ClearServiceGroup()
+		if val, ok := d.GetOk("service_group_refs"); ok {
+			log.Printf("Got ref service_group_refs -- will call: object.AddServiceGroup(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-group", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceGroup(refObj.(*ServiceGroup))
+			}
+		}
+	}
+	if d.HasChange("address_group_refs") {
+		object.ClearAddressGroup()
+		if val, ok := d.GetOk("address_group_refs"); ok {
+			log.Printf("Got ref address_group_refs -- will call: object.AddAddressGroup(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("address-group", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddAddressGroup(refObj.(*AddressGroup))
+			}
+		}
+	}
+	if d.HasChange("virtual_network_refs") {
+		object.ClearVirtualNetwork()
+		if val, ok := d.GetOk("virtual_network_refs"); ok {
+			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-network", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualNetwork(refObj.(*VirtualNetwork))
+			}
+		}
+	}
+	if d.HasChange("security_logging_object_refs") {
+		object.ClearSecurityLoggingObject()
+		if val, ok := d.GetOk("security_logging_object_refs"); ok {
+			log.Printf("Got ref security_logging_object_refs -- will call: object.AddSecurityLoggingObject(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("security-logging-object", refId.(string))
+				dataObj := new(SloRateType)
+				SetSloRateTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddSecurityLoggingObject(refObj.(*SecurityLoggingObject), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceFirewallRuleCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceFirewallRuleCreate")
@@ -405,7 +538,7 @@ func ResourceFirewallRuleRefsCreate(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceFirewallRuleRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFirewallRuleREAD")
+	log.Printf("ResourceFirewallRuleRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("firewall-rule", d.Id())
@@ -418,7 +551,15 @@ func ResourceFirewallRuleRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFirewallRuleRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFirewallRuleRefsREAD")
+	log.Printf("ResourceFirewallRuleRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("firewall-rule", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFirewallRuleRefsRead] Read resource firewall-rule on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*FirewallRule)
+	WriteFirewallRuleRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -428,7 +569,7 @@ func ResourceFirewallRuleUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("firewall-rule", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceFirewallRuleResourceUpdate] Retrieving FirewallRule with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceFirewallRuleUpdate] Retrieving FirewallRule with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*FirewallRule)
 	UpdateFirewallRuleFromResource(uobject, d, m)
@@ -442,6 +583,19 @@ func ResourceFirewallRuleUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceFirewallRuleRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceFirewallRuleRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("firewall-rule", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFirewallRuleRefsUpdate] Retrieving FirewallRule with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*FirewallRule)
+	UpdateFirewallRuleRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceFirewallRuleRefsUpdate] Update of resource FirewallRule on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

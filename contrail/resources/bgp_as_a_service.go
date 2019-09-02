@@ -183,6 +183,28 @@ func WriteBgpAsAServiceToResource(object BgpAsAService, d *schema.ResourceData, 
 	}
 }
 
+func WriteBgpAsAServiceRefsToResource(object BgpAsAService, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceHealthCheckRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_health_check_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeBgpAsAServiceAsMap(object *BgpAsAService) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -269,6 +291,7 @@ func UpdateBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceDa
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
 		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
 			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
 			for k, v := range val.([]interface{}) {
@@ -278,6 +301,45 @@ func UpdateBgpAsAServiceFromResource(object *BgpAsAService, d *schema.ResourceDa
 				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
 				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+
+}
+
+func UpdateBgpAsAServiceRefsFromResource(object *BgpAsAService, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_health_check_refs") {
+		object.ClearServiceHealthCheck()
+		if val, ok := d.GetOk("service_health_check_refs"); ok {
+			log.Printf("Got ref service_health_check_refs -- will call: object.AddServiceHealthCheck(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-health-check", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceHealthCheck(refObj.(*ServiceHealthCheck))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
 			}
 		}
 	}
@@ -345,7 +407,7 @@ func ResourceBgpAsAServiceRefsCreate(d *schema.ResourceData, m interface{}) erro
 }
 
 func ResourceBgpAsAServiceRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpAsAServiceREAD")
+	log.Printf("ResourceBgpAsAServiceRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("bgp-as-a-service", d.Id())
@@ -358,7 +420,15 @@ func ResourceBgpAsAServiceRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceBgpAsAServiceRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceBgpAsAServiceRefsREAD")
+	log.Printf("ResourceBgpAsAServiceRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("bgp-as-a-service", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpAsAServiceRefsRead] Read resource bgp-as-a-service on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*BgpAsAService)
+	WriteBgpAsAServiceRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -368,7 +438,7 @@ func ResourceBgpAsAServiceUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("bgp-as-a-service", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceBgpAsAServiceResourceUpdate] Retrieving BgpAsAService with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceBgpAsAServiceUpdate] Retrieving BgpAsAService with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*BgpAsAService)
 	UpdateBgpAsAServiceFromResource(uobject, d, m)
@@ -382,6 +452,19 @@ func ResourceBgpAsAServiceUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceBgpAsAServiceRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceBgpAsAServiceRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("bgp-as-a-service", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceBgpAsAServiceRefsUpdate] Retrieving BgpAsAService with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*BgpAsAService)
+	UpdateBgpAsAServiceRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceBgpAsAServiceRefsUpdate] Update of resource BgpAsAService on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

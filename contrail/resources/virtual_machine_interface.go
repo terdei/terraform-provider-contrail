@@ -509,6 +509,127 @@ func WriteVirtualMachineInterfaceToResource(object VirtualMachineInterface, d *s
 	}
 }
 
+func WriteVirtualMachineInterfaceRefsToResource(object VirtualMachineInterface, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetSecurityLoggingObjectRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("security_logging_object_refs", refList)
+	}
+	if ref, err := object.GetQosConfigRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("qos_config_refs", refList)
+	}
+	if ref, err := object.GetSecurityGroupRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("security_group_refs", refList)
+	}
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
+	if ref, err := object.GetVirtualMachineRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_refs", refList)
+	}
+	if ref, err := object.GetRoutingInstanceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("routing_instance_refs", refList)
+	}
+	if ref, err := object.GetPortTupleRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("port_tuple_refs", refList)
+	}
+	if ref, err := object.GetServiceHealthCheckRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_health_check_refs", refList)
+	}
+	if ref, err := object.GetInterfaceRouteTableRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("interface_route_table_refs", refList)
+	}
+	if ref, err := object.GetPhysicalInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("physical_interface_refs", refList)
+	}
+	if ref, err := object.GetBridgeDomainRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("bridge_domain_refs", refList)
+	}
+	if ref, err := object.GetServiceEndpointRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_endpoint_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeVirtualMachineInterfaceAsMap(object *VirtualMachineInterface) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -664,9 +785,9 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	if d.HasChange("virtual_network_refs") {
+		object.ClearVirtualNetwork()
 		if val, ok := d.GetOk("virtual_network_refs"); ok {
 			log.Printf("Got ref virtual_network_refs -- will call: object.AddVirtualNetwork(refObj)")
-			object.ClearVirtualNetwork()
 			for k, v := range val.([]interface{}) {
 				log.Printf("Item: %+v => <%T> %+v", k, v, v)
 				refId := (v.(map[string]interface{}))["to"]
@@ -678,9 +799,9 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 		}
 	}
 	if d.HasChange("bgp_router_refs") {
+		object.ClearBgpRouter()
 		if val, ok := d.GetOk("bgp_router_refs"); ok {
 			log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
-			object.ClearBgpRouter()
 			for k, v := range val.([]interface{}) {
 				log.Printf("Item: %+v => <%T> %+v", k, v, v)
 				refId := (v.(map[string]interface{}))["to"]
@@ -688,6 +809,205 @@ func UpdateVirtualMachineInterfaceFromResource(object *VirtualMachineInterface, 
 				refObj, _ := client.FindByUuid("bgp-router", refId.(string))
 				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 				object.AddBgpRouter(refObj.(*BgpRouter))
+			}
+		}
+	}
+
+}
+
+func UpdateVirtualMachineInterfaceRefsFromResource(object *VirtualMachineInterface, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("security_logging_object_refs") {
+		object.ClearSecurityLoggingObject()
+		if val, ok := d.GetOk("security_logging_object_refs"); ok {
+			log.Printf("Got ref security_logging_object_refs -- will call: object.AddSecurityLoggingObject(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("security-logging-object", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddSecurityLoggingObject(refObj.(*SecurityLoggingObject))
+			}
+		}
+	}
+	if d.HasChange("qos_config_refs") {
+		object.ClearQosConfig()
+		if val, ok := d.GetOk("qos_config_refs"); ok {
+			log.Printf("Got ref qos_config_refs -- will call: object.AddQosConfig(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("qos-config", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddQosConfig(refObj.(*QosConfig))
+			}
+		}
+	}
+	if d.HasChange("security_group_refs") {
+		object.ClearSecurityGroup()
+		if val, ok := d.GetOk("security_group_refs"); ok {
+			log.Printf("Got ref security_group_refs -- will call: object.AddSecurityGroup(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("security-group", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddSecurityGroup(refObj.(*SecurityGroup))
+			}
+		}
+	}
+	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+	if d.HasChange("virtual_machine_refs") {
+		object.ClearVirtualMachine()
+		if val, ok := d.GetOk("virtual_machine_refs"); ok {
+			log.Printf("Got ref virtual_machine_refs -- will call: object.AddVirtualMachine(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachine(refObj.(*VirtualMachine))
+			}
+		}
+	}
+	if d.HasChange("routing_instance_refs") {
+		object.ClearRoutingInstance()
+		if val, ok := d.GetOk("routing_instance_refs"); ok {
+			log.Printf("Got ref routing_instance_refs -- will call: object.AddRoutingInstance(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("routing-instance", refId.(string))
+				dataObj := new(PolicyBasedForwardingRuleType)
+				SetPolicyBasedForwardingRuleTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddRoutingInstance(refObj.(*RoutingInstance), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("port_tuple_refs") {
+		object.ClearPortTuple()
+		if val, ok := d.GetOk("port_tuple_refs"); ok {
+			log.Printf("Got ref port_tuple_refs -- will call: object.AddPortTuple(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("port-tuple", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPortTuple(refObj.(*PortTuple))
+			}
+		}
+	}
+	if d.HasChange("service_health_check_refs") {
+		object.ClearServiceHealthCheck()
+		if val, ok := d.GetOk("service_health_check_refs"); ok {
+			log.Printf("Got ref service_health_check_refs -- will call: object.AddServiceHealthCheck(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-health-check", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceHealthCheck(refObj.(*ServiceHealthCheck))
+			}
+		}
+	}
+	if d.HasChange("interface_route_table_refs") {
+		object.ClearInterfaceRouteTable()
+		if val, ok := d.GetOk("interface_route_table_refs"); ok {
+			log.Printf("Got ref interface_route_table_refs -- will call: object.AddInterfaceRouteTable(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("interface-route-table", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddInterfaceRouteTable(refObj.(*InterfaceRouteTable))
+			}
+		}
+	}
+	if d.HasChange("physical_interface_refs") {
+		object.ClearPhysicalInterface()
+		if val, ok := d.GetOk("physical_interface_refs"); ok {
+			log.Printf("Got ref physical_interface_refs -- will call: object.AddPhysicalInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("physical-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPhysicalInterface(refObj.(*PhysicalInterface))
+			}
+		}
+	}
+	if d.HasChange("bridge_domain_refs") {
+		object.ClearBridgeDomain()
+		if val, ok := d.GetOk("bridge_domain_refs"); ok {
+			log.Printf("Got ref bridge_domain_refs -- will call: object.AddBridgeDomain(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("bridge-domain", refId.(string))
+				dataObj := new(BridgeDomainMembershipType)
+				SetBridgeDomainMembershipTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddBridgeDomain(refObj.(*BridgeDomain), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("service_endpoint_refs") {
+		object.ClearServiceEndpoint()
+		if val, ok := d.GetOk("service_endpoint_refs"); ok {
+			log.Printf("Got ref service_endpoint_refs -- will call: object.AddServiceEndpoint(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-endpoint", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceEndpoint(refObj.(*ServiceEndpoint))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
 			}
 		}
 	}
@@ -755,7 +1075,7 @@ func ResourceVirtualMachineInterfaceRefsCreate(d *schema.ResourceData, m interfa
 }
 
 func ResourceVirtualMachineInterfaceRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualMachineInterfaceREAD")
+	log.Printf("ResourceVirtualMachineInterfaceRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("virtual-machine-interface", d.Id())
@@ -768,7 +1088,15 @@ func ResourceVirtualMachineInterfaceRead(d *schema.ResourceData, m interface{}) 
 }
 
 func ResourceVirtualMachineInterfaceRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualMachineInterfaceRefsREAD")
+	log.Printf("ResourceVirtualMachineInterfaceRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("virtual-machine-interface", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceRefsRead] Read resource virtual-machine-interface on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*VirtualMachineInterface)
+	WriteVirtualMachineInterfaceRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -778,7 +1106,7 @@ func ResourceVirtualMachineInterfaceUpdate(d *schema.ResourceData, m interface{}
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("virtual-machine-interface", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceVirtualMachineInterfaceResourceUpdate] Retrieving VirtualMachineInterface with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceUpdate] Retrieving VirtualMachineInterface with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*VirtualMachineInterface)
 	UpdateVirtualMachineInterfaceFromResource(uobject, d, m)
@@ -792,6 +1120,19 @@ func ResourceVirtualMachineInterfaceUpdate(d *schema.ResourceData, m interface{}
 
 func ResourceVirtualMachineInterfaceRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceVirtualMachineInterfaceRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("virtual-machine-interface", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceRefsUpdate] Retrieving VirtualMachineInterface with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*VirtualMachineInterface)
+	UpdateVirtualMachineInterfaceRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceVirtualMachineInterfaceRefsUpdate] Update of resource VirtualMachineInterface on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

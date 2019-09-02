@@ -109,6 +109,19 @@ func WriteFloatingIpPoolToResource(object FloatingIpPool, d *schema.ResourceData
 
 }
 
+func WriteFloatingIpPoolRefsToResource(object FloatingIpPool, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeFloatingIpPoolAsMap(object *FloatingIpPool) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -162,6 +175,31 @@ func UpdateFloatingIpPoolFromResource(object *FloatingIpPool, d *schema.Resource
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateFloatingIpPoolRefsFromResource(object *FloatingIpPool, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -224,7 +262,7 @@ func ResourceFloatingIpPoolRefsCreate(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceFloatingIpPoolRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFloatingIpPoolREAD")
+	log.Printf("ResourceFloatingIpPoolRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("floating-ip-pool", d.Id())
@@ -237,7 +275,15 @@ func ResourceFloatingIpPoolRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFloatingIpPoolRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFloatingIpPoolRefsREAD")
+	log.Printf("ResourceFloatingIpPoolRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("floating-ip-pool", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFloatingIpPoolRefsRead] Read resource floating-ip-pool on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*FloatingIpPool)
+	WriteFloatingIpPoolRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -247,7 +293,7 @@ func ResourceFloatingIpPoolUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("floating-ip-pool", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceFloatingIpPoolResourceUpdate] Retrieving FloatingIpPool with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceFloatingIpPoolUpdate] Retrieving FloatingIpPool with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*FloatingIpPool)
 	UpdateFloatingIpPoolFromResource(uobject, d, m)
@@ -261,6 +307,19 @@ func ResourceFloatingIpPoolUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceFloatingIpPoolRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceFloatingIpPoolRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("floating-ip-pool", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFloatingIpPoolRefsUpdate] Retrieving FloatingIpPool with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*FloatingIpPool)
+	UpdateFloatingIpPoolRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceFloatingIpPoolRefsUpdate] Update of resource FloatingIpPool on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

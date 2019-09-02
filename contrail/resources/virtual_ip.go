@@ -153,6 +153,37 @@ func WriteVirtualIpToResource(object VirtualIp, d *schema.ResourceData, m interf
 
 }
 
+func WriteVirtualIpRefsToResource(object VirtualIp, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetLoadbalancerPoolRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("loadbalancer_pool_refs", refList)
+	}
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeVirtualIpAsMap(object *VirtualIp) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -206,6 +237,59 @@ func UpdateVirtualIpFromResource(object *VirtualIp, d *schema.ResourceData, m in
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateVirtualIpRefsFromResource(object *VirtualIp, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("loadbalancer_pool_refs") {
+		object.ClearLoadbalancerPool()
+		if val, ok := d.GetOk("loadbalancer_pool_refs"); ok {
+			log.Printf("Got ref loadbalancer_pool_refs -- will call: object.AddLoadbalancerPool(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("loadbalancer-pool", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddLoadbalancerPool(refObj.(*LoadbalancerPool))
+			}
+		}
+	}
+	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -268,7 +352,7 @@ func ResourceVirtualIpRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceVirtualIpRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualIpREAD")
+	log.Printf("ResourceVirtualIpRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("virtual-ip", d.Id())
@@ -281,7 +365,15 @@ func ResourceVirtualIpRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceVirtualIpRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceVirtualIpRefsREAD")
+	log.Printf("ResourceVirtualIpRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("virtual-ip", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualIpRefsRead] Read resource virtual-ip on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*VirtualIp)
+	WriteVirtualIpRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -291,7 +383,7 @@ func ResourceVirtualIpUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("virtual-ip", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceVirtualIpResourceUpdate] Retrieving VirtualIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceVirtualIpUpdate] Retrieving VirtualIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*VirtualIp)
 	UpdateVirtualIpFromResource(uobject, d, m)
@@ -305,6 +397,19 @@ func ResourceVirtualIpUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceVirtualIpRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceVirtualIpRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("virtual-ip", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceVirtualIpRefsUpdate] Retrieving VirtualIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*VirtualIp)
+	UpdateVirtualIpRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceVirtualIpRefsUpdate] Update of resource VirtualIp on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

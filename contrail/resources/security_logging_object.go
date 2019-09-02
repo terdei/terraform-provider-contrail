@@ -163,6 +163,37 @@ func WriteSecurityLoggingObjectToResource(object SecurityLoggingObject, d *schem
 
 }
 
+func WriteSecurityLoggingObjectRefsToResource(object SecurityLoggingObject, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetNetworkPolicyRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("network_policy_refs", refList)
+	}
+	if ref, err := object.GetSecurityGroupRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("security_group_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeSecurityLoggingObjectAsMap(object *SecurityLoggingObject) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -227,6 +258,65 @@ func UpdateSecurityLoggingObjectFromResource(object *SecurityLoggingObject, d *s
 
 }
 
+func UpdateSecurityLoggingObjectRefsFromResource(object *SecurityLoggingObject, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("network_policy_refs") {
+		object.ClearNetworkPolicy()
+		if val, ok := d.GetOk("network_policy_refs"); ok {
+			log.Printf("Got ref network_policy_refs -- will call: object.AddNetworkPolicy(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("network-policy", refId.(string))
+				dataObj := new(SecurityLoggingObjectRuleListType)
+				SetSecurityLoggingObjectRuleListTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddNetworkPolicy(refObj.(*NetworkPolicy), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("security_group_refs") {
+		object.ClearSecurityGroup()
+		if val, ok := d.GetOk("security_group_refs"); ok {
+			log.Printf("Got ref security_group_refs -- will call: object.AddSecurityGroup(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("security-group", refId.(string))
+				dataObj := new(SecurityLoggingObjectRuleListType)
+				SetSecurityLoggingObjectRuleListTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddSecurityGroup(refObj.(*SecurityGroup), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceSecurityLoggingObjectCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceSecurityLoggingObjectCreate")
@@ -284,7 +374,7 @@ func ResourceSecurityLoggingObjectRefsCreate(d *schema.ResourceData, m interface
 }
 
 func ResourceSecurityLoggingObjectRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceSecurityLoggingObjectREAD")
+	log.Printf("ResourceSecurityLoggingObjectRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("security-logging-object", d.Id())
@@ -297,7 +387,15 @@ func ResourceSecurityLoggingObjectRead(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceSecurityLoggingObjectRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceSecurityLoggingObjectRefsREAD")
+	log.Printf("ResourceSecurityLoggingObjectRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("security-logging-object", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceSecurityLoggingObjectRefsRead] Read resource security-logging-object on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*SecurityLoggingObject)
+	WriteSecurityLoggingObjectRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -307,7 +405,7 @@ func ResourceSecurityLoggingObjectUpdate(d *schema.ResourceData, m interface{}) 
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("security-logging-object", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceSecurityLoggingObjectResourceUpdate] Retrieving SecurityLoggingObject with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceSecurityLoggingObjectUpdate] Retrieving SecurityLoggingObject with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*SecurityLoggingObject)
 	UpdateSecurityLoggingObjectFromResource(uobject, d, m)
@@ -321,6 +419,19 @@ func ResourceSecurityLoggingObjectUpdate(d *schema.ResourceData, m interface{}) 
 
 func ResourceSecurityLoggingObjectRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceSecurityLoggingObjectRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("security-logging-object", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceSecurityLoggingObjectRefsUpdate] Retrieving SecurityLoggingObject with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*SecurityLoggingObject)
+	UpdateSecurityLoggingObjectRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceSecurityLoggingObjectRefsUpdate] Update of resource SecurityLoggingObject on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

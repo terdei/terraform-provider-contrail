@@ -120,6 +120,19 @@ func WriteAlarmToResource(object Alarm, d *schema.ResourceData, m interface{}) {
 
 }
 
+func WriteAlarmRefsToResource(object Alarm, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeAlarmAsMap(object *Alarm) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -193,6 +206,31 @@ func UpdateAlarmFromResource(object *Alarm, d *schema.ResourceData, m interface{
 
 }
 
+func UpdateAlarmRefsFromResource(object *Alarm, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceAlarmCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceAlarmCreate")
@@ -250,7 +288,7 @@ func ResourceAlarmRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceAlarmRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceAlarmREAD")
+	log.Printf("ResourceAlarmRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("alarm", d.Id())
@@ -263,7 +301,15 @@ func ResourceAlarmRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceAlarmRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceAlarmRefsREAD")
+	log.Printf("ResourceAlarmRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("alarm", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceAlarmRefsRead] Read resource alarm on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*Alarm)
+	WriteAlarmRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -273,7 +319,7 @@ func ResourceAlarmUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("alarm", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceAlarmResourceUpdate] Retrieving Alarm with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceAlarmUpdate] Retrieving Alarm with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*Alarm)
 	UpdateAlarmFromResource(uobject, d, m)
@@ -287,6 +333,19 @@ func ResourceAlarmUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceAlarmRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceAlarmRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("alarm", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceAlarmRefsUpdate] Retrieving Alarm with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*Alarm)
+	UpdateAlarmRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceAlarmRefsUpdate] Update of resource Alarm on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

@@ -190,6 +190,28 @@ func WriteFloatingIpToResource(object FloatingIp, d *schema.ResourceData, m inte
 	}
 }
 
+func WriteFloatingIpRefsToResource(object FloatingIp, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetVirtualMachineInterfaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("virtual_machine_interface_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeFloatingIpAsMap(object *FloatingIp) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -285,6 +307,7 @@ func UpdateFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m 
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	if d.HasChange("project_refs") {
+		object.ClearProject()
 		if val, ok := d.GetOk("project_refs"); ok {
 			log.Printf("Got ref project_refs -- will call: object.AddProject(refObj)")
 			for k, v := range val.([]interface{}) {
@@ -294,6 +317,45 @@ func UpdateFloatingIpFromResource(object *FloatingIp, d *schema.ResourceData, m 
 				refObj, _ := client.FindByUuid("project", refId.(string))
 				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 				object.AddProject(refObj.(*Project))
+			}
+		}
+	}
+
+}
+
+func UpdateFloatingIpRefsFromResource(object *FloatingIp, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("virtual_machine_interface_refs") {
+		object.ClearVirtualMachineInterface()
+		if val, ok := d.GetOk("virtual_machine_interface_refs"); ok {
+			log.Printf("Got ref virtual_machine_interface_refs -- will call: object.AddVirtualMachineInterface(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("virtual-machine-interface", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddVirtualMachineInterface(refObj.(*VirtualMachineInterface))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
 			}
 		}
 	}
@@ -361,7 +423,7 @@ func ResourceFloatingIpRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFloatingIpRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFloatingIpREAD")
+	log.Printf("ResourceFloatingIpRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("floating-ip", d.Id())
@@ -374,7 +436,15 @@ func ResourceFloatingIpRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFloatingIpRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFloatingIpRefsREAD")
+	log.Printf("ResourceFloatingIpRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("floating-ip", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFloatingIpRefsRead] Read resource floating-ip on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*FloatingIp)
+	WriteFloatingIpRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -384,7 +454,7 @@ func ResourceFloatingIpUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("floating-ip", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceFloatingIpResourceUpdate] Retrieving FloatingIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceFloatingIpUpdate] Retrieving FloatingIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*FloatingIp)
 	UpdateFloatingIpFromResource(uobject, d, m)
@@ -398,6 +468,19 @@ func ResourceFloatingIpUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceFloatingIpRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceFloatingIpRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("floating-ip", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFloatingIpRefsUpdate] Retrieving FloatingIp with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*FloatingIp)
+	UpdateFloatingIpRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceFloatingIpRefsUpdate] Update of resource FloatingIp on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

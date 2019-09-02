@@ -168,6 +168,46 @@ func WriteServiceEndpointToResource(object ServiceEndpoint, d *schema.ResourceDa
 
 }
 
+func WriteServiceEndpointRefsToResource(object ServiceEndpoint, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceConnectionModuleRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_connection_module_refs", refList)
+	}
+	if ref, err := object.GetPhysicalRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("physical_router_refs", refList)
+	}
+	if ref, err := object.GetServiceObjectRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_object_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeServiceEndpointAsMap(object *ServiceEndpoint) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -212,6 +252,73 @@ func UpdateServiceEndpointFromResource(object *ServiceEndpoint, d *schema.Resour
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateServiceEndpointRefsFromResource(object *ServiceEndpoint, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_connection_module_refs") {
+		object.ClearServiceConnectionModule()
+		if val, ok := d.GetOk("service_connection_module_refs"); ok {
+			log.Printf("Got ref service_connection_module_refs -- will call: object.AddServiceConnectionModule(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-connection-module", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceConnectionModule(refObj.(*ServiceConnectionModule))
+			}
+		}
+	}
+	if d.HasChange("physical_router_refs") {
+		object.ClearPhysicalRouter()
+		if val, ok := d.GetOk("physical_router_refs"); ok {
+			log.Printf("Got ref physical_router_refs -- will call: object.AddPhysicalRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("physical-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPhysicalRouter(refObj.(*PhysicalRouter))
+			}
+		}
+	}
+	if d.HasChange("service_object_refs") {
+		object.ClearServiceObject()
+		if val, ok := d.GetOk("service_object_refs"); ok {
+			log.Printf("Got ref service_object_refs -- will call: object.AddServiceObject(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-object", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceObject(refObj.(*ServiceObject))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -274,7 +381,7 @@ func ResourceServiceEndpointRefsCreate(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceServiceEndpointRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceEndpointREAD")
+	log.Printf("ResourceServiceEndpointRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("service-endpoint", d.Id())
@@ -287,7 +394,15 @@ func ResourceServiceEndpointRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceServiceEndpointRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceEndpointRefsREAD")
+	log.Printf("ResourceServiceEndpointRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("service-endpoint", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceEndpointRefsRead] Read resource service-endpoint on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ServiceEndpoint)
+	WriteServiceEndpointRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -297,7 +412,7 @@ func ResourceServiceEndpointUpdate(d *schema.ResourceData, m interface{}) error 
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("service-endpoint", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceServiceEndpointResourceUpdate] Retrieving ServiceEndpoint with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceServiceEndpointUpdate] Retrieving ServiceEndpoint with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ServiceEndpoint)
 	UpdateServiceEndpointFromResource(uobject, d, m)
@@ -311,6 +426,19 @@ func ResourceServiceEndpointUpdate(d *schema.ResourceData, m interface{}) error 
 
 func ResourceServiceEndpointRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceServiceEndpointRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("service-endpoint", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceEndpointRefsUpdate] Retrieving ServiceEndpoint with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ServiceEndpoint)
+	UpdateServiceEndpointRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceServiceEndpointRefsUpdate] Update of resource ServiceEndpoint on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

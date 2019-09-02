@@ -132,6 +132,28 @@ func WriteServiceConnectionModuleToResource(object ServiceConnectionModule, d *s
 
 }
 
+func WriteServiceConnectionModuleRefsToResource(object ServiceConnectionModule, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetServiceObjectRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("service_object_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeServiceConnectionModuleAsMap(object *ServiceConnectionModule) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -188,6 +210,45 @@ func UpdateServiceConnectionModuleFromResource(object *ServiceConnectionModule, 
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateServiceConnectionModuleRefsFromResource(object *ServiceConnectionModule, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("service_object_refs") {
+		object.ClearServiceObject()
+		if val, ok := d.GetOk("service_object_refs"); ok {
+			log.Printf("Got ref service_object_refs -- will call: object.AddServiceObject(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("service-object", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddServiceObject(refObj.(*ServiceObject))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -250,7 +311,7 @@ func ResourceServiceConnectionModuleRefsCreate(d *schema.ResourceData, m interfa
 }
 
 func ResourceServiceConnectionModuleRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceConnectionModuleREAD")
+	log.Printf("ResourceServiceConnectionModuleRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("service-connection-module", d.Id())
@@ -263,7 +324,15 @@ func ResourceServiceConnectionModuleRead(d *schema.ResourceData, m interface{}) 
 }
 
 func ResourceServiceConnectionModuleRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceServiceConnectionModuleRefsREAD")
+	log.Printf("ResourceServiceConnectionModuleRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("service-connection-module", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceConnectionModuleRefsRead] Read resource service-connection-module on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ServiceConnectionModule)
+	WriteServiceConnectionModuleRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -273,7 +342,7 @@ func ResourceServiceConnectionModuleUpdate(d *schema.ResourceData, m interface{}
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("service-connection-module", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceServiceConnectionModuleResourceUpdate] Retrieving ServiceConnectionModule with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceServiceConnectionModuleUpdate] Retrieving ServiceConnectionModule with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ServiceConnectionModule)
 	UpdateServiceConnectionModuleFromResource(uobject, d, m)
@@ -287,6 +356,19 @@ func ResourceServiceConnectionModuleUpdate(d *schema.ResourceData, m interface{}
 
 func ResourceServiceConnectionModuleRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceServiceConnectionModuleRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("service-connection-module", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceServiceConnectionModuleRefsUpdate] Retrieving ServiceConnectionModule with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ServiceConnectionModule)
+	UpdateServiceConnectionModuleRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceServiceConnectionModuleRefsUpdate] Update of resource ServiceConnectionModule on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

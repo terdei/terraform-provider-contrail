@@ -208,6 +208,55 @@ func WriteProjectToResource(object Project, d *schema.ResourceData, m interface{
 
 }
 
+func WriteProjectRefsToResource(object Project, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetNamespaceRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("namespace_refs", refList)
+	}
+	if ref, err := object.GetFloatingIpPoolRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("floating_ip_pool_refs", refList)
+	}
+	if ref, err := object.GetAliasIpPoolRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("alias_ip_pool_refs", refList)
+	}
+	if ref, err := object.GetApplicationPolicySetRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("application_policy_set_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeProjectAsMap(object *Project) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -278,6 +327,90 @@ func UpdateProjectFromResource(object *Project, d *schema.ResourceData, m interf
 
 }
 
+func UpdateProjectRefsFromResource(object *Project, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("namespace_refs") {
+		object.ClearNamespace()
+		if val, ok := d.GetOk("namespace_refs"); ok {
+			log.Printf("Got ref namespace_refs -- will call: object.AddNamespace(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("namespace", refId.(string))
+				dataObj := new(SubnetType)
+				SetSubnetTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddNamespace(refObj.(*Namespace), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("floating_ip_pool_refs") {
+		object.ClearFloatingIpPool()
+		if val, ok := d.GetOk("floating_ip_pool_refs"); ok {
+			log.Printf("Got ref floating_ip_pool_refs -- will call: object.AddFloatingIpPool(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("floating-ip-pool", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddFloatingIpPool(refObj.(*FloatingIpPool))
+			}
+		}
+	}
+	if d.HasChange("alias_ip_pool_refs") {
+		object.ClearAliasIpPool()
+		if val, ok := d.GetOk("alias_ip_pool_refs"); ok {
+			log.Printf("Got ref alias_ip_pool_refs -- will call: object.AddAliasIpPool(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("alias-ip-pool", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddAliasIpPool(refObj.(*AliasIpPool))
+			}
+		}
+	}
+	if d.HasChange("application_policy_set_refs") {
+		object.ClearApplicationPolicySet()
+		if val, ok := d.GetOk("application_policy_set_refs"); ok {
+			log.Printf("Got ref application_policy_set_refs -- will call: object.AddApplicationPolicySet(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("application-policy-set", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddApplicationPolicySet(refObj.(*ApplicationPolicySet))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceProjectCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceProjectCreate")
@@ -335,7 +468,7 @@ func ResourceProjectRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceProjectRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceProjectREAD")
+	log.Printf("ResourceProjectRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("project", d.Id())
@@ -348,7 +481,15 @@ func ResourceProjectRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceProjectRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceProjectRefsREAD")
+	log.Printf("ResourceProjectRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("project", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceProjectRefsRead] Read resource project on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*Project)
+	WriteProjectRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -358,7 +499,7 @@ func ResourceProjectUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("project", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceProjectResourceUpdate] Retrieving Project with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceProjectUpdate] Retrieving Project with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*Project)
 	UpdateProjectFromResource(uobject, d, m)
@@ -372,6 +513,19 @@ func ResourceProjectUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceProjectRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceProjectRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("project", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceProjectRefsUpdate] Retrieving Project with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*Project)
+	UpdateProjectRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceProjectRefsUpdate] Update of resource Project on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

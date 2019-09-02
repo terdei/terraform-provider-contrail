@@ -102,6 +102,19 @@ func WriteRouteTargetToResource(object RouteTarget, d *schema.ResourceData, m in
 
 }
 
+func WriteRouteTargetRefsToResource(object RouteTarget, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeRouteTargetAsMap(object *RouteTarget) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -146,6 +159,31 @@ func UpdateRouteTargetFromResource(object *RouteTarget, d *schema.ResourceData, 
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateRouteTargetRefsFromResource(object *RouteTarget, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -208,7 +246,7 @@ func ResourceRouteTargetRefsCreate(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceRouteTargetRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceRouteTargetREAD")
+	log.Printf("ResourceRouteTargetRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("route-target", d.Id())
@@ -221,7 +259,15 @@ func ResourceRouteTargetRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceRouteTargetRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceRouteTargetRefsREAD")
+	log.Printf("ResourceRouteTargetRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("route-target", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceRouteTargetRefsRead] Read resource route-target on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*RouteTarget)
+	WriteRouteTargetRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -231,7 +277,7 @@ func ResourceRouteTargetUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("route-target", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceRouteTargetResourceUpdate] Retrieving RouteTarget with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceRouteTargetUpdate] Retrieving RouteTarget with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*RouteTarget)
 	UpdateRouteTargetFromResource(uobject, d, m)
@@ -245,6 +291,19 @@ func ResourceRouteTargetUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceRouteTargetRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceRouteTargetRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("route-target", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceRouteTargetRefsUpdate] Retrieving RouteTarget with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*RouteTarget)
+	UpdateRouteTargetRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceRouteTargetRefsUpdate] Update of resource RouteTarget on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

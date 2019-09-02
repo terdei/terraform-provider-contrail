@@ -102,6 +102,19 @@ func WritePortTupleToResource(object PortTuple, d *schema.ResourceData, m interf
 
 }
 
+func WritePortTupleRefsToResource(object PortTuple, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakePortTupleAsMap(object *PortTuple) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -146,6 +159,31 @@ func UpdatePortTupleFromResource(object *PortTuple, d *schema.ResourceData, m in
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdatePortTupleRefsFromResource(object *PortTuple, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -208,7 +246,7 @@ func ResourcePortTupleRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourcePortTupleRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePortTupleREAD")
+	log.Printf("ResourcePortTupleRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("port-tuple", d.Id())
@@ -221,7 +259,15 @@ func ResourcePortTupleRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourcePortTupleRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePortTupleRefsREAD")
+	log.Printf("ResourcePortTupleRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("port-tuple", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePortTupleRefsRead] Read resource port-tuple on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*PortTuple)
+	WritePortTupleRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -231,7 +277,7 @@ func ResourcePortTupleUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("port-tuple", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourcePortTupleResourceUpdate] Retrieving PortTuple with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourcePortTupleUpdate] Retrieving PortTuple with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*PortTuple)
 	UpdatePortTupleFromResource(uobject, d, m)
@@ -245,6 +291,19 @@ func ResourcePortTupleUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourcePortTupleRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourcePortTupleRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("port-tuple", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePortTupleRefsUpdate] Retrieving PortTuple with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*PortTuple)
+	UpdatePortTupleRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourcePortTupleRefsUpdate] Update of resource PortTuple on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

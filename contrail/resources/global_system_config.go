@@ -210,6 +210,19 @@ func WriteGlobalSystemConfigToResource(object GlobalSystemConfig, d *schema.Reso
 	}
 }
 
+func WriteGlobalSystemConfigRefsToResource(object GlobalSystemConfig, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeGlobalSystemConfigAsMap(object *GlobalSystemConfig) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -359,6 +372,7 @@ func UpdateGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	if d.HasChange("bgp_router_refs") {
+		object.ClearBgpRouter()
 		if val, ok := d.GetOk("bgp_router_refs"); ok {
 			log.Printf("Got ref bgp_router_refs -- will call: object.AddBgpRouter(refObj)")
 			for k, v := range val.([]interface{}) {
@@ -368,6 +382,31 @@ func UpdateGlobalSystemConfigFromResource(object *GlobalSystemConfig, d *schema.
 				refObj, _ := client.FindByUuid("bgp-router", refId.(string))
 				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 				object.AddBgpRouter(refObj.(*BgpRouter))
+			}
+		}
+	}
+
+}
+
+func UpdateGlobalSystemConfigRefsFromResource(object *GlobalSystemConfig, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
 			}
 		}
 	}
@@ -435,7 +474,7 @@ func ResourceGlobalSystemConfigRefsCreate(d *schema.ResourceData, m interface{})
 }
 
 func ResourceGlobalSystemConfigRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceGlobalSystemConfigREAD")
+	log.Printf("ResourceGlobalSystemConfigRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("global-system-config", d.Id())
@@ -448,7 +487,15 @@ func ResourceGlobalSystemConfigRead(d *schema.ResourceData, m interface{}) error
 }
 
 func ResourceGlobalSystemConfigRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceGlobalSystemConfigRefsREAD")
+	log.Printf("ResourceGlobalSystemConfigRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("global-system-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceGlobalSystemConfigRefsRead] Read resource global-system-config on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*GlobalSystemConfig)
+	WriteGlobalSystemConfigRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -458,7 +505,7 @@ func ResourceGlobalSystemConfigUpdate(d *schema.ResourceData, m interface{}) err
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("global-system-config", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceGlobalSystemConfigResourceUpdate] Retrieving GlobalSystemConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceGlobalSystemConfigUpdate] Retrieving GlobalSystemConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*GlobalSystemConfig)
 	UpdateGlobalSystemConfigFromResource(uobject, d, m)
@@ -472,6 +519,19 @@ func ResourceGlobalSystemConfigUpdate(d *schema.ResourceData, m interface{}) err
 
 func ResourceGlobalSystemConfigRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceGlobalSystemConfigRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("global-system-config", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceGlobalSystemConfigRefsUpdate] Retrieving GlobalSystemConfig with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*GlobalSystemConfig)
+	UpdateGlobalSystemConfigRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceGlobalSystemConfigRefsUpdate] Update of resource GlobalSystemConfig on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

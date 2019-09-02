@@ -114,6 +114,19 @@ func WriteQosQueueToResource(object QosQueue, d *schema.ResourceData, m interfac
 
 }
 
+func WriteQosQueueRefsToResource(object QosQueue, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeQosQueueAsMap(object *QosQueue) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -181,6 +194,31 @@ func UpdateQosQueueFromResource(object *QosQueue, d *schema.ResourceData, m inte
 
 }
 
+func UpdateQosQueueRefsFromResource(object *QosQueue, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
+		}
+	}
+
+}
+
 func ResourceQosQueueCreate(d *schema.ResourceData, m interface{}) error {
 	// SPEW
 	log.Printf("ResourceQosQueueCreate")
@@ -238,7 +276,7 @@ func ResourceQosQueueRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceQosQueueRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceQosQueueREAD")
+	log.Printf("ResourceQosQueueRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("qos-queue", d.Id())
@@ -251,7 +289,15 @@ func ResourceQosQueueRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceQosQueueRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceQosQueueRefsREAD")
+	log.Printf("ResourceQosQueueRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("qos-queue", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceQosQueueRefsRead] Read resource qos-queue on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*QosQueue)
+	WriteQosQueueRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -261,7 +307,7 @@ func ResourceQosQueueUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("qos-queue", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceQosQueueResourceUpdate] Retrieving QosQueue with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceQosQueueUpdate] Retrieving QosQueue with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*QosQueue)
 	UpdateQosQueueFromResource(uobject, d, m)
@@ -275,6 +321,19 @@ func ResourceQosQueueUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceQosQueueRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceQosQueueRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("qos-queue", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceQosQueueRefsUpdate] Retrieving QosQueue with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*QosQueue)
+	UpdateQosQueueRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceQosQueueRefsUpdate] Update of resource QosQueue on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

@@ -150,6 +150,37 @@ func WriteE2ServiceProviderToResource(object E2ServiceProvider, d *schema.Resour
 
 }
 
+func WriteE2ServiceProviderRefsToResource(object E2ServiceProvider, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetPeeringPolicyRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("peering_policy_refs", refList)
+	}
+	if ref, err := object.GetPhysicalRouterRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("physical_router_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeE2ServiceProviderAsMap(object *E2ServiceProvider) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -200,6 +231,59 @@ func UpdateE2ServiceProviderFromResource(object *E2ServiceProvider, d *schema.Re
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateE2ServiceProviderRefsFromResource(object *E2ServiceProvider, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("peering_policy_refs") {
+		object.ClearPeeringPolicy()
+		if val, ok := d.GetOk("peering_policy_refs"); ok {
+			log.Printf("Got ref peering_policy_refs -- will call: object.AddPeeringPolicy(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("peering-policy", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPeeringPolicy(refObj.(*PeeringPolicy))
+			}
+		}
+	}
+	if d.HasChange("physical_router_refs") {
+		object.ClearPhysicalRouter()
+		if val, ok := d.GetOk("physical_router_refs"); ok {
+			log.Printf("Got ref physical_router_refs -- will call: object.AddPhysicalRouter(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("physical-router", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddPhysicalRouter(refObj.(*PhysicalRouter))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -262,7 +346,7 @@ func ResourceE2ServiceProviderRefsCreate(d *schema.ResourceData, m interface{}) 
 }
 
 func ResourceE2ServiceProviderRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceE2ServiceProviderREAD")
+	log.Printf("ResourceE2ServiceProviderRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("e2-service-provider", d.Id())
@@ -275,7 +359,15 @@ func ResourceE2ServiceProviderRead(d *schema.ResourceData, m interface{}) error 
 }
 
 func ResourceE2ServiceProviderRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceE2ServiceProviderRefsREAD")
+	log.Printf("ResourceE2ServiceProviderRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("e2-service-provider", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceE2ServiceProviderRefsRead] Read resource e2-service-provider on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*E2ServiceProvider)
+	WriteE2ServiceProviderRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -285,7 +377,7 @@ func ResourceE2ServiceProviderUpdate(d *schema.ResourceData, m interface{}) erro
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("e2-service-provider", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceE2ServiceProviderResourceUpdate] Retrieving E2ServiceProvider with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceE2ServiceProviderUpdate] Retrieving E2ServiceProvider with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*E2ServiceProvider)
 	UpdateE2ServiceProviderFromResource(uobject, d, m)
@@ -299,6 +391,19 @@ func ResourceE2ServiceProviderUpdate(d *schema.ResourceData, m interface{}) erro
 
 func ResourceE2ServiceProviderRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceE2ServiceProviderRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("e2-service-provider", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceE2ServiceProviderRefsUpdate] Retrieving E2ServiceProvider with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*E2ServiceProvider)
+	UpdateE2ServiceProviderRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceE2ServiceProviderRefsUpdate] Update of resource E2ServiceProvider on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

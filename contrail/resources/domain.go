@@ -109,6 +109,19 @@ func WriteDomainToResource(object Domain, d *schema.ResourceData, m interface{})
 
 }
 
+func WriteDomainRefsToResource(object Domain, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeDomainAsMap(object *Domain) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -162,6 +175,31 @@ func UpdateDomainFromResource(object *Domain, d *schema.ResourceData, m interfac
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateDomainRefsFromResource(object *Domain, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -224,7 +262,7 @@ func ResourceDomainRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceDomainRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceDomainREAD")
+	log.Printf("ResourceDomainRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("domain", d.Id())
@@ -237,7 +275,15 @@ func ResourceDomainRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceDomainRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceDomainRefsREAD")
+	log.Printf("ResourceDomainRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("domain", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceDomainRefsRead] Read resource domain on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*Domain)
+	WriteDomainRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -247,7 +293,7 @@ func ResourceDomainUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("domain", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceDomainResourceUpdate] Retrieving Domain with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceDomainUpdate] Retrieving Domain with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*Domain)
 	UpdateDomainFromResource(uobject, d, m)
@@ -261,6 +307,19 @@ func ResourceDomainUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceDomainRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceDomainRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("domain", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceDomainRefsUpdate] Retrieving Domain with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*Domain)
+	UpdateDomainRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceDomainRefsUpdate] Update of resource Domain on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

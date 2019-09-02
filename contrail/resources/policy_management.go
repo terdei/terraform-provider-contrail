@@ -102,6 +102,19 @@ func WritePolicyManagementToResource(object PolicyManagement, d *schema.Resource
 
 }
 
+func WritePolicyManagementRefsToResource(object PolicyManagement, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakePolicyManagementAsMap(object *PolicyManagement) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -146,6 +159,31 @@ func UpdatePolicyManagementFromResource(object *PolicyManagement, d *schema.Reso
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdatePolicyManagementRefsFromResource(object *PolicyManagement, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -208,7 +246,7 @@ func ResourcePolicyManagementRefsCreate(d *schema.ResourceData, m interface{}) e
 }
 
 func ResourcePolicyManagementRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePolicyManagementREAD")
+	log.Printf("ResourcePolicyManagementRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("policy-management", d.Id())
@@ -221,7 +259,15 @@ func ResourcePolicyManagementRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourcePolicyManagementRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourcePolicyManagementRefsREAD")
+	log.Printf("ResourcePolicyManagementRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("policy-management", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePolicyManagementRefsRead] Read resource policy-management on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*PolicyManagement)
+	WritePolicyManagementRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -231,7 +277,7 @@ func ResourcePolicyManagementUpdate(d *schema.ResourceData, m interface{}) error
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("policy-management", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourcePolicyManagementResourceUpdate] Retrieving PolicyManagement with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourcePolicyManagementUpdate] Retrieving PolicyManagement with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*PolicyManagement)
 	UpdatePolicyManagementFromResource(uobject, d, m)
@@ -245,6 +291,19 @@ func ResourcePolicyManagementUpdate(d *schema.ResourceData, m interface{}) error
 
 func ResourcePolicyManagementRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourcePolicyManagementRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("policy-management", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourcePolicyManagementRefsUpdate] Retrieving PolicyManagement with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*PolicyManagement)
+	UpdatePolicyManagementRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourcePolicyManagementRefsUpdate] Update of resource PolicyManagement on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

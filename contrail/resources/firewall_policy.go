@@ -152,6 +152,37 @@ func WriteFirewallPolicyToResource(object FirewallPolicy, d *schema.ResourceData
 
 }
 
+func WriteFirewallPolicyRefsToResource(object FirewallPolicy, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetFirewallRuleRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("firewall_rule_refs", refList)
+	}
+	if ref, err := object.GetSecurityLoggingObjectRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("security_logging_object_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeFirewallPolicyAsMap(object *FirewallPolicy) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -196,6 +227,65 @@ func UpdateFirewallPolicyFromResource(object *FirewallPolicy, d *schema.Resource
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateFirewallPolicyRefsFromResource(object *FirewallPolicy, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("firewall_rule_refs") {
+		object.ClearFirewallRule()
+		if val, ok := d.GetOk("firewall_rule_refs"); ok {
+			log.Printf("Got ref firewall_rule_refs -- will call: object.AddFirewallRule(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("firewall-rule", refId.(string))
+				dataObj := new(FirewallSequence)
+				SetFirewallSequenceFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddFirewallRule(refObj.(*FirewallRule), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("security_logging_object_refs") {
+		object.ClearSecurityLoggingObject()
+		if val, ok := d.GetOk("security_logging_object_refs"); ok {
+			log.Printf("Got ref security_logging_object_refs -- will call: object.AddSecurityLoggingObject(refObj, *dataObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("security-logging-object", refId.(string))
+				dataObj := new(SloRateType)
+				SetSloRateTypeFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+				log.Printf("Data obj: %+v", dataObj)
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddSecurityLoggingObject(refObj.(*SecurityLoggingObject), *dataObj)
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -258,7 +348,7 @@ func ResourceFirewallPolicyRefsCreate(d *schema.ResourceData, m interface{}) err
 }
 
 func ResourceFirewallPolicyRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFirewallPolicyREAD")
+	log.Printf("ResourceFirewallPolicyRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("firewall-policy", d.Id())
@@ -271,7 +361,15 @@ func ResourceFirewallPolicyRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceFirewallPolicyRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceFirewallPolicyRefsREAD")
+	log.Printf("ResourceFirewallPolicyRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("firewall-policy", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFirewallPolicyRefsRead] Read resource firewall-policy on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*FirewallPolicy)
+	WriteFirewallPolicyRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -281,7 +379,7 @@ func ResourceFirewallPolicyUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("firewall-policy", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceFirewallPolicyResourceUpdate] Retrieving FirewallPolicy with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceFirewallPolicyUpdate] Retrieving FirewallPolicy with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*FirewallPolicy)
 	UpdateFirewallPolicyFromResource(uobject, d, m)
@@ -295,6 +393,19 @@ func ResourceFirewallPolicyUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceFirewallPolicyRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceFirewallPolicyRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("firewall-policy", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceFirewallPolicyRefsUpdate] Retrieving FirewallPolicy with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*FirewallPolicy)
+	UpdateFirewallPolicyRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceFirewallPolicyRefsUpdate] Update of resource FirewallPolicy on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

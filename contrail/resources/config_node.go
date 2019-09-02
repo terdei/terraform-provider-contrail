@@ -106,6 +106,19 @@ func WriteConfigNodeToResource(object ConfigNode, d *schema.ResourceData, m inte
 
 }
 
+func WriteConfigNodeRefsToResource(object ConfigNode, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeConfigNodeAsMap(object *ConfigNode) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -156,6 +169,31 @@ func UpdateConfigNodeFromResource(object *ConfigNode, d *schema.ResourceData, m 
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateConfigNodeRefsFromResource(object *ConfigNode, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -218,7 +256,7 @@ func ResourceConfigNodeRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceConfigNodeRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceConfigNodeREAD")
+	log.Printf("ResourceConfigNodeRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("config-node", d.Id())
@@ -231,7 +269,15 @@ func ResourceConfigNodeRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceConfigNodeRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceConfigNodeRefsREAD")
+	log.Printf("ResourceConfigNodeRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("config-node", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceConfigNodeRefsRead] Read resource config-node on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ConfigNode)
+	WriteConfigNodeRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -241,7 +287,7 @@ func ResourceConfigNodeUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("config-node", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceConfigNodeResourceUpdate] Retrieving ConfigNode with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceConfigNodeUpdate] Retrieving ConfigNode with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ConfigNode)
 	UpdateConfigNodeFromResource(uobject, d, m)
@@ -255,6 +301,19 @@ func ResourceConfigNodeUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceConfigNodeRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceConfigNodeRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("config-node", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceConfigNodeRefsUpdate] Retrieving ConfigNode with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ConfigNode)
+	UpdateConfigNodeRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceConfigNodeRefsUpdate] Update of resource ConfigNode on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

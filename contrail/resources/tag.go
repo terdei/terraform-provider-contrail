@@ -132,6 +132,28 @@ func WriteTagToResource(object Tag, d *schema.ResourceData, m interface{}) {
 
 }
 
+func WriteTagRefsToResource(object Tag, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagTypeRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_type_refs", refList)
+	}
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeTagAsMap(object *Tag) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -188,6 +210,45 @@ func UpdateTagFromResource(object *Tag, d *schema.ResourceData, m interface{}, p
 	if d.HasChange("display_name") {
 		if val, ok := d.GetOk("display_name"); ok {
 			object.SetDisplayName(val.(string))
+		}
+	}
+
+}
+
+func UpdateTagRefsFromResource(object *Tag, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_type_refs") {
+		object.ClearTagType()
+		if val, ok := d.GetOk("tag_type_refs"); ok {
+			log.Printf("Got ref tag_type_refs -- will call: object.AddTagType(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag-type", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTagType(refObj.(*TagType))
+			}
+		}
+	}
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
+			}
 		}
 	}
 
@@ -250,7 +311,7 @@ func ResourceTagRefsCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceTagRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceTagREAD")
+	log.Printf("ResourceTagRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("tag", d.Id())
@@ -263,7 +324,15 @@ func ResourceTagRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceTagRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceTagRefsREAD")
+	log.Printf("ResourceTagRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("tag", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceTagRefsRead] Read resource tag on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*Tag)
+	WriteTagRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -273,7 +342,7 @@ func ResourceTagUpdate(d *schema.ResourceData, m interface{}) error {
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("tag", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceTagResourceUpdate] Retrieving Tag with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceTagUpdate] Retrieving Tag with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*Tag)
 	UpdateTagFromResource(uobject, d, m)
@@ -287,6 +356,19 @@ func ResourceTagUpdate(d *schema.ResourceData, m interface{}) error {
 
 func ResourceTagRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceTagRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("tag", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceTagRefsUpdate] Retrieving Tag with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*Tag)
+	UpdateTagRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceTagRefsUpdate] Update of resource Tag on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 

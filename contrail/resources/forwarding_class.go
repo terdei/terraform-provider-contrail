@@ -149,6 +149,19 @@ func WriteForwardingClassToResource(object ForwardingClass, d *schema.ResourceDa
 	}
 }
 
+func WriteForwardingClassRefsToResource(object ForwardingClass, d *schema.ResourceData, m interface{}) {
+
+	if ref, err := object.GetTagRefs(); err != nil {
+		var refList []interface{}
+		for _, v := range ref {
+			omap := make(map[string]interface{})
+			omap["to"] = v.Uuid
+			refList = append(refList, omap)
+		}
+		d.Set("tag_refs", refList)
+	}
+}
+
 func TakeForwardingClassAsMap(object *ForwardingClass) map[string]interface{} {
 	omap := make(map[string]interface{})
 
@@ -217,6 +230,7 @@ func UpdateForwardingClassFromResource(object *ForwardingClass, d *schema.Resour
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	if d.HasChange("qos_queue_refs") {
+		object.ClearQosQueue()
 		if val, ok := d.GetOk("qos_queue_refs"); ok {
 			log.Printf("Got ref qos_queue_refs -- will call: object.AddQosQueue(refObj)")
 			for k, v := range val.([]interface{}) {
@@ -226,6 +240,31 @@ func UpdateForwardingClassFromResource(object *ForwardingClass, d *schema.Resour
 				refObj, _ := client.FindByUuid("qos-queue", refId.(string))
 				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
 				object.AddQosQueue(refObj.(*QosQueue))
+			}
+		}
+	}
+
+}
+
+func UpdateForwardingClassRefsFromResource(object *ForwardingClass, d *schema.ResourceData, m interface{}, prefix ...string) {
+	key := strings.Join(prefix, ".")
+	if len(key) != 0 {
+		key = key + "."
+	}
+
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	if d.HasChange("tag_refs") {
+		object.ClearTag()
+		if val, ok := d.GetOk("tag_refs"); ok {
+			log.Printf("Got ref tag_refs -- will call: object.AddTag(refObj)")
+			for k, v := range val.([]interface{}) {
+				log.Printf("Item: %+v => <%T> %+v", k, v, v)
+				refId := (v.(map[string]interface{}))["to"]
+				log.Printf("Ref 'to': %#v (str->%v)", refId, refId.(string))
+				refObj, _ := client.FindByUuid("tag", refId.(string))
+				log.Printf("Ref 'to' (OBJECT): %+v", refObj)
+				object.AddTag(refObj.(*Tag))
 			}
 		}
 	}
@@ -293,7 +332,7 @@ func ResourceForwardingClassRefsCreate(d *schema.ResourceData, m interface{}) er
 }
 
 func ResourceForwardingClassRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceForwardingClassREAD")
+	log.Printf("ResourceForwardingClassRead")
 	client := m.(*contrail.Client)
 	client.GetServer() // dummy call
 	base, err := client.FindByUuid("forwarding-class", d.Id())
@@ -306,7 +345,15 @@ func ResourceForwardingClassRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func ResourceForwardingClassRefsRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("ResourceForwardingClassRefsREAD")
+	log.Printf("ResourceForwardingClassRefsRead")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	base, err := client.FindByUuid("forwarding-class", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceForwardingClassRefsRead] Read resource forwarding-class on %v: (%v)", client.GetServer(), err)
+	}
+	object := base.(*ForwardingClass)
+	WriteForwardingClassRefsToResource(*object, d, m)
 	return nil
 }
 
@@ -316,7 +363,7 @@ func ResourceForwardingClassUpdate(d *schema.ResourceData, m interface{}) error 
 	client.GetServer() // dummy call
 	obj, err := client.FindByUuid("forwarding-class", d.Id())
 	if err != nil {
-		return fmt.Errorf("[ResourceForwardingClassResourceUpdate] Retrieving ForwardingClass with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+		return fmt.Errorf("[ResourceForwardingClassUpdate] Retrieving ForwardingClass with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
 	}
 	uobject := obj.(*ForwardingClass)
 	UpdateForwardingClassFromResource(uobject, d, m)
@@ -330,6 +377,19 @@ func ResourceForwardingClassUpdate(d *schema.ResourceData, m interface{}) error 
 
 func ResourceForwardingClassRefsUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("ResourceForwardingClassRefsUpdate")
+	client := m.(*contrail.Client)
+	client.GetServer() // dummy call
+	obj, err := client.FindByUuid("forwarding-class", d.Id())
+	if err != nil {
+		return fmt.Errorf("[ResourceForwardingClassRefsUpdate] Retrieving ForwardingClass with uuid %s on %v (%v)", d.Id(), client.GetServer(), err)
+	}
+	uobject := obj.(*ForwardingClass)
+	UpdateForwardingClassRefsFromResource(uobject, d, m)
+
+	log.Printf("Object href: %v", uobject.GetHref())
+	if err := client.Update(uobject); err != nil {
+		return fmt.Errorf("[ResourceForwardingClassRefsUpdate] Update of resource ForwardingClass on %v: (%v)", client.GetServer(), err)
+	}
 	return nil
 }
 
