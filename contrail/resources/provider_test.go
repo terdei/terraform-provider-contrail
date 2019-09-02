@@ -22,8 +22,9 @@ var (
 	OS_AUTH_URL         = os.Getenv("OS_AUTH_URL")
 	TF_ACC              = os.Getenv("TF_ACC")
 
-	OS_PROJECT_ID = os.Getenv("OS_PROJECT_ID")
-	OS_VM_ID      = os.Getenv("OS_VM_ID")
+	OS_HEALTH_CHECK_ID = os.Getenv("OS_HEALTH_CHECK_ID")
+	OS_PROJECT_ID      = os.Getenv("OS_PROJECT_ID")
+	OS_VM_ID           = os.Getenv("OS_VM_ID")
 )
 
 var testAccProviders map[string]terraform.ResourceProvider
@@ -65,6 +66,10 @@ func testAccPreCheckRequiredEnvVars(t *testing.T) {
 
 	if CONTRAIL_API_SERVER == "" {
 		t.Fatal("CONTRAIL_API_SERVER must be set for acceptance tests")
+	}
+
+	if OS_PROJECT_ID == "" {
+		t.Fatal("OS_PROJECT_ID must be set for acceptance tests")
 	}
 }
 
@@ -145,9 +150,38 @@ func testAccCheckRefExists(key string, clientKey string, refKey string, refClien
 			return fmt.Errorf("Error creating %s : %s", refClientKey, err)
 		}
 
-		tagUUID := reflect.ValueOf(base).Elem().FieldByName(referenceFieldName).Index(0).FieldByName("Uuid").String()
+		uuid := reflect.ValueOf(base).Elem().FieldByName(referenceFieldName).Index(0).FieldByName("Uuid").String()
 
-		if tagUUID != refBase.GetUuid() {
+		if uuid != refBase.GetUuid() {
+			return fmt.Errorf("Error creating reference from %s object to %s object", key, refKey)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckSomeRefExists(key string, clientKey string, refKey string, referenceFieldName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+
+		rs, ok := s.RootModule().Resources[key]
+		if !ok {
+			return fmt.Errorf("Not found: %s", key)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("No ID is set")
+		}
+
+		client := testAccProvider.Meta().(*contrail.Client)
+		base, err := client.FindByUuid(clientKey, rs.Primary.ID)
+
+		if err != nil {
+			return fmt.Errorf("Error creating %s : %s", clientKey, err)
+		}
+
+		exist := reflect.ValueOf(base).Elem().FieldByName(referenceFieldName).Len() > 0
+
+		if !exist {
 			return fmt.Errorf("Error creating reference from %s object to %s object", key, refKey)
 		}
 

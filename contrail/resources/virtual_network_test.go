@@ -87,7 +87,6 @@ resource "contrail_tag" "tag_test" {
     tag_type_name = "type"
 	display_name = "type=value"
 }
-
 `
 
 var testTagRefWithoutRef_basic = testAccNetworking_basic + `
