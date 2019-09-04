@@ -1,0 +1,111 @@
+From 477e4837f33c55b4e9f84553604a401a5b5d7f63 Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Wed, 8 Nov 2017 11:03:24 +0100
+Subject: [PATCH 10/17] Generate simple terraform resources docs
+
+---
+ terraform_mappings.py | 61 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 58 insertions(+), 3 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index 055eb18..0e012e2 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -119,6 +119,7 @@ class TerraformMappingsGenerator(object):
+         return "client := m.(*contrail.Client)\n"\
+                 "client.GetServer() // dummy call"
+ 
++# ------------------- Generate resources map -------------------------------
+     def _GenerateTypeMap(self, dirname):
+         file = self._parser.makeFile(os.path.join(dirname, 'types.go'))
+         decl = """
+@@ -140,7 +141,7 @@ var ContrailResourcesMap = map[string]*schema.Resource{
+             decl = '\t"%(provider)s_%(name)s": %(res)s(),\n' % {
+                 "name": ident.getCIdentifierName().lower(),
+                 "res": ResName(ident.getCppName()),
+-                "provider": self.NAME }
++                "provider": self.NAME}
+             file.write(decl)
+ 
+         decl = """
+@@ -149,6 +150,61 @@ var ContrailResourcesMap = map[string]*schema.Resource{
+ """
+         file.write(decl)
+ 
++# ------------------- Generate resources docs -------------------------------
++    def _GenerateDocfile(self, dirname):
++        file = self._parser.makeFile(os.path.join(dirname, 'reference.txt'))
++        decl = """
++Reference for terraform_%s_provider resources schema:
++
++""" % self.NAME
++        file.write(decl)
++        for ident in sorted(self._identifier_map.values(),
++                            key=lambda x: x.getCIdentifierName()):
++            decl = 'resource "%(provider)s_%(name)s" <name> {' % {
++                "name": ident.getCIdentifierName().lower(),
++                "provider": self.NAME}
++            file.write(decl)
++            self._GenerateResourceDocfile(ident, file)
++            file.write('}\n')
++        for ctype in sorted(self._top_level_map.values(),
++                            key=lambda x: x.getCIdentifierName()):
++            decl = '%(provider)s_%(name)s {' % {
++                "name": ctype.getName(),
++                "provider": self.NAME}
++            file.write(decl)
++            self._GenerateCTypeResourceDocfile(ctype, file)
++            file.write('\n}\n')
++
++# ------------------- Object docs -------------------------------
++    def _GenerateResourceDocfile(self, ident, file):
++        decl = """
++\tname = <schema.TypeString>
++\tparent_fq_name = <schema.TypeString>
++"""
++        file.write(decl)
++        for prop in ident.getProperties():
++            prop_type = TerraformTypeName(prop.getGoLangTypename())
++            if prop_type == "schema.TypeList":
++                prop_type = 'contrail_' + prop.getCIdentifierName()
++            elem = '\t%(name)s = <%(type)s>\n' % {
++                "name": prop.getCIdentifierName(),
++                "type": prop_type}
++            file.write(elem)
++
++# ------------------- CType docs -------------------------------
++    def _GenerateCTypeResourceDocfile(self, ctype, file):
++        for member in ctype.getDataMembers():
++            mtype = TerraformTypeName(
++                member.xsd_object.getType(), orig_name=True)
++            if not mtype.startswith('schema.'):
++                mtype = 'contrail_' + mtype
++            if member.isSequence:
++                mtype = ' [ %s ] ' % mtype
++            elem = '\n\t"%(name)s" = <%(type)s>' % {
++                'name': member.membername.lower(),
++                'type': mtype}
++            file.write(elem)
++
+ # ------------------- Object -------------------------------
+     def _GenerateObject(self, ident, filename):
+         """ Generate the class corresponding to an IF-MAP Identifier
+@@ -677,14 +733,13 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+             sys.exit(1)
+ 
+         self._GenerateTypeMap(dirname)
+-
+         for ident in self._identifier_map.values():
+             filename = os.path.join(
+                 dirname, ident.getCIdentifierName() + ".go")
+             self._GenerateObject(ident, filename)
+ 
+         self._PromoteInnerTypes()
+-
++        self._GenerateDocfile(dirname)
+         for ctype in self._top_level_map.values():
+             filename = os.path.join(
+                 dirname, ctype.getCIdentifierName() + ".go")
+-- 
+2.7.4
+

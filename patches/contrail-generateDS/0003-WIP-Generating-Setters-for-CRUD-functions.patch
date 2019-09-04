@@ -1,0 +1,121 @@
+From f9f3f6387f98593d91d0420ec500e05224078640 Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Wed, 27 Sep 2017 12:12:26 +0200
+Subject: [PATCH 03/17] WIP: Generating Setters for CRUD functions
+
+---
+ terraform_mappings.py | 59 +++++++++++++++++++++++----------------------------
+ 1 file changed, 26 insertions(+), 33 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index ddef7cc..ddea06c 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -103,6 +103,7 @@ package resources
+ 
+ import (
+         "fmt"
++        "strings"
+ 
+         "github.com/hashicorp/terraform/helper/schema"
+         "github.com/Juniper/contrail-go-api"
+@@ -132,6 +133,7 @@ import (
+         "github.com/Juniper/contrail-go-api"
+ 
+         //"fmt"
++        "strings"
+ )
+ """
+         file.write(header)
+@@ -182,38 +184,22 @@ func %(camel)s() map[string]*schema.Schema {
+     def _GenerateCTypePropertyMethods(self, ctype):
+         setters = ""
+         for member in ctype.getDataMembers():
+-            gotype = member.xsd_object.getType()
++            origtype = member.xsd_object.getType()
++            gotype = getGoLangType(origtype)
+             is_pod = IsPodType(gotype)
+-            setme = "\tobject.%s = val.(%s)" % (CamelCase(member.membername),
+-                                          getGoLangType(gotype))
++            setme = "\tobject.%s = val.(%s)" % (
++                CamelCase(member.membername), gotype)
+             obj = ""
+             if not is_pod:
+-                obj = "\tmember := new(%s)\n" % gotype
+-                setme = "Set%sFromResource(member, d, m)" % gotype
++                obj = "\tmember := new(%s)\n" % origtype
++                setme = "\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")" % { "type": origtype, "name": member.membername }
+             if member.isSequence:
+-                seq = """\tfor _, v := range val {
+-\t\titem := v.(map[string]interface{})
+-\t\tif iv, ok := item["
+-
+-
+-
+-Sprawdzić czy jak się poda klucz w postaci item.subitem.subsubitem do getOK
+-terraformowego, to zwróci zagnieżdżony obiekt ze schemy. Jeśli tak, to należy
+-tego użyć zamiast bawić się tak jak w providerze dla openstacka (mapa stringów
+-na wartości). Jeśli będzie działąć, to trzeba będzie zmodyfikować metody 
+-Set<xxx>FromResource żeby łykały zagnieżdzony adreSprawdzić czy jak się poda
+-klucz w postaci item.subitem.subsubitem do getOK terraformowego, to zwróci
+-zagnieżdżony obiekt ze schemy. Jeśli tak, to należy tego użyć zamiast bawić
+-się tak jak w providerze dla openstacka (mapa stringów na wartości). Jeś będzie
+-działąć, to trzeba będzie zmodyfikować metody 
+-Set<xxx>FromResource żeby łykały zagnieżdzony adres. Kod terraformowego
+-ResourceData wygląda jakby powinien to łykać.
+-
+-
+-
+-\t}
+-""" % { "gotype": gotype }
+-            decl = """if val, ok := d.GetOk("%(name)s"); ok {
++                if not is_pod:
++                    gotype = "*"+origtype
++                setme = """\tfor _, v := range val.([]interface{}) {
++\t\tobject.Add%(member)s(v.(%(gotype)s))
++\t}""" % { "gotype": gotype, "member": CamelCase(member.membername) }
++            decl = """\tif val, ok := d.GetOk(key+"%(name)s"); ok {
+ %(member_obj)s%(setme)s
+ }\n""" % {"name": member.membername, "member_obj": obj, "setme": setme}
+             setters += decl
+@@ -222,9 +208,12 @@ ResourceData wygląda jakby powinien to łykać.
+ # ------------------- Set From Resource CType -------------------------------
+     def _GenerateCTypeTerraformResourceSetFrom(self, ident, file):
+         decl = """
+-func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interface{}) {
+-%(setters)s
+-}
++func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
++\tkey := strings.Join(prefix, ".")
++\tif len(key) != 0 {
++\t\tkey = key + "."
++\t}
++%(setters)s}
+ """ %{"camel": ident.getName(), "setters":
+       '\t'.join(self._GenerateCTypePropertyMethods(ident).splitlines(True)),
+       "name": ident.getName()}
+@@ -352,7 +341,7 @@ func %(schema)s() map[string]*schema.Schema {
+             value = "val.(%(type)s)" % { "type": gotype }
+             obj = ""
+             if not is_pod:
+-                obj = "\tmember := new(%(type)s)\n\tSet%(type)sFromResource(member, d, m)\n" % {"type": gotype}
++                obj = "\tmember := new(%(type)s)\n\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")\n" % {"type": gotype, "name": prop.getCIdentifierName()}
+                 value = "member"
+             decl = """if val, ok := d.GetOk("%(name)s"); ok {
+ %(member_obj)s\tobject.Set%(field)s(%(value)s)
+@@ -364,7 +353,11 @@ func %(schema)s() map[string]*schema.Schema {
+ # ------------------- Set From Resource Object -------------------------------
+     def _GenerateTerraformResourceSetFrom(self, ident, file):
+         decl = """
+-func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interface{}) {
++func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
++\tkey := strings.Join(prefix, ".")
++\tif len(key) != 0 {
++\t\tkey = key + "."
++\t}
+ %(setters)s
+ }
+ """ %{"camel": ident.getCppName(), "setters":
+-- 
+2.7.4
+

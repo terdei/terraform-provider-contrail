@@ -1,0 +1,940 @@
+
+Reference for terraform_contrail_provider resources schema:
+
+resource "contrail_access_control_list" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	access_control_list_entries = <contrail_AclEntriesType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_analytics_node" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	analytics_node_ip_address = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_api_access_list" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	api_access_list_entries = <contrail_RbacRuleEntriesType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_bgp_as_a_service" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	autonomous_system = <schema.TypeInt>
+	bgpaas_ip_address = <schema.TypeString>
+	bgpaas_session_attributes = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_bgp_router" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_config_node" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	config_node_ip_address = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_config_root" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_customer_attachment" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_database_node" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	database_node_ip_address = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_discovery_service_assignment" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_domain" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	domain_limits = <contrail_DomainLimitsType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_dsa_rule" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	dsa_rule_entry = <contrail_DiscoveryServiceAssignmentType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_floating_ip" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	floating_ip_address = <schema.TypeString>
+	floating_ip_is_virtual_ip = <schema.TypeBool>
+	floating_ip_fixed_ip_address = <schema.TypeString>
+	floating_ip_address_family = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_floating_ip_pool" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	floating_ip_pool_prefixes = <contrail_FloatingIpPoolType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_global_system_config" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	autonomous_system = <schema.TypeInt>
+	config_version = <schema.TypeString>
+	plugin_tuning = <contrail_PluginProperties>
+	ibgp_auto_mesh = <schema.TypeBool>
+	ip_fabric_subnets = <contrail_SubnetListType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_global_vrouter_config" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	ecmp_hashing_include_fields = <contrail_EcmpHashingIncludeFields>
+	linklocal_services = <contrail_LinklocalServicesTypes>
+	encapsulation_priorities = <contrail_EncapsulationPrioritiesType>
+	vxlan_network_identifier_mode = <schema.TypeString>
+	flow_export_rate = <schema.TypeInt>
+	flow_aging_timeout_list = <contrail_FlowAgingTimeoutList>
+	forwarding_mode = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_instance_ip" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	instance_ip_address = <schema.TypeString>
+	instance_ip_family = <schema.TypeString>
+	instance_ip_mode = <schema.TypeString>
+	secondary_ip_tracking_ip = <contrail_SubnetType>
+	subnet_uuid = <schema.TypeString>
+	instance_ip_secondary = <schema.TypeBool>
+	service_instance_ip = <schema.TypeBool>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_interface_route_table" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	interface_route_table_routes = <contrail_RouteTableType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_loadbalancer" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	loadbalancer_properties = <contrail_LoadbalancerType>
+	loadbalancer_provider = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_loadbalancer_healthmonitor" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	loadbalancer_healthmonitor_properties = <contrail_LoadbalancerHealthmonitorType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_loadbalancer_listener" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	loadbalancer_listener_properties = <contrail_LoadbalancerListenerType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_loadbalancer_member" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	loadbalancer_member_properties = <contrail_LoadbalancerMemberType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_loadbalancer_pool" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	loadbalancer_pool_properties = <contrail_LoadbalancerPoolType>
+	loadbalancer_pool_provider = <schema.TypeString>
+	loadbalancer_pool_custom_attributes = <contrail_KeyValuePairs>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_logical_interface" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	logical_interface_vlan_tag = <schema.TypeInt>
+	logical_interface_type = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_logical_router" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	configured_route_target_list = <contrail_RouteTargetList>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_namespace" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	namespace_cidr = <contrail_SubnetType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_network_ipam" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	network_ipam_mgmt = <contrail_IpamType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_network_policy" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	network_policy_entries = <contrail_PolicyEntriesType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_physical_interface" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_physical_router" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	physical_router_management_ip = <schema.TypeString>
+	physical_router_dataplane_ip = <schema.TypeString>
+	physical_router_vendor_name = <schema.TypeString>
+	physical_router_product_name = <schema.TypeString>
+	physical_router_vnc_managed = <schema.TypeBool>
+	physical_router_user_credentials = <contrail_UserCredentials>
+	physical_router_snmp_credentials = <contrail_SNMPCredentials>
+	physical_router_junos_service_ports = <contrail_JunosServicePorts>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_port_tuple" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_project" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	quota = <contrail_QuotaType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_provider_attachment" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_qos_forwarding_class" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	dscp = <schema.TypeInt>
+	trusted = <schema.TypeBool>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_qos_queue" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	min_bandwidth = <schema.TypeInt>
+	max_bandwidth = <schema.TypeInt>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_route_aggregate" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_route_table" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	routes = <contrail_RouteTableType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_route_target" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_routing_instance" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_routing_policy" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_security_group" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	security_group_id = <schema.TypeString>
+	configured_security_group_id = <schema.TypeInt>
+	security_group_entries = <contrail_PolicyEntriesType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_appliance" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	service_appliance_user_credentials = <contrail_UserCredentials>
+	service_appliance_ip_address = <schema.TypeString>
+	service_appliance_properties = <contrail_KeyValuePairs>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_appliance_set" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	service_appliance_set_properties = <contrail_KeyValuePairs>
+	service_appliance_driver = <schema.TypeString>
+	service_appliance_ha_mode = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_health_check" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	service_health_check_properties = <contrail_ServiceHealthCheckType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_instance" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	service_instance_properties = <contrail_ServiceInstanceType>
+	service_instance_bindings = <contrail_KeyValuePairs>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_service_template" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	service_template_properties = <contrail_ServiceTemplateType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_subnet" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	subnet_ip_prefix = <contrail_SubnetType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_dns" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	virtual_DNS_data = <contrail_VirtualDnsType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_dns_record" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	virtual_DNS_record_data = <contrail_VirtualDnsRecordType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_ip" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	virtual_ip_properties = <contrail_VirtualIpType>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_machine" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_machine_interface" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	ecmp_hashing_include_fields = <contrail_EcmpHashingIncludeFields>
+	virtual_machine_interface_mac_addresses = <contrail_MacAddressesType>
+	virtual_machine_interface_dhcp_option_list = <contrail_DhcpOptionsListType>
+	virtual_machine_interface_host_routes = <contrail_RouteTableType>
+	virtual_machine_interface_allowed_address_pairs = <contrail_AllowedAddressPairs>
+	vrf_assign_table = <contrail_VrfAssignTableType>
+	virtual_machine_interface_device_owner = <schema.TypeString>
+	virtual_machine_interface_disable_policy = <schema.TypeBool>
+	virtual_machine_interface_properties = <contrail_VirtualMachineInterfacePropertiesType>
+	virtual_machine_interface_bindings = <contrail_KeyValuePairs>
+	virtual_machine_interface_fat_flow_protocols = <contrail_FatFlowProtocols>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_network" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	ecmp_hashing_include_fields = <contrail_EcmpHashingIncludeFields>
+	virtual_network_properties = <contrail_VirtualNetworkType>
+	provider_properties = <contrail_ProviderDetails>
+	route_target_list = <contrail_RouteTargetList>
+	import_route_target_list = <contrail_RouteTargetList>
+	export_route_target_list = <contrail_RouteTargetList>
+	router_external = <schema.TypeBool>
+	is_shared = <schema.TypeBool>
+	external_ipam = <schema.TypeBool>
+	flood_unknown_unicast = <schema.TypeBool>
+	multi_policy_service_chains_enabled = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+resource "contrail_virtual_router" <name> {
+	name = <schema.TypeString>
+	parent_fq_name = <schema.TypeString>
+	virtual_router_type = <schema.TypeString>
+	virtual_router_dpdk_enabled = <schema.TypeBool>
+	virtual_router_ip_address = <schema.TypeString>
+	id_perms = <contrail_IdPermsType>
+	perms2 = <contrail_PermType2>
+	display_name = <schema.TypeString>
+}
+contrail_AclRuleType {
+	"match_condition" = <contrail_MatchConditionType>
+	"action_list" = <contrail_ActionListType>
+	"rule_uuid" = <schema.TypeString>
+}
+contrail_AclEntriesType {
+	"dynamic" = <schema.TypeBool>
+	"acl_rule" = < [ contrail_AclRuleType ] >
+}
+contrail_MirrorActionType {
+	"analyzer_name" = <schema.TypeString>
+	"encapsulation" = <schema.TypeString>
+	"analyzer_ip_address" = <schema.TypeString>
+	"routing_instance" = <schema.TypeString>
+	"udp_port" = <schema.TypeInt>
+}
+contrail_ActionListType {
+	"simple_action" = <schema.TypeString>
+	"gateway_name" = <schema.TypeString>
+	"apply_service" = < [ schema.TypeString ] >
+	"mirror_to" = <contrail_MirrorActionType>
+	"assign_routing_instance" = <schema.TypeString>
+	"log" = <schema.TypeBool>
+	"alert" = <schema.TypeBool>
+}
+contrail_SubnetType {
+	"ip_prefix" = <schema.TypeString>
+	"ip_prefix_len" = <schema.TypeInt>
+}
+contrail_AddressType {
+	"subnet" = <contrail_SubnetType>
+	"virtual_network" = <schema.TypeString>
+	"security_group" = <schema.TypeString>
+	"network_policy" = <schema.TypeString>
+	"subnet_list" = < [ contrail_SubnetType ] >
+}
+contrail_AllowedAddressPair {
+	"ip" = <contrail_SubnetType>
+	"mac" = <schema.TypeString>
+	"address_mode" = <schema.TypeString>
+}
+contrail_AllowedAddressPairs {
+	"allowed_address_pair" = < [ contrail_AllowedAddressPair ] >
+}
+contrail_CommunityAttributes {
+	"community_attribute" = < [ schema.TypeString ] >
+}
+contrail_DhcpOptionType {
+	"dhcp_option_name" = <schema.TypeString>
+	"dhcp_option_value" = <schema.TypeString>
+	"dhcp_option_value_bytes" = <schema.TypeString>
+}
+contrail_DhcpOptionsListType {
+	"dhcp_option" = < [ contrail_DhcpOptionType ] >
+}
+contrail_DiscoveryPubSubEndPointType {
+	"ep_type" = <schema.TypeString>
+	"ep_id" = <schema.TypeString>
+	"ep_prefix" = <contrail_SubnetType>
+	"ep_version" = <schema.TypeString>
+}
+contrail_DiscoveryServiceAssignmentType {
+	"publisher" = <contrail_DiscoveryPubSubEndPointType>
+	"subscriber" = < [ contrail_DiscoveryPubSubEndPointType ] >
+}
+contrail_DomainLimitsType {
+	"project_limit" = <schema.TypeInt>
+	"virtual_network_limit" = <schema.TypeInt>
+	"security_group_limit" = <schema.TypeInt>
+}
+contrail_EcmpHashingIncludeFields {
+	"hashing_configured" = <schema.TypeBool>
+	"source_ip" = <schema.TypeBool>
+	"destination_ip" = <schema.TypeBool>
+	"ip_protocol" = <schema.TypeBool>
+	"source_port" = <schema.TypeBool>
+	"destination_port" = <schema.TypeBool>
+}
+contrail_EncapsulationPrioritiesType {
+	"encapsulation" = < [ schema.TypeString ] >
+}
+contrail_ProtocolType {
+	"protocol" = <schema.TypeString>
+	"port" = <schema.TypeInt>
+}
+contrail_FatFlowProtocols {
+	"fat_flow_protocol" = < [ contrail_ProtocolType ] >
+}
+contrail_FloatingIpPoolType {
+	"subnet" = < [ contrail_SubnetType ] >
+}
+contrail_FlowAgingTimeout {
+	"protocol" = <schema.TypeString>
+	"port" = <schema.TypeInt>
+	"timeout_in_seconds" = <schema.TypeInt>
+}
+contrail_FlowAgingTimeoutList {
+	"flow_aging_timeout" = < [ contrail_FlowAgingTimeout ] >
+}
+contrail_PermType {
+	"owner" = <schema.TypeString>
+	"owner_access" = <schema.TypeInt>
+	"group" = <schema.TypeString>
+	"group_access" = <schema.TypeInt>
+	"other_access" = <schema.TypeInt>
+}
+contrail_UuidType {
+	"uuid_mslong" = <schema.TypeInt>
+	"uuid_lslong" = <schema.TypeInt>
+}
+contrail_IdPermsType {
+	"permissions" = <contrail_PermType>
+	"uuid" = <contrail_UuidType>
+	"enable" = <schema.TypeBool>
+	"created" = <schema.TypeString>
+	"last_modified" = <schema.TypeString>
+	"description" = <schema.TypeString>
+	"user_visible" = <schema.TypeBool>
+	"creator" = <schema.TypeString>
+}
+contrail_IpamDnsAddressType {
+	"tenant_dns_server_address" = <contrail_IpAddressesType>
+	"virtual_dns_server_name" = <schema.TypeString>
+}
+contrail_RouteTableType {
+	"route" = < [ contrail_RouteType ] >
+}
+contrail_IpamType {
+	"ipam_method" = <schema.TypeString>
+	"ipam_dns_method" = <schema.TypeString>
+	"ipam_dns_server" = <contrail_IpamDnsAddressType>
+	"dhcp_option_list" = <contrail_DhcpOptionsListType>
+	"cidr_block" = <contrail_SubnetType>
+	"host_routes" = <contrail_RouteTableType>
+}
+contrail_JunosServicePorts {
+	"service_port" = < [ schema.TypeString ] >
+}
+contrail_KeyValuePair {
+	"key" = <schema.TypeString>
+	"value" = <schema.TypeString>
+}
+contrail_KeyValuePairs {
+	"key_value_pair" = < [ contrail_KeyValuePair ] >
+}
+contrail_LinklocalServiceEntryType {
+	"linklocal_service_name" = <schema.TypeString>
+	"linklocal_service_ip" = <schema.TypeString>
+	"linklocal_service_port" = <schema.TypeInt>
+	"ip_fabric_dns_service_name" = <schema.TypeString>
+	"ip_fabric_service_port" = <schema.TypeInt>
+	"ip_fabric_service_ip" = < [ schema.TypeString ] >
+}
+contrail_LinklocalServicesTypes {
+	"linklocal_service_entry" = < [ contrail_LinklocalServiceEntryType ] >
+}
+contrail_LoadbalancerHealthmonitorType {
+	"admin_state" = <schema.TypeBool>
+	"monitor_type" = <schema.TypeString>
+	"delay" = <schema.TypeInt>
+	"timeout" = <schema.TypeInt>
+	"max_retries" = <schema.TypeInt>
+	"http_method" = <schema.TypeString>
+	"url_path" = <schema.TypeString>
+	"expected_codes" = <schema.TypeString>
+}
+contrail_LoadbalancerListenerType {
+	"protocol" = <schema.TypeString>
+	"protocol_port" = <schema.TypeInt>
+	"admin_state" = <schema.TypeBool>
+	"connection_limit" = <schema.TypeInt>
+	"default_tls_container" = <schema.TypeString>
+	"sni_containers" = < [ schema.TypeString ] >
+}
+contrail_LoadbalancerMemberType {
+	"admin_state" = <schema.TypeBool>
+	"status" = <schema.TypeString>
+	"status_description" = <schema.TypeString>
+	"protocol_port" = <schema.TypeInt>
+	"weight" = <schema.TypeInt>
+	"address" = <schema.TypeString>
+}
+contrail_LoadbalancerPoolType {
+	"status" = <schema.TypeString>
+	"status_description" = <schema.TypeString>
+	"admin_state" = <schema.TypeBool>
+	"protocol" = <schema.TypeString>
+	"loadbalancer_method" = <schema.TypeString>
+	"subnet_id" = <schema.TypeString>
+	"session_persistence" = <schema.TypeString>
+	"persistence_cookie_name" = <schema.TypeString>
+}
+contrail_LoadbalancerType {
+	"status" = <schema.TypeString>
+	"provisioning_status" = <schema.TypeString>
+	"operating_status" = <schema.TypeString>
+	"vip_subnet_id" = <schema.TypeString>
+	"vip_address" = <schema.TypeString>
+	"admin_state" = <schema.TypeBool>
+}
+contrail_MacAddressesType {
+	"mac_address" = < [ schema.TypeString ] >
+}
+contrail_PortType {
+	"start_port" = <schema.TypeInt>
+	"end_port" = <schema.TypeInt>
+}
+contrail_MatchConditionType {
+	"protocol" = <schema.TypeString>
+	"src_address" = <contrail_AddressType>
+	"src_port" = <contrail_PortType>
+	"dst_address" = <contrail_AddressType>
+	"dst_port" = <contrail_PortType>
+	"ethertype" = <schema.TypeString>
+}
+contrail_MirrorActionType {
+	"analyzer_name" = <schema.TypeString>
+	"encapsulation" = <schema.TypeString>
+	"analyzer_ip_address" = <schema.TypeString>
+	"routing_instance" = <schema.TypeString>
+	"udp_port" = <schema.TypeInt>
+}
+contrail_ShareType {
+	"tenant" = <schema.TypeString>
+	"tenant_access" = <schema.TypeInt>
+}
+contrail_PermType2 {
+	"owner" = <schema.TypeString>
+	"owner_access" = <schema.TypeInt>
+	"global_access" = <schema.TypeInt>
+	"share" = < [ contrail_ShareType ] >
+}
+contrail_PluginProperty {
+	"property" = <schema.TypeString>
+	"value" = <schema.TypeString>
+}
+contrail_PluginProperties {
+	"plugin_property" = < [ contrail_PluginProperty ] >
+}
+contrail_PolicyRuleType {
+	"rule_sequence" = <contrail_SequenceType>
+	"rule_uuid" = <schema.TypeString>
+	"direction" = <schema.TypeString>
+	"protocol" = <schema.TypeString>
+	"src_addresses" = < [ contrail_AddressType ] >
+	"src_ports" = < [ contrail_PortType ] >
+	"application" = < [ schema.TypeString ] >
+	"dst_addresses" = < [ contrail_AddressType ] >
+	"dst_ports" = < [ contrail_PortType ] >
+	"action_list" = <contrail_ActionListType>
+	"ethertype" = <schema.TypeString>
+}
+contrail_PolicyEntriesType {
+	"policy_rule" = < [ contrail_PolicyRuleType ] >
+}
+contrail_PortType {
+	"start_port" = <schema.TypeInt>
+	"end_port" = <schema.TypeInt>
+}
+contrail_ProviderDetails {
+	"segmentation_id" = <schema.TypeInt>
+	"physical_network" = <schema.TypeString>
+}
+contrail_QuotaType {
+	"defaults" = <schema.TypeInt>
+	"floating_ip" = <schema.TypeInt>
+	"instance_ip" = <schema.TypeInt>
+	"virtual_machine_interface" = <schema.TypeInt>
+	"virtual_network" = <schema.TypeInt>
+	"virtual_router" = <schema.TypeInt>
+	"virtual_dns" = <schema.TypeInt>
+	"virtual_dns_record" = <schema.TypeInt>
+	"bgp_router" = <schema.TypeInt>
+	"network_ipam" = <schema.TypeInt>
+	"access_control_list" = <schema.TypeInt>
+	"network_policy" = <schema.TypeInt>
+	"floating_ip_pool" = <schema.TypeInt>
+	"service_template" = <schema.TypeInt>
+	"service_instance" = <schema.TypeInt>
+	"logical_router" = <schema.TypeInt>
+	"security_group" = <schema.TypeInt>
+	"security_group_rule" = <schema.TypeInt>
+	"subnet" = <schema.TypeInt>
+	"global_vrouter_config" = <schema.TypeInt>
+	"loadbalancer_pool" = <schema.TypeInt>
+	"loadbalancer_member" = <schema.TypeInt>
+	"loadbalancer_healthmonitor" = <schema.TypeInt>
+	"virtual_ip" = <schema.TypeInt>
+}
+contrail_RbacRuleType {
+	"rule_object" = <schema.TypeString>
+	"rule_field" = <schema.TypeString>
+	"rule_perms" = < [ contrail_RbacPermType ] >
+}
+contrail_RbacRuleEntriesType {
+	"rbac_rule" = < [ contrail_RbacRuleType ] >
+}
+contrail_RouteType {
+	"prefix" = <schema.TypeString>
+	"next_hop" = <schema.TypeString>
+	"next_hop_type" = <schema.TypeString>
+	"community_attributes" = <contrail_CommunityAttributes>
+}
+contrail_RouteTableType {
+	"route" = < [ contrail_RouteType ] >
+}
+contrail_RouteTargetList {
+	"route_target" = < [ schema.TypeString ] >
+}
+contrail_RouteType {
+	"prefix" = <schema.TypeString>
+	"next_hop" = <schema.TypeString>
+	"next_hop_type" = <schema.TypeString>
+	"community_attributes" = <contrail_CommunityAttributes>
+}
+contrail_SNMPCredentials {
+	"version" = <schema.TypeInt>
+	"local_port" = <schema.TypeInt>
+	"retries" = <schema.TypeInt>
+	"timeout" = <schema.TypeInt>
+	"v2_community" = <schema.TypeString>
+	"v3_security_name" = <schema.TypeString>
+	"v3_security_level" = <schema.TypeString>
+	"v3_security_engine_id" = <schema.TypeString>
+	"v3_context" = <schema.TypeString>
+	"v3_context_engine_id" = <schema.TypeString>
+	"v3_authentication_protocol" = <schema.TypeString>
+	"v3_authentication_password" = <schema.TypeString>
+	"v3_privacy_protocol" = <schema.TypeString>
+	"v3_privacy_password" = <schema.TypeString>
+	"v3_engine_id" = <schema.TypeString>
+	"v3_engine_boots" = <schema.TypeInt>
+	"v3_engine_time" = <schema.TypeInt>
+}
+contrail_ServiceHealthCheckType {
+	"enabled" = <schema.TypeBool>
+	"health_check_type" = <schema.TypeString>
+	"monitor_type" = <schema.TypeString>
+	"delay" = <schema.TypeInt>
+	"timeout" = <schema.TypeInt>
+	"max_retries" = <schema.TypeInt>
+	"http_method" = <schema.TypeString>
+	"url_path" = <schema.TypeString>
+	"expected_codes" = <schema.TypeString>
+}
+contrail_ServiceInstanceInterfaceType {
+	"virtual_network" = <schema.TypeString>
+	"ip_address" = <schema.TypeString>
+	"static_routes" = <contrail_RouteTableType>
+	"allowed_address_pairs" = <contrail_AllowedAddressPairs>
+}
+contrail_ServiceScaleOutType {
+	"max_instances" = <schema.TypeInt>
+	"auto_scale" = <schema.TypeBool>
+}
+contrail_ServiceInstanceType {
+	"auto_policy" = <schema.TypeBool>
+	"availability_zone" = <schema.TypeString>
+	"management_virtual_network" = <schema.TypeString>
+	"left_virtual_network" = <schema.TypeString>
+	"left_ip_address" = <schema.TypeString>
+	"right_virtual_network" = <schema.TypeString>
+	"right_ip_address" = <schema.TypeString>
+	"interface_list" = < [ contrail_ServiceInstanceInterfaceType ] >
+	"scale_out" = <contrail_ServiceScaleOutType>
+	"ha_mode" = <schema.TypeString>
+	"virtual_router_id" = <schema.TypeString>
+}
+contrail_ServiceTemplateInterfaceType {
+	"service_interface_type" = <schema.TypeString>
+	"shared_ip" = <schema.TypeBool>
+	"static_route_enable" = <schema.TypeBool>
+}
+contrail_ServiceTemplateType {
+	"version" = <schema.TypeInt>
+	"service_mode" = <schema.TypeString>
+	"service_type" = <schema.TypeString>
+	"image_name" = <schema.TypeString>
+	"service_scaling" = <schema.TypeBool>
+	"interface_type" = < [ contrail_ServiceTemplateInterfaceType ] >
+	"flavor" = <schema.TypeString>
+	"ordered_interfaces" = <schema.TypeBool>
+	"service_virtualization_type" = <schema.TypeString>
+	"availability_zone_enable" = <schema.TypeBool>
+	"vrouter_instance_type" = <schema.TypeString>
+	"instance_data" = <schema.TypeString>
+}
+contrail_SubnetListType {
+	"subnet" = < [ contrail_SubnetType ] >
+}
+contrail_SubnetType {
+	"ip_prefix" = <schema.TypeString>
+	"ip_prefix_len" = <schema.TypeInt>
+}
+contrail_UserCredentials {
+	"username" = <schema.TypeString>
+	"password" = <schema.TypeString>
+}
+contrail_VirtualDnsRecordType {
+	"record_name" = <schema.TypeString>
+	"record_type" = <schema.TypeString>
+	"record_class" = <schema.TypeString>
+	"record_data" = <schema.TypeString>
+	"record_ttl_seconds" = <schema.TypeInt>
+	"record_mx_preference" = <schema.TypeInt>
+}
+contrail_VirtualDnsType {
+	"domain_name" = <schema.TypeString>
+	"dynamic_records_from_client" = <schema.TypeBool>
+	"record_order" = <schema.TypeString>
+	"default_ttl_seconds" = <schema.TypeInt>
+	"next_virtual_dns" = <schema.TypeString>
+	"floating_ip_record" = <schema.TypeString>
+	"external_visible" = <schema.TypeBool>
+	"reverse_resolution" = <schema.TypeBool>
+}
+contrail_VirtualIpType {
+	"address" = <schema.TypeString>
+	"status" = <schema.TypeString>
+	"status_description" = <schema.TypeString>
+	"admin_state" = <schema.TypeBool>
+	"protocol" = <schema.TypeString>
+	"protocol_port" = <schema.TypeInt>
+	"connection_limit" = <schema.TypeInt>
+	"subnet_id" = <schema.TypeString>
+	"persistence_cookie_name" = <schema.TypeString>
+	"persistence_type" = <schema.TypeString>
+}
+contrail_InterfaceMirrorType {
+	"traffic_direction" = <schema.TypeString>
+	"mirror_to" = <contrail_MirrorActionType>
+}
+contrail_VirtualMachineInterfacePropertiesType {
+	"service_interface_type" = <schema.TypeString>
+	"interface_mirror" = <contrail_InterfaceMirrorType>
+	"local_preference" = <schema.TypeInt>
+	"sub_interface_vlan_tag" = <schema.TypeInt>
+}
+contrail_VirtualNetworkType {
+	"allow_transit" = <schema.TypeBool>
+	"network_id" = <schema.TypeInt>
+	"vxlan_network_identifier" = <schema.TypeInt>
+	"forwarding_mode" = <schema.TypeString>
+	"rpf" = <schema.TypeString>
+}
+contrail_VrfAssignRuleType {
+	"match_condition" = <contrail_MatchConditionType>
+	"vlan_tag" = <schema.TypeInt>
+	"routing_instance" = <schema.TypeString>
+	"ignore_acl" = <schema.TypeBool>
+}
+contrail_VrfAssignTableType {
+	"vrf_assign_rule" = < [ contrail_VrfAssignRuleType ] >
+}

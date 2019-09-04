@@ -1,0 +1,197 @@
+From f44ffe8ba9d2c45a9bfae0b98788d4fab820a79c Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Fri, 1 Dec 2017 16:25:27 +0100
+Subject: [PATCH 14/17] WIP: Handling refs
+
+---
+ terraform_mappings.py | 89 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 51 insertions(+), 38 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index efe938c..4c17e31 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -393,38 +393,40 @@ func %(camel)s() map[string]*schema.Schema {
+         setters = ""
+         for member in ctype.getDataMembers():
+             origtype = member.xsd_object.getType()
+-            gotype = getGoLangType(origtype)
+-            is_pod = IsPodType(gotype)
+-            setme = """//\tobject.%(camel)s = (val.(map[string]interface{})["%(name)s"]).(%(type)s)"""\
+-                % {"camel": CamelCase(member.membername),
+-                   "name": member.membername,
+-                   "type": gotype}
+-            obj = ""
+-            val = "val"
+-            if not is_pod:
+-                obj = "\tm%s := new(%s)\n" % (
+-                    CamelCase(member.membername), origtype)
+-                setme = """\tSet%(type)sFromMap(m%(camel)s, d, m, (val.(map[string]interface{}))["%(name)s"])
+-\tobject.%(camel)s = m%(camel)s"""\
+-                    % {"type": origtype, "name": member.membername,
+-                       "camel": CamelCase(member.membername)}
++            is_pod = IsPodType(getGoLangType(origtype))
++            is_seq = member.isSequence
++            gotype = getGoLangType(origtype) if is_pod else origtype
++            name = member.membername
++            camel = CamelCase(name)
++            obj = "" if is_pod else "\tm%s := new(%s)\n" % (camel, gotype)
++            mdata = "m%sObj" % camel
++            assign = ("\t\tobject.Add%s(v)" % camel) if is_seq else \
++                "\tobject.%(c)s = m%(c)s" % {"c": camel}
++            loop = "" 
++
++            setme = """\tobject.%(camel)s = m%(camel)sObj.(%(type)s)"""\
++                % {"camel": camel, "type": gotype}
++            if not is_pod:  # if COMPLEX type
++                setme = """%(obj)s\tSet%(type)sFromMap(m%(camel)s, d, m, %(mdata)s)
++%(asg)s"""\
++    % {"type": origtype, "name": name, "camel": camel, "obj": obj,
++                    "mdata": mdata, "asg": assign}
+             if member.isSequence:
+-                obj = ""
+-                if not is_pod:
+-                    gotype = "*"+origtype
+-                setme = """\tfor _, v := range val.([]interface{}) {
+-\t\tobject.Add%(member)s(v.(%(gotype)s))
+-\t}""" % { "gotype": gotype, "member": CamelCase(member.membername) }
+-            if not is_pod and not member.isSequence:
+-                val = "_"
++                mem_set = setme
++                setme = """\tfor _, v := range m%(camel)sObj.([]interface{}) {
++\t\t%(setme)s
++\t}"""\
++        % {"gotype": gotype, "camel": camel, "obj": obj, "name": name,
++                    "setme": mem_set, "mdata": mdata}
+             decl = """
+-\tlog.Print("Setting %(name)s ...")
+-\tm%(camel)sobj := (val.(map[string]interface{}))["%(name)s"]
+-\tlog.Printf("Mem %(camel)s => %%+v", m%(camel)sobj)
+-%(member_obj)s%(setme)s
+-\tlog.Print("OK")\n""" % {"name": member.membername, "member_obj": obj, "setme": setme,
+-                          "val": val, "mtype": "NOT-NEEDED", "camel":
+-                          CamelCase(member.membername)}
++\tlog.Print("Setting %(name)s ...") // [CPLX; Seq -> %(cpx)s; %(seq)s]
++\tm%(camel)sObj := vmap["%(name)s"]
++\tlog.Printf("Mem %(camel)s => %%+v", m%(camel)sObj)
++%(setme)s
++\tlog.Print("OK")\n""" % {"name": name, "setme": setme,
++                          "mtype": "NOT-NEEDED", "camel": camel,
++                          "cpx": "1" if member.isComplex else "0",
++                          "seq": "1" if member.isSequence else "0"}
+             setters += decl
+         return setters
+ 
+@@ -455,8 +457,14 @@ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interf
+ func Set%(camel)sFromMap(object *%(name)s, d *schema.ResourceData, m interface{}, val interface{}) {
+ \tlog.Printf("[Set%(camel)sFromMAP] map = %%#v", val)
+ 
++//\tvar vmap = map[string]interface{}{}
++\tvmap, ok := val.(map[string]interface{});
++\tif ok == false {
++\t\tvmap = (val.([]interface{})[0]).(map[string]interface{})
++\t}
++
+ \t// SPEW
+-\tlog.Printf("SPEW: %%v", spew.Sdump(val))
++\tlog.Printf("SPEW: %%v", spew.Sdump(vmap))
+ \tspew.Dump(val) // dummy call to satisfy import
+ \t// SPEW
+ 
+@@ -533,6 +541,7 @@ func %(camel)s() *schema.Resource {
+     def _GenerateCTypeTerraformResourceCreate(self, ctype, file):
+         decl = """
+ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
++\tlog.Printf("%(camel)sCreate")
+ \t%(client)s
+ \tobject := new(%(name)s)
+ \tif err := client.Create(object); err != nil {
+@@ -559,6 +568,7 @@ func %(camel)sRead(d *schema.ResourceData, m interface{}) error {
+     def _GenerateCTypeTerraformResourceUpdate(self, ctype, file):
+         decl = """
+ func %(camel)sUpdate(d *schema.ResourceData, m interface{}) error {
++\tlog.Printf("%(camel)sUpdate")
+ \t%(client)s
+ \treturn nil
+ }
+@@ -569,6 +579,7 @@ func %(camel)sUpdate(d *schema.ResourceData, m interface{}) error {
+     def _GenerateCTypeTerraformResourceDelete(self, ctype, file):
+         decl = """
+ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
++\tlog.Printf("%(camel)sDelete")
+ \t%(client)s
+ \treturn nil
+ }
+@@ -768,7 +779,7 @@ func %(schema)s() map[string]*schema.Schema {
+         if datatype:
+             data_obj = ", *dataObj"
+             data_getter = """\n\t\tdataObj := new (%(type)s)
+-\t\tSet%(type)sFromResource(dataObj, d, m, key+"%(name)s_refs"+".attr")
++\t\tSet%(type)sFromMap(dataObj, d, m, (v.(map[string]interface{}))["attr"])
+ \t\tlog.Printf("Data obj: %%+v", dataObj)""" %\
+                 {"type": datatype, "name": name}
+ 
+@@ -776,16 +787,14 @@ func %(schema)s() map[string]*schema.Schema {
+         decl = """if val, ok := d.GetOk("%(name)s_refs"); ok {
+ \tlog.Printf("Got ref %(name)s_refs -- will call: object.Add%(refname)s(refObj%(refdata)s)")
+ \tfor k, v := range val.([]interface{}) {
+-\t\tlog.Printf("Item: %%+v => %%+v", k, v)
+-\t\tval, ok := d.GetOk("to")
+-\t\tlog.Printf("GetOk -- 'to': %%v -- val: %%#v", ok, val)
+-\t\tvaln, okn := d.GetOk(key + "to")
+-\t\tlog.Printf("GetOk ##nested## -- '%%v': %%v -- val: %%#v", "network_ipam_refs." + "to", okn, valn)
++\t\tlog.Printf("Item: %%+v => <%%T> %%+v", k, v, v)
+ \t\trefId := (v.(map[string]interface{}))["to"]
++\t\tlog.Printf("Ref 'to': %%#v (str->%%v)", refId, refId.(string))
+ \t\trefObj, err := client.FindByUuid("%(reftype)s", refId.(string))%(datagetter)s
+ \t\tif err != nil {
+ \t\t\treturn fmt.Errorf("[SnippetSetObjRef] Retrieving %(reftype)s by Uuid = %%v as ref for %(refname)s on %%v (%%v)", refId, client.GetServer(), err)
+ \t\t}
++\t\tlog.Printf("Ref 'to' (OBJECT): %%+v", refObj)
+ \t\tobject.Add%(refname)s(refObj.(*%(refname)s)%(refdata)s)
+ \t}\n}\n""" % {
+             "name": name,
+@@ -946,7 +955,7 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+         decl = """
+ func %(camel)sRefsCreate(d *schema.ResourceData, m interface{}) error {
+ \t// SPEW
+-\tlog.Printf("%(camel)sCreate")
++\tlog.Printf("%(camel)sRefsCreate")
+ \t//log.Printf("SPEW: %%v", spew.Sdump(d))
+ \t// SPEW
+ 
+@@ -1009,6 +1018,7 @@ func %(camel)sRefsRead(d *schema.ResourceData, m interface{}) error {
+     def _GenerateTerraformResourceUpdate(self, ident, need_refs, file):
+         decl = """
+ func %(camel)sUpdate(d *schema.ResourceData, m interface{}) error {
++\tlog.Printf("%(camel)sUpdate")
+ \t%(client)s
+ \tobj, err := client.FindByUuid("%(resname)s", d.Id())
+ \tif err != nil {
+@@ -1032,6 +1042,7 @@ func %(camel)sUpdate(d *schema.ResourceData, m interface{}) error {
+ 
+         decl = """
+ func %(camel)sRefsUpdate(d *schema.ResourceData, m interface{}) error {
++\tlog.Printf("%(camel)sRefsUpdate")
+ \treturn nil
+ }
+ """ % { "camel": ResName(ident.getCppName())}
+@@ -1041,6 +1052,7 @@ func %(camel)sRefsUpdate(d *schema.ResourceData, m interface{}) error {
+     def _GenerateTerraformResourceDelete(self, ident, need_refs, file):
+         decl = """
+ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
++\tlog.Printf("%(camel)sDelete")
+ \t%(client)s
+ \tif err := client.DeleteByUuid("%(typename)s", d.Id()); err != nil {
+ \t\treturn fmt.Errorf("[%(camel)sDelete] Deletion of resource %(typename)s on %%v: (%%v)", client.GetServer(), err)
+@@ -1054,6 +1066,7 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+ 
+         decl = """
+ func %(camel)sRefsDelete(d *schema.ResourceData, m interface{}) error {
++\tlog.Printf("%(camel)sRefsDelete")
+ \treturn nil
+ }
+ """ % {"camel": ResName(ident.getCppName()),
+-- 
+2.7.4
+

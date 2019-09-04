@@ -1,0 +1,522 @@
+From 4470e69acfbfd41202dcd1a774ac8b337a088360 Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Wed, 25 Oct 2017 11:16:30 +0200
+Subject: [PATCH 09/17] Handling resource names and FQNames
+
+---
+ golang_api.py         |  20 ++--
+ terraform_mappings.py | 259 ++++++++++++++++++++++++++++++++++----------------
+ 2 files changed, 187 insertions(+), 92 deletions(-)
+
+diff --git a/golang_api.py b/golang_api.py
+index 8e7e8aa..02399b3 100644
+--- a/golang_api.py
++++ b/golang_api.py
+@@ -269,8 +269,8 @@ type %(camel)s struct {
+                    link_from.getCIdentifierName()
+             file.write(decl)
+ 
+-        decl = """        valid *big.Int
+-        modified *big.Int
++        decl = """        valid big.Int
++        modified big.Int
+         baseMap map[string]contrail.ReferenceList
+ }
+ """
+@@ -330,7 +330,7 @@ func (obj *%(camel)s) hasReferenceBase(name string) bool {
+ }
+ 
+ func (obj *%(camel)s) UpdateDone() {
+-        obj.modified = big.NewInt(0)
++        obj.modified.SetInt64(0)
+         obj.baseMap = nil
+ }
+ 
+@@ -352,7 +352,7 @@ func (obj *%(typecamel)s) Get%(fieldcamel)s() %(fieldtype)s {
+ 
+ func (obj *%(typecamel)s) Set%(fieldcamel)s(value %(ptr)s%(fieldtype)s) {
+         obj.%(fieldid)s = %(ptr)svalue
+-        obj.modified.SetBit(obj.modified, %(typeid)s_%(fieldid)s, 1)
++        obj.modified.SetBit(&obj.modified, %(typeid)s_%(fieldid)s, 1)
+ }
+ """ \
+             % {'typecamel': ident.getCppName(),
+@@ -471,7 +471,7 @@ func (obj *%(typecamel)s) Add%(fieldcamel)s(
+         ref := contrail.Reference {
+                 rhs.GetFQName(), rhs.GetUuid(), rhs.GetHref(), %(data)s}
+         obj.%(fieldid)s_refs = append(obj.%(fieldid)s_refs, ref)
+-        obj.modified.SetBit(obj.modified,%(typeid)s_%(fieldid)s_refs, 1)
++        obj.modified.SetBit(&obj.modified,%(typeid)s_%(fieldid)s_refs, 1)
+         return nil
+ }
+ 
+@@ -493,7 +493,7 @@ func (obj *%(typecamel)s) Delete%(fieldcamel)s(uuid string) error {
+                         break
+                 }
+         }
+-        obj.modified.SetBit(obj.modified, %(typeid)s_%(fieldid)s_refs, 1)
++        obj.modified.SetBit(&obj.modified, %(typeid)s_%(fieldid)s_refs, 1)
+         return nil
+ }
+ 
+@@ -503,8 +503,8 @@ func (obj *%(typecamel)s) Clear%(fieldcamel)s() {
+                 obj.storeReferenceBase("%(fieldname)s", obj.%(fieldid)s_refs)
+         }
+         obj.%(fieldid)s_refs = make([]contrail.Reference, 0)
+-        obj.valid.SetBit(obj.valid, %(typeid)s_%(fieldid)s_refs, 1)
+-        obj.modified.SetBit(obj.modified, %(typeid)s_%(fieldid)s_refs, 1)
++        obj.valid.SetBit(&obj.valid, %(typeid)s_%(fieldid)s_refs, 1)
++        obj.modified.SetBit(&obj.modified, %(typeid)s_%(fieldid)s_refs, 1)
+ }
+ 
+ func (obj *%(typecamel)s) Set%(fieldcamel)sList(
+@@ -631,7 +631,7 @@ func (obj *%(camel)s) UnmarshalJSON(body []byte) error {
+                 case "%(field)s":
+                         err = json.Unmarshal(value, &obj.%(field)s)
+                         if err == nil {
+-                                obj.valid.SetBit(obj.valid, %(typeid)s_%(field)s, 1)
++                                obj.valid.SetBit(&obj.valid, %(typeid)s_%(field)s, 1)
+                         }
+                         break""" % {'typeid': ident.getCIdentifierName(),
+                                     'field': field}
+@@ -651,7 +651,7 @@ func (obj *%(camel)s) UnmarshalJSON(body []byte) error {
+                         if err != nil {
+                             break
+                         }
+-                        obj.valid.SetBit(obj.valid, %(typeid)s_%(field)s, 1)
++                        obj.valid.SetBit(&obj.valid, %(typeid)s_%(field)s, 1)
+                         obj.%(field)s = make(contrail.ReferenceList, 0)
+                         for _, element := range array {
+                                 ref := contrail.Reference {
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index 6dbdcd1..055eb18 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -3,25 +3,75 @@
+ #
+ 
+ import os
+-import re
+ import sys
+ 
+ from ifmap_global import CamelCase, getGoLangType
+ 
++def udump(obj, depth=0, max_depth=10):
++    #print "called udump: " + str(type(obj)) + "->" + str(obj) + "[" + str(depth) +"/" + str(max_depth) +"]"
++    prefix = '\t'*depth
++    if depth > max_depth:
++        return '...'
++    if obj is None:
++        return 'None'
++
++    if isinstance(obj, dict):
++        data = '{' + ','.join( \
++            ["(%s => %s)" %(str(k), dump(v)) for (k, v) in obj.items()]) + '}'
++        return data
++    elif hasattr(obj, "_ast"):
++        return prefix + udump(obj._ast(), max_depth=max_depth)
++    elif hasattr(obj, "__iter__"):
++        return "[" + " ### ".join([udump(v, depth=depth+1, max_depth=max_depth) for v in obj]) + "]"
++    elif ( hasattr(obj, "__dir__") and callable(getattr(obj, "__dir__")) ) or \
++            hasattr(obj, "__dict__"):
++        objstr = "%s ~ " % str(obj)
++        for attr in dir(obj):
++            if attr.startswith("__"):
++                continue
++            attrvalue = getattr(obj, attr)
++            if callable(attrvalue):
++                objstr += '\n' + prefix + "&METHOD:"+str(attrvalue)+"()"
++            else:
++                objstr += ('\n' + prefix + "@.%s = %s; " % (attr, attrvalue if depth == max_depth
++                                        else udump(attrvalue, depth=depth+1,
++                                                   max_depth=max_depth) ))
++        return objstr
++    elif type(obj).__name__ in dir(__builtins__):
++        return str(obj)
++    else:
++        return prefix + dump(obj)
++
+ def dump(obj):
+-    """Helper for logging objects."""
+-    skip_fn = True
+-    use_lines = True
+-    objstr = "%s -> " % obj.__str__()
+-    pattern = re.compile("^__.*__$")
++    objstr = "(%s -> " % str(obj)
+     for attr in dir(obj):
+-        if pattern.match(attr) and skip_fn:
++        if attr.startswith('__'):
+             continue
+-        objstr += ("@.%s = %s; " % (attr, getattr(obj, attr)))
+-        if use_lines:
+-            objstr += "\n"
++        attrvalue = getattr(obj, attr)
++        objstr += ("@.%s = %s; " % (attr, attrvalue))
+     return objstr
+ 
++def ResolveOptional(val):
++    req = False
++    if val is None:
++        req = False
++    elif str(val) == 'required':
++        req = True
++    elif str(val) == 'true':
++        req = True
++    elif str(val) == 'false':
++        req = False
++    elif str(val) == 'optional':
++        req = False
++    elif str(val) == 'exclusive':
++        req = False # Only one of values need to exist
++    elif str(val) == 'system-only':
++        req = False
++    else:
++        req = False
++    return req
++
++
+ def ResName(name):
+     return "Resource" + name
+ 
+@@ -119,6 +169,7 @@ package resources
+ import (
+         "fmt"
+         "strings"
++        "log"
+ 
+         "github.com/hashicorp/terraform/helper/schema"
+         "github.com/Juniper/contrail-go-api"
+@@ -129,6 +180,7 @@ import (
+         file.write(header)
+         self._GenerateTerraformResourceSetFrom(ident, file)
+         self._GenerateTerraformResourceWriteTo(ident, file)
++        self._GenerateTerraformResourceUpdateFrom(ident, file)
+         self._GenerateTerraformResourceCreate(ident, file)
+         self._GenerateTerraformResourceRead(ident, file)
+         self._GenerateTerraformResourceUpdate(ident, file)
+@@ -179,45 +231,26 @@ func %(camel)s() map[string]*schema.Schema {
+ 
+         for member in ctype.getDataMembers():
+             elem = ""
+-            req = ''
++            required = "Required: true" if \
++                ResolveOptional(member.xsd_object.required) \
++                else "Optional: true"
+             mtype = TerraformTypeName(member.xsd_object.getType(),
+                                           orig_name = True)
+-            if member.xsd_object.required is None:
+-                req = 'false'
+-            elif str(member.xsd_object.required) == 'required':
+-                req = 'true'
+-            elif str(member.xsd_object.required) == 'true':
+-                req = 'true'
+-            elif str(member.xsd_object.required) == 'false':
+-                req = 'false'
+-            elif str(member.xsd_object.required) == 'optional':
+-                req = 'false'
+-            elif str(member.xsd_object.required) == 'exclusive':
+-                req = 'false' # Only one of values need to exist
+-            elif str(member.xsd_object.required) == 'system-only':
+-                req = 'false'
+-            else:
+-                print "For " + ctype.getName() + "->" + member.membername +\
+-                    " field 'optional' is not handled correctly! Value:" +\
+-                    member.xsd_object.required.__str__() +\
+-                    str(type(member.xsd_object.required))
+-                req = 'false'
+             if member.isComplex or member.isSequence:
+                 if member.isComplex:
+-                    elem = "\n\t\t\tElem: %s," % (SchemaName(mtype) + "()")
++                    elem = "\n\t\t\tElem: %s," % (ResName(mtype) + "()")
+                 elif member.isSequence:
+                     elem = "\n\t\t\tElem: &schema.Schema{Type: %s}," % (mtype)
+                 mtype = 'schema.TypeList'
+ 
+             decl = """\t\t"%(name)s": &schema.Schema{
+ \t\t\t // Cmplx: %(cpx)s; Seq: %(seq)s; Type: %(xsdtype)s
+-\t\t\tRequired: %(req)s,
++\t\t\t%(req)s,
+ \t\t\tType: %(type)s,%(elem)s
+-\t\t},\n""" % {'name': member.membername, 'type':mtype, 'elem':elem, 'cpx':
+-               member.isComplex, 'seq': member.isSequence, 'xsdtype':
++\t\t},\n""" % {'name': member.membername.lower(), 'type':mtype, 'elem':elem,
++               'cpx': member.isComplex, 'seq': member.isSequence, 'xsdtype':
+                member.xsd_object.getType(),
+-               "req": req
+-               }
++               "req": required }
+             file.write(decl)
+         file.write('\t}\n}\n')
+ 
+@@ -330,16 +363,15 @@ func Write%(name)sToResource(object %(name)s, d *schema.ResourceData, m interfac
+         self._GenerateCTypeTerraformResourceSchema(ctype, file)
+ 
+         decl = """
+-/*
+ func %(camel)s() *schema.Resource {
+ \treturn &schema.Resource{
+-\t\tCreate: %(camel)sCreate,
+-\t\tRead: %(camel)sRead,
+-\t\tUpdate: %(camel)sUpdate,
+-\t\tDelete: %(camel)sDelete,
++//\t\tCreate: %(camel)sCreate,
++//\t\tRead: %(camel)sRead,
++//\t\tUpdate: %(camel)sUpdate,
++//\t\tDelete: %(camel)sDelete,
+ \t\tSchema: %(camel)sSchema(),
+ \t}
+-}*/
++}
+ """ % {"camel": ResName(ctype.getName())}
+         file.write(decl)
+ 
+@@ -354,7 +386,7 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \t%(client)s
+ \tobject := new(%(name)s)
+ \tif err := client.Create(object); err != nil {
+-\t\treturn fmt.Errorf("Creation of resource %(name)s on %%v", client.GetServer())
++\t\treturn fmt.Errorf("Creation of resource %(name)s on %%v: (%%v)", client.GetServer(), err)
+ \t}
+ \td.SetId(object.GetUuid())
+ \treturn nil
+@@ -393,7 +425,7 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+ """ % {"camel": ResName(ctype.getName()), "client": self._SnippetGetClient()}
+         file.write(decl)
+ 
+-# ------------------- Resource -------------------------------
++# ------------------- Resource Object -------------------------------
+     def _GenerateTerraformResource(self, ident, file):
+         self._GenerateTerraformResourceSchema(ident, file)
+         decl = """
+@@ -409,27 +441,46 @@ func %(camel)s() *schema.Resource {
+ """ % {"camel": ResName(ident.getCppName())}
+         file.write(decl)
+ 
+-# ------------------- Schema -------------------------------
++# ------------------- Schema Object -------------------------------
+     def _GenerateTerraformResourceSchema(self, ident, file):
+         """ Generate the terraform element schema
+         Use prop.getOperations() to determine possible acions (CRUD)
+         """
++        # TODO Use prop.getOperations() to determine possible CRUD actions
++        # TODO Verify if prop.getOperations() is usable/reliable
+         decl = """
+ func %(schema)s() map[string]*schema.Schema {
+ \treturn map[string]*schema.Schema{
++\t\t"name": &schema.Schema{
++\t\t\tType: schema.TypeString,
++\t\t\tRequired: true,
++\t\t},
++\t\t"parent_fq_name": &schema.Schema{
++\t\t\tType: schema.TypeString,
++\t\t\tRequired: true,
++\t\t},
+ """ % {"schema": SchemaName(ident.getCppName())}
+         file.write(decl)
+ 
++        if self.once:
++            #print udump(ident, max_depth=1)
++            #print "\n#\n#\n#\n"
++            #print udump(ident.getProperties(), max_depth=2)
++            self.once = False
+         for prop in ident.getProperties():
+             prop_type = TerraformTypeName(prop.getGoLangTypename())
++            required = "Required: true" if \
++                ResolveOptional(prop._xelement.getOptional()) \
++                else "Optional: true"
+             elem = ''
+             if prop_type == "schema.TypeList":
+-                elem = '\t\t\tElem: ' + SchemaName(prop.getGoLangTypename()) + "(),\n"
++                elem = '\t\t\tElem: ' + ResName(prop.getGoLangTypename()) + "(),\n"
+             decl = """\t\t"%(name)s": &schema.Schema{
+-\t\t\tRequired: true,
++\t\t\t%(req)s,
+ \t\t\tType: %(type)s,
+ %(elem)s\t\t},\n""" % {"name": prop.getCIdentifierName().lower(),
+-                       "type": prop_type, "elem": elem}
++                       "type": prop_type, "elem": elem, 
++                       "req": required }
+             file.write(decl)
+             ctype = prop.getCType()
+             if ctype:
+@@ -439,25 +490,29 @@ func %(schema)s() map[string]*schema.Schema {
+         decl = """\t}\n}\n"""
+         file.write(decl)
+ 
++# ------------------- Property Setter Snippet Object --------------------------
++    def _SnippetSetObjProperty(self, prop):
++        gotype = prop.getGoLangTypename()
++        is_pod = IsPodType(gotype)
++        value = "val.(%(type)s)" % { "type": gotype }
++        obj = ""
++        val = "val"
++        if not is_pod:
++            val = "_"
++            obj = "\tmember := new(%(type)s)\n\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")\n" % {"type": gotype, "name":
++                                    prop.getCIdentifierName().lower()}
++            value = "member"
++        decl = """if %(val)s, ok := d.GetOk("%(name)s"); ok {
++%(member_obj)s\tobject.Set%(field)s(%(value)s)
++}\n""" % {"name": prop.getCIdentifierName().lower(), "field": prop.getCppName(),
++      "value": value, "member_obj": obj, "val": val}
++        return decl
++
+ # ------------------- Properties Setter Object -------------------------------
+     def _GenerateSetPropertyMethods(self, ident):
+         setters = ""
+         for prop in ident.getProperties():
+-            gotype = prop.getGoLangTypename()
+-            is_pod = IsPodType(gotype)
+-            value = "val.(%(type)s)" % { "type": gotype }
+-            obj = ""
+-            val = "val"
+-            if not is_pod:
+-                val = "_"
+-                obj = "\tmember := new(%(type)s)\n\tSet%(type)sFromResource(member, d, m, key+\"%(name)s\")\n" % {"type": gotype, "name":
+-                                        prop.getCIdentifierName().lower()}
+-                value = "member"
+-            decl = """if %(val)s, ok := d.GetOk("%(name)s"); ok {
+-%(member_obj)s\tobject.Set%(field)s(%(value)s)
+-}\n""" % {"name": prop.getCIdentifierName().lower(), "field": prop.getCppName(),
+-          "value": value, "member_obj": obj, "val": val}
+-            setters += decl
++            setters += self._SnippetSetObjProperty(prop)
+         return setters
+ 
+ # ------------------- Set From Resource Object -------------------------------
+@@ -475,23 +530,51 @@ func Set%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interf
+       "name": ident.getCppName()}
+         file.write(decl)
+ 
++# ------------------- Property Writer Snippet Object ------------------------
++    def _SnippetWriteObjProperty(self, prop):
++        gotype = prop.getGoLangTypename()
++        is_pod = IsPodType(gotype)
++        setter = "d.Set(\"%(name)s\", object.Get%(field)s())\n" % {
++            "name": prop.getCIdentifierName().lower(),
++            "field": prop.getCppName()}
++        if not is_pod:
++            setter = "Write%(member)sToResource(object.Get%(field)s(), d, m, key + \"%(name)s\")\n" % {
++                "name": prop.getCIdentifierName().lower(),
++                "field": prop.getCppName(),
++                "member": gotype }
++        return setter
++
+ # ------------------- Properties Writer Object -------------------------------
+-    def _GenerateWritePropertyMethods(self, ident):
++    def _SnippetWriteObjProperties(self, ident):
+         writers = "\n"
+         for prop in ident.getProperties():
+-            gotype = prop.getGoLangTypename()
+-            is_pod = IsPodType(gotype)
+-            setter = "d.Set(\"%(name)s\", object.Get%(field)s())\n" % {
+-                "name": prop.getCIdentifierName().lower(),
+-                "field": prop.getCppName()}
+-            if not is_pod:
+-                setter = "Write%(member)sToResource(object.Get%(field)s(), d, m, key + \"%(name)s\")\n" % {
+-                    "name": prop.getCIdentifierName().lower(),
+-                    "field": prop.getCppName(),
+-                    "member": gotype }
+-            writers += setter
++            writers += self._SnippetWriteObjProperty(prop)
+         return writers
+ 
++# ------------------- Properties Updater Object -------------------------------
++    def _SnippetUpdateObjProperties(self, ident):
++        updaters = "\n"
++        for prop in ident.getProperties():
++            updaters += "if d.HasChange(\"%(name)s\") {\n\t%(setter)s}\n" % {
++                "setter": self._SnippetSetObjProperty(prop),
++                "name": prop.getCIdentifierName().lower() }
++        return updaters
++
++# ------------------- Update From Resource Object -----------------------------
++    def _GenerateTerraformResourceUpdateFrom(self, ident, file):
++        decl = """
++func Update%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interface{}, prefix ...string) {
++\tkey := strings.Join(prefix, ".")
++\tif len(key) != 0 {
++\t\tkey = key + "."
++\t}
++%(setters)s
++}
++""" %{"camel": ident.getCppName(), "setters":
++      '\t'.join(self._SnippetUpdateObjProperties(ident).splitlines(True)),
++      "name": ident.getCppName()}
++        file.write(decl)
++
+ # ------------------- Write To Resource Object -------------------------------
+     def _GenerateTerraformResourceWriteTo(self, ident, file):
+         decl = """
+@@ -502,9 +585,9 @@ func Write%(camel)sToResource(object %(name)s, d *schema.ResourceData, m interfa
+ \t}
+ %(writers)s
+ }
+-""" %{"camel": ident.getCppName(), "client": self._SnippetGetClient(),
++""" %{ "camel": ident.getCppName(), "client": self._SnippetGetClient(),
+       "writers":
+-      '\t'.join(self._GenerateWritePropertyMethods(ident).splitlines(True)),
++      '\t'.join(self._SnippetWriteObjProperties(ident).splitlines(True)),
+       "name": ident.getCppName()}
+         file.write(decl)
+ 
+@@ -513,14 +596,18 @@ func Write%(camel)sToResource(object %(name)s, d *schema.ResourceData, m interfa
+         decl = """
+ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \t// SPEW
++\tlog.Printf("%(camel)sCreate")
++\t//log.Print(spew.Sdump(d))
+ \tspew.Dump(d)
+ \t// SPEW
+ \t%(client)s
+ \tobject := new(%(type)s)
++\t//object.SetName(d.Get("name").(string))
++\tobject.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
+ \tSet%(type)sFromResource(object, d, m)
+ 
+ \tif err := client.Create(object); err != nil {
+-\t\treturn fmt.Errorf("Creation of resource %(type)s on %%v", client.GetServer())
++\t\treturn fmt.Errorf("Creation of resource %(type)s on %%v: (%%v)", client.GetServer(), err)
+ \t}
+ \td.SetId(object.GetUuid())
+ \treturn nil
+@@ -537,7 +624,7 @@ func %(camel)sRead(d *schema.ResourceData, m interface{}) error {
+ \t%(client)s
+ \tbase, err := client.FindByUuid("%(typename)s", d.Id())
+ \tif err != nil {
+-\t\treturn fmt.Errorf("Read resource %(typename)s on %%v", client.GetServer())
++\t\treturn fmt.Errorf("Read resource %(typename)s on %%v: (%%v)", client.GetServer(), err)
+ \t}
+ \tobject := base.(*%(type)s)
+ \tWrite%(type)sToResource(*object, d, m)
+@@ -553,9 +640,17 @@ func %(camel)sRead(d *schema.ResourceData, m interface{}) error {
+         decl = """
+ func %(camel)sUpdate(d *schema.ResourceData, m interface{}) error {
+ \t%(client)s
++\tuobject := new(%(type)s)
++\tUpdate%(type)sFromResource(uobject, d, m)
++
++\tif err := client.Update(uobject); err != nil {
++\t\treturn fmt.Errorf("Update of resource %(type)s on %%v: (%%v)", client.GetServer(), err)
++\t}
+ \treturn nil
+ }
+-""" % {"camel": ResName(ident.getCppName()), "client": self._SnippetGetClient()}
++""" % { "camel": ResName(ident.getCppName()),
++       "client": self._SnippetGetClient(),
++       "type": ident.getCppName() }
+         file.write(decl)
+ 
+ # ------------------- Delete Object -------------------------------
+@@ -564,7 +659,7 @@ func %(camel)sUpdate(d *schema.ResourceData, m interface{}) error {
+ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+ \t%(client)s
+ \tif err := client.DeleteByUuid("%(typename)s", d.Id()); err != nil {
+-\t\treturn fmt.Errorf("Deletion of resource %(typename)s on %%v", client.GetServer())
++\t\treturn fmt.Errorf("Deletion of resource %(typename)s on %%v: (%%v)", client.GetServer(), err)
+ \t}
+ \td.SetId("")
+ \treturn nil
+-- 
+2.7.4
+

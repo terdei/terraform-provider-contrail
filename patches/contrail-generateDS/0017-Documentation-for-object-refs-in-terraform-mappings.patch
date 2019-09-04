@@ -1,0 +1,89 @@
+From 4b86cae48ec7a649856d8018363ace156216ea9d Mon Sep 17 00:00:00 2001
+From: Kamil Renczewski <kamil.renczewski@codilime.com>
+Date: Mon, 11 Dec 2017 16:39:03 +0100
+Subject: [PATCH 17/17] Documentation for object refs in terraform mappings
+
+---
+ terraform_mappings.py | 40 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index ea02479..8c252a9 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -193,12 +193,19 @@ Reference for terraform_%s_provider resources schema:
+         # Object
+         for ident in sorted(self._identifier_map.values(),
+                             key=lambda x: x.getCIdentifierName()):
++            iname = ident.getCIdentifierName().lower()
+             decl = 'resource "%(provider)s_%(name)s" <name> {' % {
+-                "name": ident.getCIdentifierName().lower(),
++                "name": iname,
+                 "provider": self.NAME}
+             file.write(decl)
+             self._GenerateResourceDocfile(ident, file)
+             file.write('}\n')
++            if self._RefsNeeded(ident):
++                decl = 'resource "%(prv)s_%(name)s_refs" <name> {' % {
++                    "name": iname, "prv": self.NAME}
++                file.write(decl)
++                self._GenerateResourceRefDocfile(ident, file)
++                file.write('}\n')
+ 
+         # CType
+         for ctype in sorted(self._top_level_map.values(),
+@@ -227,6 +234,34 @@ Reference for terraform_%s_provider resources schema:
+                 "desc": ' // ' + descr if descr is not None else ""}
+             file.write(elem)
+ 
++    def _GenerateResourceRefDocfile(self, ident, file):
++        decl = """
++\tuuid = <schema.TypeString> // uuid of "contrail_%(name)s" object to attach refs
++%(refs)s""" % {"name": ident.getCIdentifierName().lower(), "refs":
++               self._SnippetRefsDocs(ident)}
++        file.write(decl)
++
++    def _SnippetRefsDocs(self, ident):
++        decl = '\t'
++        for link_info in ident.getLinksInfo():
++            if not ident.isLinkRef(link_info):
++                continue
++            decl += self._SnippetRefModifiersDocs(ident, link_info) + '\n'
++        return '\t'.join(decl.splitlines(True))
++
++    def _SnippetRefModifiersDocs(self, ident, link_info):
++        datatype = self._getAttrType(ident, link_info)
++        link_to = ident.getLinkTo(link_info)
++        name = link_to.getCIdentifierName().lower()
++        elem = '= <contrail_%s>' % link_to.getCppName()
++        if datatype:
++            elem = """{
++\tto = <schema.TypeString> (Required) // uuid of contrail_%(totype)s ref target
++\tattr = <contrail_%(datatype)s> (Required) // ref link attribute data
++}""" % {"totype": name, "datatype": datatype}
++        decl = "%(name)s_refs %(elem)s" % {"name": name, "elem": elem}
++        return decl
++
+ # ------------------- CType docs -------------------------------
+     def _GenerateCTypeResourceDocfile(self, ctype, file):
+         for member in ctype.getDataMembers():
+@@ -750,7 +785,7 @@ func %(schema)s() map[string]*schema.Schema {
+ \t\t\t\t\t\tRequired: true,
+ \t\t\t\t\t},
+ \t\t\t\t},
+-\t\t\t}""" % {"datatype": datatype, "reftype": link_to.getCppName()}
++\t\t\t}""" % {"datatype": datatype}
+ 
+         decl = """\t\t"%(name)s_refs": &schema.Schema{
+ \t\t\tOptional: true,
+@@ -894,7 +929,6 @@ omap[\"%(name)s\"] = Take%(member)sAsMap(&%(name)sObj)\n""" % {
+             "field": prop.getCppName()}
+         if not is_pod:
+             setter = """%(name)sObj := object.Get%(field)s()
+-//%(name)sMap := Take%(member)sAsMap(&%(name)sObj)
+ d.Set(\"%(name)s\", Take%(member)sAsMap(&%(name)sObj))\n""" % {
+                 "name": prop.getCIdentifierName().lower(),
+                 "field": prop.getCppName(),
+-- 
+2.7.4
+
