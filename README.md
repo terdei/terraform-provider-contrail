@@ -4,7 +4,7 @@ Terraform Provider
 There is no upstream yet. 
 
 Currently Contrail terraform provider works and partly tested only with R4.1 version of contrail API.
-There is only couple of ACC tests and 95% sources are generated via gen.sh
+There is only couple of ACC tests and 95% sources are generated via gen.sh.
 Fill free to generate sources for another version of contrail and help with pushing this repo to UpStream. 
 
 Maintainers
