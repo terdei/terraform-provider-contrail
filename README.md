@@ -1,5 +1,6 @@
-Terraform Provider
-==================
+Terraform Contrail Provider
+============================
+<img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
 
 There is no upstream yet. 
 
