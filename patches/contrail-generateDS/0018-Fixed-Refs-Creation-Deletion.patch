@@ -58,15 +58,6 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
              # Mark CType as referenced
              ctype = prop.getCType()
              if ctype:
-@@ -711,7 +711,7 @@
-                        "req": required}
-             file.write(decl)
-         file.write("\t}\n}\n")
--        
-+
-         # Refs
-         decl = """
- func %(schema)s() map[string]*schema.Schema {
 @@ -771,6 +771,7 @@
          datatype = self._getAttrType(ident, link_info)
          link_to = ident.getLinkTo(link_info)

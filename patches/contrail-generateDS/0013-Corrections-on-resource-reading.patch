@@ -313,7 +313,7 @@ index 800692e..efe938c 100644
 -        decl = """\t}\n}\n"""
 -        file.write(decl)
 +        file.write("\t}\n}\n")
-+        
++
 +        # Refs
 +        decl = """
 +func %(schema)s() map[string]*schema.Schema {

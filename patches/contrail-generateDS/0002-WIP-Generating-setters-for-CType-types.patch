@@ -157,12 +157,12 @@ index 6aef342..ddef7cc 100644
 +Sprawdzić czy jak się poda klucz w postaci item.subitem.subsubitem do getOK
 +terraformowego, to zwróci zagnieżdżony obiekt ze schemy. Jeśli tak, to należy
 +tego użyć zamiast bawić się tak jak w providerze dla openstacka (mapa stringów
-+na wartości). Jeśli będzie działąć, to trzeba będzie zmodyfikować metody 
++na wartości). Jeśli będzie działąć, to trzeba będzie zmodyfikować metody
 +Set<xxx>FromResource żeby łykały zagnieżdzony adreSprawdzić czy jak się poda
 +klucz w postaci item.subitem.subsubitem do getOK terraformowego, to zwróci
 +zagnieżdżony obiekt ze schemy. Jeśli tak, to należy tego użyć zamiast bawić
 +się tak jak w providerze dla openstacka (mapa stringów na wartości). Jeś będzie
-+działąć, to trzeba będzie zmodyfikować metody 
++działąć, to trzeba będzie zmodyfikować metody
 +Set<xxx>FromResource żeby łykały zagnieżdzony adres. Kod terraformowego
 +ResourceData wygląda jakby powinien to łykać.
 +

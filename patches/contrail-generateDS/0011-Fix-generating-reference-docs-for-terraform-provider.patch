@@ -188,7 +188,7 @@ index 0e012e2..3043638 100644
  \t\t\t%(req)s,
  \t\t\tType: %(type)s,
  %(elem)s\t\t},\n""" % {"name": prop.getCIdentifierName().lower(),
--                       "type": prop_type, "elem": elem, 
+-                       "type": prop_type, "elem": elem,
 +                       "type": prop_type, "elem": elem,
                         "req": required }
              file.write(decl)

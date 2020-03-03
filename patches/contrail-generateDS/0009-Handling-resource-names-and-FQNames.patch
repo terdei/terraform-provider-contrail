@@ -334,7 +334,7 @@ index 6dbdcd1..055eb18 100644
  \t\t\tType: %(type)s,
  %(elem)s\t\t},\n""" % {"name": prop.getCIdentifierName().lower(),
 -                       "type": prop_type, "elem": elem}
-+                       "type": prop_type, "elem": elem, 
++                       "type": prop_type, "elem": elem,
 +                       "req": required }
              file.write(decl)
              ctype = prop.getCType()

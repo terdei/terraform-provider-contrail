@@ -165,7 +165,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
  
 +
 +        decl = """
-+        
++
 +func SetReqRefs%(camel)sFromResource(object *%(name)s, d *schema.ResourceData, m interface{}, prefix ...string) error {
 +\tkey := strings.Join(prefix, ".")
 +\tif len(key) != 0 {
@@ -231,7 +231,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 +                    answer = """
 +    \tif err := SetReqRefs%(type)sFromResource(object, d, m); err != nil {
 +    \t\treturn fmt.Errorf("[%(camel)sReqRefsCreate] Set required refs on object %(type)s on %%v (%%v)", client.GetServer(), err)
-+    \t} 
++    \t}
 +    """ \
 +          % {"camel": ResName(ident.getCppName()),
 +             "type":  ident.getCppName()}

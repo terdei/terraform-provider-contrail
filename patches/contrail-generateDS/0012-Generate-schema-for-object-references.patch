@@ -298,7 +298,7 @@ index 3043638..800692e 100644
                  self._top_level_map[itype] = self._type_map[itype]
                  promoted.append(itype)
  
-@@ -788,3 +875,24 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
+@@ -788,3 +875,23 @@ func %(camel)sDelete(d *schema.ResourceData, m interface{}) error {
                  inner_type_map[mtype] = [top_level]
  
              self._ExamineInnerTypes(inner_type_map, top_level, deptype)
@@ -322,7 +322,6 @@ index 3043638..800692e 100644
 +            fields.append(link_from.getCIdentifierName() + '_back_refs')
 +
 +        return fields
-+
 -- 
 2.7.4
 

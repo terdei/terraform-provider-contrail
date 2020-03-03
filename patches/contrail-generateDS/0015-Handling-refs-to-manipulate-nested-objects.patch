@@ -85,7 +85,7 @@ index 4c17e31..f3580eb 100644
 -            mdata = "m%sObj" % camel
 -            assign = ("\t\tobject.Add%s(v)" % camel) if is_seq else \
 -                "\tobject.%(c)s = m%(c)s" % {"c": camel}
--            loop = "" 
+-            loop = ""
 -
 -            setme = """\tobject.%(camel)s = m%(camel)sObj.(%(type)s)"""\
 -                % {"camel": camel, "type": gotype}
