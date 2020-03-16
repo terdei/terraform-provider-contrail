@@ -27,7 +27,7 @@ const (
 
 type SecurityGroup struct {
 	contrail.ObjectBase
-	security_group_id                   string
+	security_group_id                   int
 	configured_security_group_id        int
 	security_group_entries              PolicyEntriesType
 	id_perms                            IdPermsType
@@ -87,11 +87,11 @@ func (obj *SecurityGroup) UpdateDone() {
 	obj.baseMap = nil
 }
 
-func (obj *SecurityGroup) GetSecurityGroupId() string {
+func (obj *SecurityGroup) GetSecurityGroupId() int {
 	return obj.security_group_id
 }
 
-func (obj *SecurityGroup) SetSecurityGroupId(value string) {
+func (obj *SecurityGroup) SetSecurityGroupId(value int) {
 	obj.security_group_id = value
 	obj.modified.SetBit(&obj.modified, security_group_security_group_id, 1)
 }

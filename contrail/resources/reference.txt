@@ -1283,7 +1283,7 @@ contrail_MirrorActionType {
 	"encapsulation" = <schema.TypeString> // Encapsulation for Mirrored packet, not used currently
 	"analyzer_ip_address" = <schema.TypeString> (Required) // ip address of interface to which mirrored packets are sent
 	"analyzer_mac_address" = <schema.TypeString> // mac address of interface to which mirrored packets are sent 
-	"routing_instance" = <schema.TypeString> (Required) // Internal use only, should be set to -1
+	"routing_instance" = <schema.TypeString> (Required) // Routing instance for the virtual network which analyzer is in
 	"udp_port" = <schema.TypeInt> // ip udp port used in contrail default encapsulation for mirroring
 	"juniper_header" = <schema.TypeBool> // This flag is used to determine with/without juniper-header
 	"nh_mode" = <schema.TypeString> // This mode used to determine static or dynamic nh 

@@ -1,0 +1,45 @@
+From 00bb28d3cd61f5c18b2ef712196298b9aac589ab Mon Sep 17 00:00:00 2001
+From: Tamas Erdei <tamas.erdei@pan-net.eu>
+Date: Mon, 16 Mar 2020 22:52:52 +0100
+Subject: [PATCH 3/3] Add support for specifying parent type for objects in
+ parent_uuid
+
+Now it is possible to add a prefix to the parent_uuid to indicate the
+parent object type, like 'project/<uuid>' to set the specified project
+as parent (for VMIs for instance).
+---
+ terraform_mappings.py | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/terraform_mappings.py b/terraform_mappings.py
+index 669f4e9..22177c7 100644
+--- a/terraform_mappings.py
++++ b/terraform_mappings.py
+@@ -1153,11 +1153,20 @@ func %(camel)sCreate(d *schema.ResourceData, m interface{}) error {
+ \tobject.SetName(d.Get("name").(string))
+ \tif puuid_obj, ok := d.GetOk("parent_uuid"); ok {
+ \t\tpuuid := puuid_obj.(string)
+-\t\tparent, err := client.FindByUuid(object.GetDefaultParentType(), puuid)
+-\t\tif err != nil {
+-\t\t\treturn fmt.Errorf("[%(camel)sCreate] retrieving Parent with uuid %%s of type %%s for resource %%s (%%s) - on %%v (%%v)", puuid, object.GetDefaultParentType(), d.Get("name"), "%(type)s", client.GetServer(), err)
++\t\tpuuid_parts := strings.Split(puuid,"/")
++\t\tif len(puuid_parts) > 1 {
++\t\t\tparent, err := client.FindByUuid(puuid_parts[0], puuid_parts[1])
++\t\t\tif err != nil {
++\t\t\t\treturn fmt.Errorf("[%(camel)sCreate] retrieving Parent with uuid %%s of type %%s for resource %%s (%%s) - on %%v (%%v)", puuid_parts[1], puuid_parts[0], d.Get("name"), "%(type)s", client.GetServer(), err)
++\t\t\t}
++\t\t\tobject.SetParent(parent)
++\t\t} else {
++\t\t\tparent, err := client.FindByUuid(object.GetDefaultParentType(), puuid)
++\t\t\tif err != nil {
++\t\t\t\treturn fmt.Errorf("[%(camel)sCreate] retrieving Parent with uuid %%s of type %%s for resource %%s (%%s) - on %%v (%%v)", puuid, object.GetDefaultParentType(), d.Get("name"), "%(type)s", client.GetServer(), err)
++\t\t\t}
++\t\t\tobject.SetParent(parent)
+ \t\t}
+-\t\tobject.SetParent(parent)
+ \t}
+ \t//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
+ \tSet%(type)sFromResource(object, d, m)
+-- 
+2.17.1
+

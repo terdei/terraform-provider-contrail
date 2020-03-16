@@ -251,11 +251,20 @@ func ResourceRouteAggregateCreate(d *schema.ResourceData, m interface{}) error {
 	object.SetName(d.Get("name").(string))
 	if puuid_obj, ok := d.GetOk("parent_uuid"); ok {
 		puuid := puuid_obj.(string)
-		parent, err := client.FindByUuid(object.GetDefaultParentType(), puuid)
-		if err != nil {
-			return fmt.Errorf("[ResourceRouteAggregateCreate] retrieving Parent with uuid %s of type %s for resource %s (%s) - on %v (%v)", puuid, object.GetDefaultParentType(), d.Get("name"), "RouteAggregate", client.GetServer(), err)
+		puuid_parts := strings.Split(puuid, "/")
+		if len(puuid_parts) > 1 {
+			parent, err := client.FindByUuid(puuid_parts[0], puuid_parts[1])
+			if err != nil {
+				return fmt.Errorf("[ResourceRouteAggregateCreate] retrieving Parent with uuid %s of type %s for resource %s (%s) - on %v (%v)", puuid_parts[1], puuid_parts[0], d.Get("name"), "RouteAggregate", client.GetServer(), err)
+			}
+			object.SetParent(parent)
+		} else {
+			parent, err := client.FindByUuid(object.GetDefaultParentType(), puuid)
+			if err != nil {
+				return fmt.Errorf("[ResourceRouteAggregateCreate] retrieving Parent with uuid %s of type %s for resource %s (%s) - on %v (%v)", puuid, object.GetDefaultParentType(), d.Get("name"), "RouteAggregate", client.GetServer(), err)
+			}
+			object.SetParent(parent)
 		}
-		object.SetParent(parent)
 	}
 	//object.SetFQName(object.GetDefaultParentType(), strings.Split(d.Get("parent_fq_name").(string) + ":" + d.Get("name").(string), ":"))
 	SetRouteAggregateFromResource(object, d, m)

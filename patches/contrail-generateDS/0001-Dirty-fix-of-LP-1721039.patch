@@ -1,0 +1,38 @@
+From 23bc22aabf190ba01cf945f78e1248a05431ef4d Mon Sep 17 00:00:00 2001
+From: Tamas Erdei <tamas.erdei@pan-net.eu>
+Date: Tue, 3 Mar 2020 21:26:31 +0100
+Subject: [PATCH 1/3] Dirty fix of LP#1721039
+
+https://bugs.launchpad.net/opencontrail/+bug/1721039
+---
+ generateDS.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/generateDS.py b/generateDS.py
+index 6b3a0bb..5e47571 100755
+--- a/generateDS.py
++++ b/generateDS.py
+@@ -1119,9 +1119,9 @@ if __name__ == '__main__':
+     ##    parser.setDocumentHandler(dh)
+         parser.setContentHandler(dh)
+         if self.xschemaFileName == '-':
+-            infile = sys.stdin
++            infile = StringIO.StringIO(sys.stdin.read())
+         else:
+-            infile = open(self.xschemaFileName, 'r')
++            infile = StringIO.StringIO(open(self.xschemaFileName, 'r').read())
+         if self.processIncludes:
+             import process_includes
+             outfile = StringIO.StringIO()
+@@ -1129,7 +1129,7 @@ if __name__ == '__main__':
+                 inpath=self.xschemaFileName)
+             outfile.seek(0)
+             infile = outfile
+-        parser.parse(infile)
++        parser.parse(StringIO.StringIO(infile.getvalue()))
+         root = dh.getRoot()
+         root.annotate()
+     ##     print '-' * 60
+-- 
+2.17.1
+
